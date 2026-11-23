@@ -49,9 +49,9 @@ repository, and how to submit. Policy references are from the
    have to uninstall first. Reproducible builds would let F-Droid ship the
    developer's signature instead; `libs-from-source.yml` reports how many
    rebuilt archives are byte-for-byte identical to the committed ones.
-7. **Screenshots.** `fastlane/metadata/android/*/images/phoneScreenshots/` is
-   empty; see `fastlane/SCREENSHOTS.md` for the list to capture. Not required,
-   but listings without them get fewer installs.
+7. **Screenshots.** Eight phone screenshots are in
+   `fastlane/metadata/android/en-US/images/phoneScreenshots/` (F-Droid uses
+   them for every language without its own). See `fastlane/SCREENSHOTS.md`.
 
 ## Anti-features
 
