@@ -61,10 +61,25 @@ ONLY=${ONLY:-}
 wanted() { [ -z "$ONLY" ] || [[ " $ONLY " == *" $1 "* ]]; }
 UBUNTU=https://archive.ubuntu.com/ubuntu/pool
 RAW=https://raw.githubusercontent.com
+BOX3D_COMMIT=8441b4a06d6d09dcfb0b0f704df4d847d1437b92
+SUMS=$REPO/packages/sources.sha256
+
+# Every downloaded file must match its SHA-256 in packages/sources.sha256.
+verify() { # path relative to $SRC
+  local expected
+  expected=$(awk -v f="$1" '$2 == f { print $1 }' "$SUMS")
+  [ -n "$expected" ] || { echo "No SHA-256 for $1 in $SUMS" >&2; exit 1; }
+  echo "$expected  $SRC/$1" | sha256sum -c --quiet - || { echo "SHA-256 mismatch: $1" >&2; exit 1; }
+}
+
+download() { # url path-relative-to-$SRC
+  [ -f "$SRC/$2" ] || { mkdir -p "$(dirname "$SRC/$2")"; curl -sSfL -o "$SRC/$2.part" "$1"; mv "$SRC/$2.part" "$SRC/$2"; }
+  verify "$2"
+}
 
 fetch() { # url dir
   local name; name=$(basename "$1")
-  [ -f "$SRC/$name" ] || curl -sSfL -o "$SRC/$name" "$1"
+  download "$1" "$name"
   [ -d "$SRC/$2" ] || tar -xf "$SRC/$name" -C "$SRC"
 }
 
@@ -79,7 +94,8 @@ fetch_new_sources() {
   local mp3=$SRC/SDL2_mixer-$SDL2_MIXER_VERSION/src/codecs/minimp3
   mkdir -p "$mp3"
   for f in minimp3.h minimp3_ex.h LICENSE; do
-    [ -f "$mp3/$f" ] || curl -sSfL -o "$mp3/$f" "$RAW/libsdl-org/SDL_mixer/release-$SDL2_MIXER_VERSION/src/codecs/minimp3/$f"
+    download "$RAW/libsdl-org/SDL_mixer/release-$SDL2_MIXER_VERSION/src/codecs/minimp3/$f" \
+      "SDL2_mixer-$SDL2_MIXER_VERSION/src/codecs/minimp3/$f"
   done
 }
 
@@ -103,7 +119,7 @@ fetch_sources() {
   fetch "$UBUNTU/main/n/nlohmann-json3/nlohmann-json3_${JSON_VERSION}.orig.tar.gz" "json-$JSON_VERSION"
   # Single-header libraries straight from their repositories, pinned to a tag or commit.
   mkdir -p "$SRC/headers"
-  raw() { [ -f "$SRC/headers/$2" ] || curl -sSfL -o "$SRC/headers/$2" "$RAW/$1"; }
+  raw() { download "$RAW/$1" "headers/$2"; }
   raw "raysan5/raygui/$RAYGUI_VERSION/src/raygui.h" raygui.h
   raw "raysan5/raygui/$RAYGUI_VERSION/LICENSE" raygui-LICENSE
   raw "skypjack/entt/v$ENTT_VERSION/single_include/entt/entt.hpp" entt.hpp
@@ -116,13 +132,15 @@ fetch_sources() {
   # Box3D is not in any distribution archive yet: shallow clone of the release tag.
   [ -d "$SRC/box3d-$BOX3D_VERSION" ] || git -c advice.detachedHead=false clone -q --depth 1 \
     --branch "v$BOX3D_VERSION" https://github.com/erincatto/box3d "$SRC/box3d-$BOX3D_VERSION"
+  [ "$(git -C "$SRC/box3d-$BOX3D_VERSION" rev-parse HEAD)" = "$BOX3D_COMMIT" ] ||
+    { echo "Box3D tag v$BOX3D_VERSION is not commit $BOX3D_COMMIT" >&2; exit 1; }
   # The raylib tarball unpacks to raysan5-raylib-<commit>.
   [ -d "$SRC/raylib" ] || mv "$SRC"/raysan5-raylib-* "$SRC/raylib"
   # Headers removed from the Debian SFML tarball.
   local sfml=$SRC/SFML-$SFML_VERSION/extlibs/headers
   for f in stb_image/stb_image.h stb_image/stb_image_write.h miniaudio/miniaudio.h; do
     mkdir -p "$sfml/$(dirname $f)"
-    [ -f "$sfml/$f" ] || curl -sSfL -o "$sfml/$f" "$RAW/SFML/SFML/$SFML_VERSION/extlibs/headers/$f"
+    download "$RAW/SFML/SFML/$SFML_VERSION/extlibs/headers/$f" "SFML-$SFML_VERSION/extlibs/headers/$f"
   done
 }
 

@@ -1,0 +1,62 @@
+name: Libraries from source
+
+# Rebuilds every bundled Android library (app/src/main/assets/packages) from its
+# pinned upstream sources, the way the F-Droid recipe does, and checks that the
+# result has the same packages and versions as the committed index.
+on:
+  pull_request:
+    paths:
+      - packages/**
+      - .github/workflows/libs-from-source.yml
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-libs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the NDK and CMake used by the script
+        run: |
+          set +o pipefail  # yes exits on SIGPIPE when sdkmanager is done
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018" "cmake;3.22.1" > /dev/null
+          test -x "$ANDROID_HOME/ndk/27.2.12479018/ndk-build" && test -x "$ANDROID_HOME/cmake/3.22.1/bin/ninja"
+          sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends curl git make python3 xz-utils
+
+      - name: Cache downloaded sources
+        uses: actions/cache@v4
+        with:
+          path: build/android-libs/src/*.tar.*
+          key: android-lib-sources-${{ hashFiles('packages/sources.sha256') }}
+
+      - name: Keep the committed index for comparison
+        run: cp app/src/main/assets/packages/index.json "$RUNNER_TEMP/committed-index.json"
+
+      - name: Build the libraries (all ABIs)
+        run: packages/build-android-libs.sh
+
+      - name: Compare with the committed index
+        run: |
+          python3 - "$RUNNER_TEMP/committed-index.json" app/src/main/assets/packages/index.json <<'PY'
+          import json, sys
+          old, new = (json.load(open(p))["packages"] for p in sys.argv[1:])
+          key = lambda p: (p["name"], p["architecture"])
+          old_map, new_map = {key(p): p for p in old}, {key(p): p for p in new}
+          missing = sorted(set(old_map) - set(new_map))
+          extra = sorted(set(new_map) - set(old_map))
+          versions = sorted(k for k in set(old_map) & set(new_map) if old_map[k]["version"] != new_map[k]["version"])
+          same = sum(old_map[k]["sha256"] == new_map[k]["sha256"] for k in set(old_map) & set(new_map))
+          with open(__import__("os").environ["GITHUB_STEP_SUMMARY"], "a") as s:
+              s.write(f"Rebuilt {len(new)} packages; {same} archives are byte-for-byte identical to the committed ones.\n")
+          for label, items in (("Missing", missing), ("Unexpected", extra), ("Different version", versions)):
+              if items: print(f"{label}: {items}")
+          sys.exit(1 if missing or extra or versions else 0)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-libs
+          path: app/src/main/assets/packages/
+          if-no-files-found: error

@@ -1,7 +1,8 @@
-# Draft recipe for fdroiddata (metadata/io.nativeforge.ide.yml).
-# Put the full commit hash of the release tag in `commit`, then test with
-#   fdroid readmeta && fdroid rewritemeta io.nativeforge.ide && fdroid lint io.nativeforge.ide
-#   fdroid build -v -l io.nativeforge.ide
+# Draft recipe for fdroiddata (metadata/io.github.deuzivanviana.nativeforge.yml).
+# Test it in a clone of https://gitlab.com/fdroid/fdroiddata with:
+#   fdroid readmeta && fdroid rewritemeta io.github.deuzivanviana.nativeforge
+#   fdroid lint io.github.deuzivanviana.nativeforge
+#   fdroid build -v -l io.github.deuzivanviana.nativeforge
 Categories:
   - Development
 License: GPL-3.0-or-later
@@ -16,16 +17,17 @@ RepoType: git
 Repo: https://github.com/DeuzivanViana/NativeForge.git
 
 Builds:
-  - versionName: 0.7.1
-    versionCode: 13
-    commit: FULL_40_CHARACTER_COMMIT_HASH
+  - versionName: 0.7.2
+    versionCode: 14
+    commit: v0.7.2
     subdir: app
     sudo:
       - apt-get update
-      - apt-get install -y --no-install-recommends make python3 xz-utils
+      - apt-get install -y --no-install-recommends curl git make python3 xz-utils
     gradle:
       - yes
-    # The bundled Android libraries are rebuilt from source instead of using the
+    # The bundled Android libraries are rebuilt from source (pinned upstream
+    # tarballs, checked against packages/sources.sha256) instead of using the
     # prebuilt archives in the repository.
     scandelete:
       - app/src/main/assets/packages
@@ -37,5 +39,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.7.1
-CurrentVersionCode: 11
+CurrentVersion: 0.7.2
+CurrentVersionCode: 14
