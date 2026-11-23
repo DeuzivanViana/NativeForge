@@ -1,19 +1,19 @@
 # Draft recipe for fdroiddata (metadata/io.nativeforge.ide.yml).
-# Fill in the repository URLs and the commit once the source is public, then test with
+# Put the full commit hash of the release tag in `commit`, then test with
 #   fdroid readmeta && fdroid rewritemeta io.nativeforge.ide && fdroid lint io.nativeforge.ide
 #   fdroid build -v -l io.nativeforge.ide
 Categories:
   - Development
 License: GPL-3.0-or-later
 AuthorName: Deuzivan
-SourceCode: https://github.com/OWNER/nativeforge
-IssueTracker: https://github.com/OWNER/nativeforge/issues
-Changelog: https://github.com/OWNER/nativeforge/blob/HEAD/docs/ROADMAP.md
+SourceCode: https://github.com/DeuzivanViana/NativeForge
+IssueTracker: https://github.com/DeuzivanViana/NativeForge/issues
+Changelog: https://github.com/DeuzivanViana/NativeForge/blob/HEAD/docs/ROADMAP.md
 
 AutoName: NativeForge
 
 RepoType: git
-Repo: https://github.com/OWNER/nativeforge.git
+Repo: https://github.com/DeuzivanViana/NativeForge.git
 
 Builds:
   - versionName: 0.7.1
