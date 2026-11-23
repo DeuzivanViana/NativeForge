@@ -20,9 +20,10 @@ repository, and how to submit. Policy references are from the
 
 ## Blockers
 
-1. **No public source repository.** F-Droid builds from a public git repository
-   with a tag or commit per release. Create one (GitHub, GitLab or Codeberg),
-   push the code, tag `v0.6.0`, and replace `OWNER` and the commit in the recipe.
+1. **Release tag.** The source is public at
+   <https://github.com/DeuzivanViana/NativeForge>. F-Droid builds a tag or a
+   commit per release: tag the release (for example `v0.7.1`) and put its full
+   commit hash in the recipe.
 2. **Prebuilt binaries in the source tree.** `app/src/main/assets/packages/`
    holds about 14 MB of `.tar.xz` archives with compiled libraries (SDL3,
    raylib, SFML...). F-Droid's scanner rejects them. The recipe deletes them
