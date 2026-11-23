@@ -1,0 +1,3 @@
+• New app ID for F-Droid: io.github.deuzivanviana.nativeforge. It installs as a separate app; uninstall test builds of earlier versions first
+• The bundled libraries are rebuilt from checked upstream sources (SHA-256) in every release
+• Releases on GitHub are now built automatically from version tags

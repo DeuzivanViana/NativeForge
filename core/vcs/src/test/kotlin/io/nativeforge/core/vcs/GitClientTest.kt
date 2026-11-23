@@ -95,7 +95,7 @@ class GitClientTest {
     fun `only https addresses are accepted`() {
         assertNull(GitUrls.validate("https://github.com/raysan5/raylib.git"))
         assertNotNull(GitUrls.validate("http://example.com/repo.git"))
-        assertNotNull(GitUrls.validate("file:///data/data/io.nativeforge.ide/files"))
+        assertNotNull(GitUrls.validate("file:///data/data/io.github.deuzivanviana.nativeforge/files"))
         assertNotNull(GitUrls.validate("git@github.com:user/repo.git"))
         assertNotNull(GitUrls.validate("https://user:token@github.com/user/repo.git"))
         assertNotNull(GitUrls.validate("/sdcard/repo"))

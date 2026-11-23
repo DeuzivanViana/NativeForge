@@ -1,0 +1,3 @@
+• Novo ID do app para o F-Droid: io.github.deuzivanviana.nativeforge. Ele instala como um app separado; desinstale antes as versões de teste anteriores
+• As bibliotecas incluídas são recompiladas a partir do código-fonte original, conferido por SHA-256, em cada versão
+• As versões no GitHub agora são geradas automaticamente a partir das tags

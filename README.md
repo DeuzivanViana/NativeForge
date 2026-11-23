@@ -7,7 +7,7 @@ programs full screen (OpenGL ES, Vulkan, raylib, SFML, SDL2, SDL3, Dear ImGui), 
 as a standalone APK with its own name, package id and version. It works with a
 touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 
-> Status: **0.7.1**. See [docs/ROADMAP.md](docs/ROADMAP.md) for what works today
+> Status: **0.7.2**. See [docs/ROADMAP.md](docs/ROADMAP.md) for what works today
 > and what comes next, and [docs/FDROID.md](docs/FDROID.md) for the F-Droid status.
 
 <p align="center"><img src="fastlane/metadata/android/en-US/images/icon.png" width="96" alt="NativeForge icon"></p>
@@ -41,8 +41,21 @@ Requirements: JDK 17+, Android SDK (API 35) and NDK `27.2.12479018`.
 ./gradlew :app:assembleDebug  # IDE APK (embeds the runtime template APK)
 ```
 
-CI builds the debug APK on every push (`.github/workflows/android.yml`) and
-uploads it as a workflow artifact.
+CI (GitHub Actions):
+
+| Workflow | When | What |
+| --- | --- | --- |
+| `android.yml` | every push to `main` and every pull request | unit tests and the debug APK (workflow artifact) |
+| `libs-from-source.yml` | pull requests that touch `packages/`, or by hand | rebuilds every bundled library from its pinned sources and compares with the committed index |
+| `release.yml` | a `v*` tag | libraries from source, tests, release APK (signed when the `RELEASE_*` secrets are set), GitHub release with the changelog |
+
+To publish a version: bump `versionCode`/`versionName` in `app/build.gradle.kts`,
+add `fastlane/metadata/android/*/changelogs/<versionCode>.txt`, merge, and push
+a tag such as `v0.7.2`.
+
+The bundled libraries in `app/src/main/assets/packages/` are rebuilt with
+`packages/build-android-libs.sh`; every source file it downloads is checked
+against `packages/sources.sha256`.
 
 Optional: `-Pnativeforge.packageIndexUrl=<url>` points the IDE at an index of
 Android-targeted libraries (see [packages/README.md](packages/README.md)).

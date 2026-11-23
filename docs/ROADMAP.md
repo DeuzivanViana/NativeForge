@@ -1,5 +1,18 @@
 # Roadmap
 
+## 0.7.2 — release automation, F-Droid preparation
+
+* Application ID `io.github.deuzivanviana.nativeforge`, based on the source
+  repository as F-Droid asks for apps without their own domain. It installs
+  as a new app next to test builds of earlier versions.
+* `packages/build-android-libs.sh` checks every downloaded source file against
+  `packages/sources.sha256` and pins the Box3D tag to its commit. A full run
+  from scratch (all libraries, three ABIs) was checked against the committed
+  index.
+* GitHub Actions: `libs-from-source.yml` rebuilds the libraries as the F-Droid
+  recipe does; `release.yml` turns a `v*` tag into a GitHub release with the
+  APK built from those libraries.
+
 ## 0.7.1 — C++ highlighting fix
 
 * Code after a comment in C++ files was colored as a comment. The VS Code C++
