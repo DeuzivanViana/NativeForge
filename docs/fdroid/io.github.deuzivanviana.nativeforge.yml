@@ -20,6 +20,7 @@ Builds:
   - versionName: 0.7.2
     versionCode: 14
     commit: v0.7.2
+    timeout: 14400
     subdir: app
     sudo:
       - apt-get update
@@ -28,14 +29,16 @@ Builds:
       - yes
     # The bundled Android libraries are rebuilt from source (pinned upstream
     # tarballs, checked against packages/sources.sha256) instead of using the
-    # prebuilt archives in the repository.
-    scandelete:
+    # prebuilt archives in the repository. `rm` runs before `prebuild`
+    # (`scandelete` runs after it and would hit the rebuilt archives), and the
+    # work directory is removed so the scanner does not see build outputs.
+    rm:
       - app/src/main/assets/packages
     prebuild:
       - sdkmanager 'cmake;3.22.1'
       - ANDROID_HOME=$$SDK$$ ANDROID_NDK_HOME=$$NDK$$ ../packages/build-android-libs.sh
+      - rm -rf ../build/android-libs
     ndk: r27c
-    timeout: 14400
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
