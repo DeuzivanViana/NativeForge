@@ -11,10 +11,19 @@ name: Release
 #   RELEASE_KEY_ALIAS         key alias
 #   RELEASE_KEY_PASSWORD      key password (often the same as the keystore password)
 # Without them the release gets an unsigned APK.
+#
+# To rebuild an existing release (for example after adding the secrets): Actions >
+# Release > Run workflow from main, with the tag (v1.2.3) as input. The source of
+# that tag is built with this version of the workflow.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and publish again (for example v0.7.2); empty builds without publishing"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -22,13 +31,19 @@ permissions:
 jobs:
   libs:
     uses: ./.github/workflows/libs-from-source.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
 
   apk:
     needs: libs
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
 
       - uses: actions/setup-java@v4
         with:
@@ -60,7 +75,15 @@ jobs:
           mkdir -p dist
           if [ -n "$KEYSTORE_BASE64" ]; then
             tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            # Copying the secret from a phone or an editor can add line breaks or spaces.
+            if ! printf '%s' "$KEYSTORE_BASE64" | tr -d ' \t\r\n' | base64 -d > "$RUNNER_TEMP/release.keystore" 2>/dev/null; then
+              echo "::error::RELEASE_KEYSTORE_BASE64 is not valid base64. Paste the whole content of the .jks.base64 file (one long line, about 5,700 characters for a 4096-bit key)."
+              exit 1
+            fi
+            if ! keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass:env KEYSTORE_PASSWORD -alias "$KEY_ALIAS" > /dev/null 2>&1; then
+              echo "::error::The keystore opened from RELEASE_KEYSTORE_BASE64 does not accept RELEASE_KEYSTORE_PASSWORD, or has no key named RELEASE_KEY_ALIAS."
+              exit 1
+            fi
             "$tools/zipalign" -f -p 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
             "$tools/apksigner" sign --ks "$RUNNER_TEMP/release.keystore" --ks-key-alias "$KEY_ALIAS" \
               --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD \
@@ -79,11 +102,11 @@ jobs:
           path: dist/
 
       - name: Publish the GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(env.TAG, 'v') && (inputs.tag != '' || startsWith(github.ref, 'refs/tags/v'))
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=${GITHUB_REF_NAME}
+          tag=$TAG
           code=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts)
           notes=fastlane/metadata/android/en-US/changelogs/$code.txt
           [ -f "$notes" ] || notes=/dev/null
