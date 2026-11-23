@@ -10,6 +10,12 @@ on:
       - .github/workflows/libs-from-source.yml
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: Git ref to build
+        type: string
+        required: false
+        default: ""
 
 jobs:
   build-libs:
@@ -17,6 +23,8 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Install the NDK and CMake used by the script
         run: |
