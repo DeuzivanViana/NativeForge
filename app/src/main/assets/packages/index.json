@@ -1,0 +1,1541 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "name": "sdl3",
+      "version": "3.4.20",
+      "description": "Simple DirectMedia Layer 3 (Android backend, runs in the SDL host)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/sdl3-3.4.20.tar.xz",
+      "sha256": "750a8500e9010c8fcdac6823742dc68bdf1e19f387be174d52f5bf2833d7976b",
+      "sizeBytes": 1077612,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3.so"
+        ]
+      }
+    },
+    {
+      "name": "raylib",
+      "version": "6.2",
+      "description": "raylib game library (OpenGL ES 2, NativeActivity)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/raylib-6.2.tar.xz",
+      "sha256": "54e0ec500b037615bc8a4dd0561dbcdf227b840d75bae005189f720f70112332",
+      "sizeBytes": 691088,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "raylib",
+          "EGL",
+          "GLESv2",
+          "OpenSLES",
+          "android",
+          "log",
+          "m"
+        ],
+        "linkFlags": [
+          "-Wl,--wrap=fopen"
+        ]
+      }
+    },
+    {
+      "name": "sfml",
+      "version": "3.0.2",
+      "description": "SFML 3: graphics, window, audio, network and system (NativeActivity)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/sfml-3.0.2.tar.xz",
+      "sha256": "16f66cbe6014814200a348de576aa5a94e58633228f6d0f0acee80b76f6b0206",
+      "sizeBytes": 1030708,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "sfml-audio",
+          "sfml-graphics",
+          "sfml-network",
+          "sfml-window",
+          "sfml-system",
+          "sfml-main",
+          "android",
+          "log",
+          "EGL"
+        ],
+        "runtimeLibraries": [
+          "lib/libsfml-system.so",
+          "lib/libsfml-window.so",
+          "lib/libsfml-network.so",
+          "lib/libsfml-graphics.so",
+          "lib/libsfml-audio.so"
+        ]
+      }
+    },
+    {
+      "name": "native-app-glue",
+      "version": "ndk-r27c",
+      "description": "android_native_app_glue from the NDK (static)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/native-app-glue-ndk-r27c.tar.xz",
+      "sha256": "206a3d5a03e6c602ab5a6f2e222de23ddacbcd09fb6c25cb93f3f65e185c2683",
+      "sizeBytes": 8672,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "native_app_glue",
+          "android",
+          "log"
+        ]
+      }
+    },
+    {
+      "name": "opengles",
+      "version": "ndk-r27c",
+      "description": "EGL and OpenGL ES 2/3 headers and libraries",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/opengles-ndk-r27c.tar.xz",
+      "sha256": "af5e89db385d34d47d33d1975070d745477cd261c56696fb44172bc46ebefe91",
+      "sizeBytes": 82316,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "EGL",
+          "GLESv3",
+          "GLESv2",
+          "android",
+          "log",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-image",
+      "version": "3.4.8",
+      "description": "SDL3_image: load PNG, JPEG, GIF, BMP, QOI, SVG... into SDL textures",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/aarch64/sdl3-image-3.4.8.tar.xz",
+      "sha256": "d11d7a3f41e4fb01bafddafea46de5164b2ed74db886d83dcfc9e43337ad8d82",
+      "sizeBytes": 114036,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_image"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_image.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-ttf",
+      "version": "3.2.2",
+      "description": "SDL3_ttf: TrueType text rendering for SDL (FreeType inside)",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/aarch64/sdl3-ttf-3.2.2.tar.xz",
+      "sha256": "0e107a3b1f1345f1c769a5dd352d93d7a1a8a4385ff2cbfe42c221edcc28bb26",
+      "sizeBytes": 351756,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_ttf"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_ttf.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-mixer",
+      "version": "3.2.4",
+      "description": "SDL3_mixer: play WAV, OGG, MP3, FLAC and MIDI music and sounds",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/aarch64/sdl3-mixer-3.2.4.tar.xz",
+      "sha256": "23c92fe0930de5640bc85f51e351895b3fd755848d55eab55bd3135f6446af01",
+      "sizeBytes": 156304,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_mixer"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_mixer.so"
+        ]
+      }
+    },
+    {
+      "name": "box2d",
+      "version": "2.4.1",
+      "description": "Box2D 2.4: 2D rigid body physics (C++)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/box2d-2.4.1.tar.xz",
+      "sha256": "c1a7d4b0f380d2a8fbca5277ae6e6eac3f9d0af2c330681f31961378960742d3",
+      "sizeBytes": 122868,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "box2d"
+        ]
+      }
+    },
+    {
+      "name": "box3d",
+      "version": "0.1.0",
+      "description": "Box3D 0.1 (alpha): 3D rigid body physics by the Box2D author (C API)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/box3d-0.1.0.tar.xz",
+      "sha256": "46d96a671153cd5b4482e642d73e9e4150414eeaa13605c8486ac5cbad6653d0",
+      "sizeBytes": 407068,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "box3d",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lua",
+      "version": "5.4.9",
+      "description": "Lua 5.4 scripting language, embeddable from C and C++",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/lua-5.4.9.tar.xz",
+      "sha256": "9982bdff1128935893f53b0eb5dafe38ceff0f9a50848ec5588b72bcf66ba586",
+      "sizeBytes": 124752,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lua",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sdl3",
+      "version": "3.4.20",
+      "description": "Simple DirectMedia Layer 3 (Android backend, runs in the SDL host)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/sdl3-3.4.20.tar.xz",
+      "sha256": "e5be86f2dbc9b0f9ed1c371d23ee5dc35b1f14d360f4bb124fc6d60285077be3",
+      "sizeBytes": 1075436,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3.so"
+        ]
+      }
+    },
+    {
+      "name": "raylib",
+      "version": "6.2",
+      "description": "raylib game library (OpenGL ES 2, NativeActivity)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/raylib-6.2.tar.xz",
+      "sha256": "05fb6ed9e2a8c8e03691be2e950b3cc175f7637a42f9b6375f7d897b4c78a64c",
+      "sizeBytes": 735280,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "raylib",
+          "EGL",
+          "GLESv2",
+          "OpenSLES",
+          "android",
+          "log",
+          "m"
+        ],
+        "linkFlags": [
+          "-Wl,--wrap=fopen"
+        ]
+      }
+    },
+    {
+      "name": "sfml",
+      "version": "3.0.2",
+      "description": "SFML 3: graphics, window, audio, network and system (NativeActivity)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/sfml-3.0.2.tar.xz",
+      "sha256": "ef7d91fbb412bb7dbbd57c3780808ba9bcf2e3f6313a6c845c5bc78e4802bade",
+      "sizeBytes": 965928,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "sfml-audio",
+          "sfml-graphics",
+          "sfml-network",
+          "sfml-window",
+          "sfml-system",
+          "sfml-main",
+          "android",
+          "log",
+          "EGL"
+        ],
+        "runtimeLibraries": [
+          "lib/libsfml-system.so",
+          "lib/libsfml-window.so",
+          "lib/libsfml-network.so",
+          "lib/libsfml-graphics.so",
+          "lib/libsfml-audio.so"
+        ]
+      }
+    },
+    {
+      "name": "native-app-glue",
+      "version": "ndk-r27c",
+      "description": "android_native_app_glue from the NDK (static)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/native-app-glue-ndk-r27c.tar.xz",
+      "sha256": "56cdcb98a0c016b1aadce45ca6254f86163b054cf4a8add342b1edff0649d9fa",
+      "sizeBytes": 8716,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "native_app_glue",
+          "android",
+          "log"
+        ]
+      }
+    },
+    {
+      "name": "opengles",
+      "version": "ndk-r27c",
+      "description": "EGL and OpenGL ES 2/3 headers and libraries",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/opengles-ndk-r27c.tar.xz",
+      "sha256": "af5e89db385d34d47d33d1975070d745477cd261c56696fb44172bc46ebefe91",
+      "sizeBytes": 82316,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "EGL",
+          "GLESv3",
+          "GLESv2",
+          "android",
+          "log",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-image",
+      "version": "3.4.8",
+      "description": "SDL3_image: load PNG, JPEG, GIF, BMP, QOI, SVG... into SDL textures",
+      "architecture": "arm",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/arm/sdl3-image-3.4.8.tar.xz",
+      "sha256": "cd24b18f3ee395fb1ac6edba91e6115884a2159990e4a56982b86b8148330785",
+      "sizeBytes": 107700,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_image"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_image.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-ttf",
+      "version": "3.2.2",
+      "description": "SDL3_ttf: TrueType text rendering for SDL (FreeType inside)",
+      "architecture": "arm",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/arm/sdl3-ttf-3.2.2.tar.xz",
+      "sha256": "8bb449f16c9a7b9a11a11c497408601ff0fa08f1ac90da92cd59139337290e46",
+      "sizeBytes": 336868,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_ttf"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_ttf.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-mixer",
+      "version": "3.2.4",
+      "description": "SDL3_mixer: play WAV, OGG, MP3, FLAC and MIDI music and sounds",
+      "architecture": "arm",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/arm/sdl3-mixer-3.2.4.tar.xz",
+      "sha256": "792db8d3134fa572177fb52dfcc444502445fd70b135c1011233061dc7d015a2",
+      "sizeBytes": 158032,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_mixer"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_mixer.so"
+        ]
+      }
+    },
+    {
+      "name": "box2d",
+      "version": "2.4.1",
+      "description": "Box2D 2.4: 2D rigid body physics (C++)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/box2d-2.4.1.tar.xz",
+      "sha256": "0e8e16c0518685a0ccf09cc433bf585a7db39c5f4fa8ff2f4e718d32677ba578",
+      "sizeBytes": 129084,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "box2d"
+        ]
+      }
+    },
+    {
+      "name": "box3d",
+      "version": "0.1.0",
+      "description": "Box3D 0.1 (alpha): 3D rigid body physics by the Box2D author (C API)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/box3d-0.1.0.tar.xz",
+      "sha256": "6f7bdb61526d7ccc61c9498aa417b42bbe114d8f3ee199a43863695cb8dfe517",
+      "sizeBytes": 438452,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "box3d",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lua",
+      "version": "5.4.9",
+      "description": "Lua 5.4 scripting language, embeddable from C and C++",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/lua-5.4.9.tar.xz",
+      "sha256": "459db755956c7309393170f78a8df619fcd8cc9f081f99b6c11142415a214219",
+      "sizeBytes": 125204,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lua",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sdl3",
+      "version": "3.4.20",
+      "description": "Simple DirectMedia Layer 3 (Android backend, runs in the SDL host)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/sdl3-3.4.20.tar.xz",
+      "sha256": "163771edec9a947b3d98658bd31eb9fff739b5b84310f5a85b0c240dfcc11d1e",
+      "sizeBytes": 1200632,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3.so"
+        ]
+      }
+    },
+    {
+      "name": "raylib",
+      "version": "6.2",
+      "description": "raylib game library (OpenGL ES 2, NativeActivity)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/raylib-6.2.tar.xz",
+      "sha256": "000fc79aa22a488533c4bab083da70d36dfbd72288a87e688deb322f090ce340",
+      "sizeBytes": 775712,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "raylib",
+          "EGL",
+          "GLESv2",
+          "OpenSLES",
+          "android",
+          "log",
+          "m"
+        ],
+        "linkFlags": [
+          "-Wl,--wrap=fopen"
+        ]
+      }
+    },
+    {
+      "name": "sfml",
+      "version": "3.0.2",
+      "description": "SFML 3: graphics, window, audio, network and system (NativeActivity)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/sfml-3.0.2.tar.xz",
+      "sha256": "fcc5d09038d23bdff637387d50a29db7d43076ec37eadb5d9676d52cca31029f",
+      "sizeBytes": 1139720,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "sfml-audio",
+          "sfml-graphics",
+          "sfml-network",
+          "sfml-window",
+          "sfml-system",
+          "sfml-main",
+          "android",
+          "log",
+          "EGL"
+        ],
+        "runtimeLibraries": [
+          "lib/libsfml-system.so",
+          "lib/libsfml-window.so",
+          "lib/libsfml-network.so",
+          "lib/libsfml-graphics.so",
+          "lib/libsfml-audio.so"
+        ]
+      }
+    },
+    {
+      "name": "native-app-glue",
+      "version": "ndk-r27c",
+      "description": "android_native_app_glue from the NDK (static)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/native-app-glue-ndk-r27c.tar.xz",
+      "sha256": "9350f145af769d703ed8a5ec551d4a773e115439607dab963dbaa93800fd1dd0",
+      "sizeBytes": 8624,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "native_app_glue",
+          "android",
+          "log"
+        ]
+      }
+    },
+    {
+      "name": "opengles",
+      "version": "ndk-r27c",
+      "description": "EGL and OpenGL ES 2/3 headers and libraries",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/opengles-ndk-r27c.tar.xz",
+      "sha256": "af5e89db385d34d47d33d1975070d745477cd261c56696fb44172bc46ebefe91",
+      "sizeBytes": 82316,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "EGL",
+          "GLESv3",
+          "GLESv2",
+          "android",
+          "log",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-image",
+      "version": "3.4.8",
+      "description": "SDL3_image: load PNG, JPEG, GIF, BMP, QOI, SVG... into SDL textures",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/x86_64/sdl3-image-3.4.8.tar.xz",
+      "sha256": "e77b298c9ac1098082b09ac722b73df73d60b6843c08a6e77299bccbdc53a9ff",
+      "sizeBytes": 125292,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_image"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_image.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-ttf",
+      "version": "3.2.2",
+      "description": "SDL3_ttf: TrueType text rendering for SDL (FreeType inside)",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/x86_64/sdl3-ttf-3.2.2.tar.xz",
+      "sha256": "c76e22196fee2116c1f8b4d45c38c63882d3394d1452f624711bd1ce89e2f184",
+      "sizeBytes": 388664,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_ttf"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_ttf.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl3-mixer",
+      "version": "3.2.4",
+      "description": "SDL3_mixer: play WAV, OGG, MP3, FLAC and MIDI music and sounds",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl3"
+      ],
+      "downloadUrl": "asset:packages/x86_64/sdl3-mixer-3.2.4.tar.xz",
+      "sha256": "347d21c15f3c14d1e5902c426d40ace034469d28407d7c1a62e2b79b5458cbb8",
+      "sizeBytes": 173096,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL3_mixer"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL3_mixer.so"
+        ]
+      }
+    },
+    {
+      "name": "box2d",
+      "version": "2.4.1",
+      "description": "Box2D 2.4: 2D rigid body physics (C++)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/box2d-2.4.1.tar.xz",
+      "sha256": "2db337d640a2c33a28ab0d444f1c506955bed76de1c4ae0b98bb18409f992c5f",
+      "sizeBytes": 132328,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "box2d"
+        ]
+      }
+    },
+    {
+      "name": "box3d",
+      "version": "0.1.0",
+      "description": "Box3D 0.1 (alpha): 3D rigid body physics by the Box2D author (C API)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/box3d-0.1.0.tar.xz",
+      "sha256": "511ac2f97f3ecdb58a7a7273f24fa02458d4ade85ca225c3510af6b2864eac13",
+      "sizeBytes": 433156,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "box3d",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lua",
+      "version": "5.4.9",
+      "description": "Lua 5.4 scripting language, embeddable from C and C++",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/lua-5.4.9.tar.xz",
+      "sha256": "7b2e9fd4c4b6aacc8b8b12db74da88465d17b89ae795a6fd1e19a76222b4e0f0",
+      "sizeBytes": 136872,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lua",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "glm",
+      "version": "1.0.1",
+      "description": "GLM: vector and matrix math for graphics (C++, header-only)",
+      "architecture": "all",
+      "depends": [],
+      "downloadUrl": "asset:packages/all/glm-1.0.1.tar.xz",
+      "sha256": "7c1ffe2fa8e2417af60074491e0f45d86887a49410b40c2c7c4aa0b74635a10a",
+      "sizeBytes": 165776,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ]
+      }
+    },
+    {
+      "name": "nlohmann-json",
+      "version": "3.11.3",
+      "description": "JSON for Modern C++: read and write JSON (header-only)",
+      "architecture": "all",
+      "depends": [],
+      "downloadUrl": "asset:packages/all/nlohmann-json-3.11.3.tar.xz",
+      "sha256": "e3d237de225ec70d5d42fb5386fc98826a7178cbbb78ef156345a726c36a282c",
+      "sizeBytes": 106784,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ]
+      }
+    },
+    {
+      "name": "raygui",
+      "version": "4.0",
+      "description": "raygui: immediate-mode buttons, sliders and windows for raylib (header-only)",
+      "architecture": "all",
+      "depends": [
+        "raylib"
+      ],
+      "downloadUrl": "asset:packages/all/raygui-4.0.tar.xz",
+      "sha256": "9a872b936a930dd06f40e9dabdabd2e3fd9c7188f530365ff5ca84f4e9e98510",
+      "sizeBytes": 41744,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ]
+      }
+    },
+    {
+      "name": "entt",
+      "version": "3.15.0",
+      "description": "EnTT: fast entity-component-system for games (C++17, header-only)",
+      "architecture": "all",
+      "depends": [],
+      "downloadUrl": "asset:packages/all/entt-3.15.0.tar.xz",
+      "sha256": "b9330b68babb47a9364df310af5f5be0d5e704c8038f8cfa2c895ec4ac387a7e",
+      "sizeBytes": 96912,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ]
+      }
+    },
+    {
+      "name": "miniaudio",
+      "version": "0.11.22",
+      "description": "miniaudio: sound playback and capture in one header (C)",
+      "architecture": "all",
+      "depends": [],
+      "downloadUrl": "asset:packages/all/miniaudio-0.11.22.tar.xz",
+      "sha256": "6fa9af89c263835af6eeb785aa8ce5d66f452c655f41bab9422bf87c98edfee0",
+      "sizeBytes": 448440,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "OpenSLES",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "stb",
+      "version": "2025",
+      "description": "stb: image, font, Ogg Vorbis and noise single-file libraries (C)",
+      "architecture": "all",
+      "depends": [],
+      "downloadUrl": "asset:packages/all/stb-2025.tar.xz",
+      "sha256": "95ff139307e98b256de3a88704fffdf97340e6cf947c4cb19c788d973269da16",
+      "sizeBytes": 183720,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ]
+      }
+    },
+    {
+      "name": "sdl2",
+      "version": "2.32.10",
+      "description": "Simple DirectMedia Layer 2 (Android backend, runs in the SDL2 host)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/sdl2-2.32.10.tar.xz",
+      "sha256": "f20723608229f3afb6bd49a1120ba511a2083e79dc51f3ee975bc0c94b7da2c8",
+      "sizeBytes": 673288,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-image",
+      "version": "2.8.12",
+      "description": "SDL2_image: load PNG, JPEG, GIF, BMP, QOI, SVG... into SDL2 surfaces and textures",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/aarch64/sdl2-image-2.8.12.tar.xz",
+      "sha256": "6af290f6fc9da31d4d1dc87c11a877b2e5ebaefd2dd8101c7f5a41c9a819a378",
+      "sizeBytes": 94912,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_image"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_image.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-ttf",
+      "version": "2.24.0",
+      "description": "SDL2_ttf: TrueType text rendering for SDL2 (FreeType inside)",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/aarch64/sdl2-ttf-2.24.0.tar.xz",
+      "sha256": "66b679b05f3b61d1aa0fa26d870be3fad51a9d4f9b21540144100f4840ba6621",
+      "sizeBytes": 336496,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_ttf"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_ttf.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-mixer",
+      "version": "2.8.2",
+      "description": "SDL2_mixer: play WAV, OGG, MP3, FLAC and MIDI with SDL2",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/aarch64/sdl2-mixer-2.8.2.tar.xz",
+      "sha256": "a1cb42534a4d7064db2ce18102aee180713f44246666b4d4a19c41e69ed1202a",
+      "sizeBytes": 150612,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_mixer"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_mixer.so"
+        ]
+      }
+    },
+    {
+      "name": "imgui",
+      "version": "1.92.2b",
+      "description": "Dear ImGui: immediate-mode GUI with SDL2, SDL3, OpenGL ES 3 and Vulkan backends (C++)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/imgui-1.92.2b.tar.xz",
+      "sha256": "34f2c7adbb201b8c89b446e91b320b123d2d771ba4531af7643ff5941d58e323",
+      "sizeBytes": 689340,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "imgui"
+        ],
+        "compileFlags": [
+          "-DIMGUI_IMPL_OPENGL_ES3"
+        ]
+      }
+    },
+    {
+      "name": "vulkan",
+      "version": "ndk-r27c",
+      "description": "Vulkan 1.3 headers and loader stub (the driver comes with Android)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/vulkan-ndk-r27c.tar.xz",
+      "sha256": "7f4ee33d3c2db70496bfbdf2d9397d8254bda8ac39487876fd08a1c0f0002bfe",
+      "sizeBytes": 138636,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "vulkan",
+          "android",
+          "log",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sdl2",
+      "version": "2.32.10",
+      "description": "Simple DirectMedia Layer 2 (Android backend, runs in the SDL2 host)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/sdl2-2.32.10.tar.xz",
+      "sha256": "6e83c104d76304d5e769e7367af1670bb174358561aa6da338f8b0d0ff0b5bba",
+      "sizeBytes": 668240,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-image",
+      "version": "2.8.12",
+      "description": "SDL2_image: load PNG, JPEG, GIF, BMP, QOI, SVG... into SDL2 surfaces and textures",
+      "architecture": "arm",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/arm/sdl2-image-2.8.12.tar.xz",
+      "sha256": "88c525506d8291e115e80e0beb25d45785d18360c72e400bb8e4859012922370",
+      "sizeBytes": 88084,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_image"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_image.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-ttf",
+      "version": "2.24.0",
+      "description": "SDL2_ttf: TrueType text rendering for SDL2 (FreeType inside)",
+      "architecture": "arm",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/arm/sdl2-ttf-2.24.0.tar.xz",
+      "sha256": "90069d106f68feb4199c4acb47dc1ec0729cd99d746eca88ad3943699aacb81b",
+      "sizeBytes": 321056,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_ttf"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_ttf.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-mixer",
+      "version": "2.8.2",
+      "description": "SDL2_mixer: play WAV, OGG, MP3, FLAC and MIDI with SDL2",
+      "architecture": "arm",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/arm/sdl2-mixer-2.8.2.tar.xz",
+      "sha256": "ada7fd134471d2438d286b0eff66aa3d0251907ff0616122e5c48bdfdcd3df46",
+      "sizeBytes": 150684,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_mixer"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_mixer.so"
+        ]
+      }
+    },
+    {
+      "name": "imgui",
+      "version": "1.92.2b",
+      "description": "Dear ImGui: immediate-mode GUI with SDL2, SDL3, OpenGL ES 3 and Vulkan backends (C++)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/imgui-1.92.2b.tar.xz",
+      "sha256": "bb1fec6bb6e773e183a1571126b1fb2381d47067ff1dd7f5d35a897184c6f576",
+      "sizeBytes": 748144,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "imgui"
+        ],
+        "compileFlags": [
+          "-DIMGUI_IMPL_OPENGL_ES3"
+        ]
+      }
+    },
+    {
+      "name": "vulkan",
+      "version": "ndk-r27c",
+      "description": "Vulkan 1.3 headers and loader stub (the driver comes with Android)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/vulkan-ndk-r27c.tar.xz",
+      "sha256": "43685f6b77936d46de7778cd3043a8231fdbda3ec669e4a8d58345a7bb80dff9",
+      "sizeBytes": 138180,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "vulkan",
+          "android",
+          "log",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sdl2",
+      "version": "2.32.10",
+      "description": "Simple DirectMedia Layer 2 (Android backend, runs in the SDL2 host)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/sdl2-2.32.10.tar.xz",
+      "sha256": "825b3a8af8f16311c54a30851e25632b4600d98e78e6c0dd8b0994fb54ce88d6",
+      "sizeBytes": 746524,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-image",
+      "version": "2.8.12",
+      "description": "SDL2_image: load PNG, JPEG, GIF, BMP, QOI, SVG... into SDL2 surfaces and textures",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/x86_64/sdl2-image-2.8.12.tar.xz",
+      "sha256": "47014ae03c3d0b2457c1aec626dca09705b57724e7e8dd52c5049727a36ef614",
+      "sizeBytes": 105332,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_image"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_image.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-ttf",
+      "version": "2.24.0",
+      "description": "SDL2_ttf: TrueType text rendering for SDL2 (FreeType inside)",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/x86_64/sdl2-ttf-2.24.0.tar.xz",
+      "sha256": "64df05dda923c79d6c2b8c6da7a654aea97b591dde01fa43823e9c5d5f750741",
+      "sizeBytes": 375588,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_ttf"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_ttf.so"
+        ]
+      }
+    },
+    {
+      "name": "sdl2-mixer",
+      "version": "2.8.2",
+      "description": "SDL2_mixer: play WAV, OGG, MP3, FLAC and MIDI with SDL2",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/x86_64/sdl2-mixer-2.8.2.tar.xz",
+      "sha256": "596f1f01e37d02275036c7fbeb20e6ceb2821a29d8c20639299de79fc4918310",
+      "sizeBytes": 164884,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include",
+          "include/SDL2"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "SDL2_mixer"
+        ],
+        "runtimeLibraries": [
+          "lib/libSDL2_mixer.so"
+        ]
+      }
+    },
+    {
+      "name": "imgui",
+      "version": "1.92.2b",
+      "description": "Dear ImGui: immediate-mode GUI with SDL2, SDL3, OpenGL ES 3 and Vulkan backends (C++)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/imgui-1.92.2b.tar.xz",
+      "sha256": "a338ebb98f4ce86028f2aeae47b37553cf3e9d7510e302d030b4b20c9a573cfc",
+      "sizeBytes": 747508,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "imgui"
+        ],
+        "compileFlags": [
+          "-DIMGUI_IMPL_OPENGL_ES3"
+        ]
+      }
+    },
+    {
+      "name": "vulkan",
+      "version": "ndk-r27c",
+      "description": "Vulkan 1.3 headers and loader stub (the driver comes with Android)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/vulkan-ndk-r27c.tar.xz",
+      "sha256": "a50ca27f83a4e828665facfd651da3b5cd07d985124b382dfcddffbdac676ba4",
+      "sizeBytes": 138108,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "vulkan",
+          "android",
+          "log",
+          "m"
+        ]
+      }
+    }
+  ]
+}

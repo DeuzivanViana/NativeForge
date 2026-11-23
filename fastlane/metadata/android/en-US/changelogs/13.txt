@@ -1,0 +1,2 @@
+• Fixed C++ syntax highlighting: code after a comment (in .cpp and .h files) is no longer colored as a comment
+• Function calls, lambdas, range-for loops and multi-line macros are highlighted again

@@ -1,0 +1,30 @@
+<p>NativeForge is a C and C++ IDE that compiles <b>on the device</b>. Write code, build it with clang, run it in a real terminal or full screen, and export it as a standalone APK. No computer or cloud build is needed.</p>
+
+<p><b>Editor</b></p>
+<ul>
+<li>Syntax highlighting for C, C++ and CMake, tabs, a split editor, and 15 editor themes</li>
+<li>Code intelligence from clangd: completion, live errors and warnings, go to definition, rename symbol, and symbol information</li>
+<li>clang-format with the LLVM, Google, Chromium, Mozilla, WebKit, Microsoft or GNU style, or your project's .clang-format; optional format on save and clang-tidy checks</li>
+<li>Physical keyboard and mouse support with VS Code shortcuts: command palette (Ctrl+Shift+P), quick open (Ctrl+P), build (Ctrl+Shift+B), go to line, move lines, comment, and Ctrl+wheel zoom</li>
+</ul>
+
+<p><b>Build and run</b></p>
+<ul>
+<li>Four build systems: a built-in incremental build, CMake (Ninja or Makefiles), Make and Ninja</li>
+<li>Desktop Makefiles work unchanged: gcc, g++ and cc are mapped to clang for Android</li>
+<li>Console programs run in a terminal with a PTY; graphical programs run full screen</li>
+<li>Bundled libraries: SDL3 and SDL2 (image, ttf, mixer), Dear ImGui, raylib and raygui, SFML, OpenGL ES, Box2D, Box3D, Lua, GLM, EnTT, nlohmann/json, stb and miniaudio</li>
+</ul>
+
+<p><b>Projects</b></p>
+<ul>
+<li>Templates for console, raylib, SDL3, SDL2, Dear ImGui, SFML, OpenGL ES and Vulkan programs, plus physics examples</li>
+<li>Git: clone over HTTPS, see changes and diffs, commit, pull and push</li>
+<li>Asset viewer for images (including TGA), sounds, 3D models (OBJ, STL, PLY, glTF) and fonts</li>
+<li>Export any program as an APK, or as an Android App Bundle for Google Play, with its own name, package id, icon and version, signed with your own keystore</li>
+</ul>
+
+<p><b>About the toolchain download</b></p>
+<p>The compiler (clang, lld, CMake, Ninja, Make) is not inside the app. When you ask for it, NativeForge downloads these programs from the Termux package repository (packages-cf.termux.dev) and installs them inside the app. These are executable files that F-Droid has not built or checked. The app asks before downloading, and nothing is downloaded until you agree.</p>
+
+<p>NativeForge is free software under the GNU GPL, version 3 or later.</p>

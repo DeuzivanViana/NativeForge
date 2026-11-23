@@ -1,0 +1,4 @@
+• SDL2 2.32 com SDL2_image, SDL2_ttf e SDL2_mixer, para jogos e tutoriais antigos
+• Dear ImGui com backends SDL2/SDL3, OpenGL ES 3 e Vulkan, e um novo modelo ImGui
+• Cabeçalhos Vulkan e um modelo de triângulo Vulkan (NativeActivity)
+• Repositórios de pacotes: adicione seus próprios índices HTTPS nas Configurações

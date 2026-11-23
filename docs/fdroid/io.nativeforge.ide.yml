@@ -1,0 +1,41 @@
+# Draft recipe for fdroiddata (metadata/io.nativeforge.ide.yml).
+# Fill in the repository URLs and the commit once the source is public, then test with
+#   fdroid readmeta && fdroid rewritemeta io.nativeforge.ide && fdroid lint io.nativeforge.ide
+#   fdroid build -v -l io.nativeforge.ide
+Categories:
+  - Development
+License: GPL-3.0-or-later
+AuthorName: Deuzivan
+SourceCode: https://github.com/OWNER/nativeforge
+IssueTracker: https://github.com/OWNER/nativeforge/issues
+Changelog: https://github.com/OWNER/nativeforge/blob/HEAD/docs/ROADMAP.md
+
+AutoName: NativeForge
+
+RepoType: git
+Repo: https://github.com/OWNER/nativeforge.git
+
+Builds:
+  - versionName: 0.7.1
+    versionCode: 13
+    commit: FULL_40_CHARACTER_COMMIT_HASH
+    subdir: app
+    sudo:
+      - apt-get update
+      - apt-get install -y --no-install-recommends make python3 xz-utils
+    gradle:
+      - yes
+    # The bundled Android libraries are rebuilt from source instead of using the
+    # prebuilt archives in the repository.
+    scandelete:
+      - app/src/main/assets/packages
+    prebuild:
+      - sdkmanager 'cmake;3.22.1'
+      - ANDROID_HOME=$$SDK$$ ANDROID_NDK_HOME=$$NDK$$ ../packages/build-android-libs.sh
+    ndk: r27c
+    timeout: 14400
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.7.1
+CurrentVersionCode: 11

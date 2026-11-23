@@ -1,0 +1,1 @@
+IDE C e C++: compile com clang, rode e exporte APKs, tudo no próprio aparelho

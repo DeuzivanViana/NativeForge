@@ -1,0 +1,101 @@
+package io.nativeforge.app.run
+
+import android.content.Context
+import android.content.Intent
+import io.nativeforge.app.di.AppContainer
+import io.nativeforge.core.build.model.BuildArtifact
+import io.nativeforge.core.project.model.Project
+import io.nativeforge.core.project.model.RuntimeKind
+import io.nativeforge.core.project.runtime.LaunchSpec
+import io.nativeforge.feature.runner.LaunchResult
+import io.nativeforge.feature.runner.ProgramLauncher
+import io.nativeforge.feature.runner.RunErrors
+import io.nativeforge.feature.terminal.ConsoleContract
+import io.nativeforge.feature.terminal.ConsoleRequest
+import java.io.File
+
+/** Starts built programs in the right host: the terminal for console apps, a runner activity otherwise. */
+object ProgramRunner {
+
+    /** @return an error message, or null when the program was started. */
+    fun run(context: Context, container: AppContainer, project: Project, artifact: BuildArtifact): String? {
+        val environment = container.toolchain.environment()
+        return when (project.config.runtime) {
+            RuntimeKind.CONSOLE -> {
+                artifact.file.setExecutable(true, false)
+                startConsole(
+                    context,
+                    ConsoleRequest(
+                        title = project.name,
+                        workingDirectory = project.root.path,
+                        executable = artifact.file.path,
+                        arguments = project.config.runArguments,
+                        environment = environment,
+                        fontSizeSp = container.settings.settings.value.terminalFontSizeSp,
+                    ),
+                )
+                null
+            }
+            else -> {
+                val errorFile = errorFile(context).apply { delete() }
+                val spec = LaunchSpec(
+                    runtime = project.config.runtime,
+                    program = artifact.file.path,
+                    preloadLibraries = artifact.runtimeLibraries.map(File::getPath),
+                    arguments = project.config.runArguments,
+                    workingDirectory = project.root.path,
+                    environment = mapOf(
+                        "HOME" to environment.getValue("HOME"),
+                        "TMPDIR" to environment.getValue("TMPDIR"),
+                        RunErrors.ENV to errorFile.path,
+                    ),
+                    // Preview the export's display options when running from the IDE.
+                    orientation = project.config.export.orientation,
+                    immersive = project.config.export.immersive,
+                    keepScreenOn = project.config.export.keepScreenOn,
+                )
+                (ProgramLauncher.launch(context, spec) as? LaunchResult.Unsupported)?.reason
+            }
+        }
+    }
+
+    /** The reason the last graphical program could not start, if it reported one; clears it. */
+    fun consumeStartError(context: Context): String? {
+        val file = errorFile(context)
+        if (!file.isFile) return null
+        return runCatching { file.readText().trim() }.getOrNull().also { file.delete() }?.ifEmpty { null }
+    }
+
+    /**
+     * Recent log lines of this app, including the program's process (raylib, SDL
+     * and SFML log there, and so do native crashes). Android lets an app read its
+     * own log without any permission.
+     */
+    fun readProgramLog(maxLines: Int = 400): List<String> = runCatching {
+        val process = ProcessBuilder("logcat", "-d", "-v", "time", "-t", maxLines.toString())
+            .redirectErrorStream(true)
+            .start()
+        process.inputStream.bufferedReader().readLines().also { process.waitFor() }
+    }.getOrElse { listOf("Could not read the log: ${it.message}") }
+
+    private fun errorFile(context: Context) = File(context.filesDir, "run/last-error.txt")
+
+    /** Opens an interactive shell with the toolchain on PATH. */
+    fun openShell(context: Context, container: AppContainer) {
+        val bash = File(container.layout.binDir, "bash")
+        startConsole(
+            context,
+            ConsoleRequest(
+                title = "Terminal",
+                workingDirectory = container.layout.homeDir.path,
+                shell = if (bash.canExecute()) bash.path else ConsoleRequest.DEFAULT_SHELL,
+                environment = container.toolchain.environment(),
+                fontSizeSp = container.settings.settings.value.terminalFontSizeSp,
+            ),
+        )
+    }
+
+    private fun startConsole(context: Context, request: ConsoleRequest) {
+        context.startActivity(ConsoleContract.intent(context, request).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}

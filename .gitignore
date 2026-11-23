@@ -33,3 +33,15 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+*.iml
+.idea/
+.DS_Store
+# Gradle outputs (not the core/build source module)
+/app/build/
+/runtime-template/build/
+/core/*/build/
+/feature/*/build/
+/build-logic/build/
+/build-logic/*/build/
+/captures

@@ -1,0 +1,6 @@
+• Code intelligence with clangd: completion, live errors, go to definition, rename
+• clang-format (format on save) and optional clang-tidy
+• Physical keyboard and mouse: VS Code shortcuts, command palette, quick open, split editor
+• Asset viewer: images (TGA too), sounds, 3D models and fonts
+• The toolchain download now asks first
+• Licensed under GPL-3.0-or-later

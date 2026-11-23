@@ -1,0 +1,30 @@
+<p>NativeForge é uma IDE de C e C++ que compila <b>no próprio aparelho</b>. Escreva o código, compile com clang, rode num terminal de verdade ou em tela cheia e exporte como um APK independente. Não precisa de computador nem de compilação na nuvem.</p>
+
+<p><b>Editor</b></p>
+<ul>
+<li>Realce de sintaxe para C, C++ e CMake, abas, editor dividido e 15 temas de editor</li>
+<li>Inteligência de código com clangd: autocompletar, erros e avisos ao vivo, ir para a definição, renomear símbolo e informações do símbolo</li>
+<li>clang-format com os estilos LLVM, Google, Chromium, Mozilla, WebKit, Microsoft ou GNU, ou o .clang-format do projeto; formatar ao salvar e verificações do clang-tidy opcionais</li>
+<li>Teclado físico e mouse com os atalhos do VS Code: paleta de comandos (Ctrl+Shift+P), abrir arquivo rápido (Ctrl+P), compilar (Ctrl+Shift+B), ir para a linha, mover linhas, comentar e zoom com Ctrl+roda</li>
+</ul>
+
+<p><b>Compilar e rodar</b></p>
+<ul>
+<li>Quatro sistemas de build: um build interno incremental, CMake (Ninja ou Makefiles), Make e Ninja</li>
+<li>Makefiles de desktop funcionam sem mudanças: gcc, g++ e cc viram clang para Android</li>
+<li>Programas de console rodam num terminal com PTY; programas gráficos rodam em tela cheia</li>
+<li>Bibliotecas incluídas: SDL3 e SDL2 (image, ttf, mixer), Dear ImGui, raylib e raygui, SFML, OpenGL ES, Box2D, Box3D, Lua, GLM, EnTT, nlohmann/json, stb e miniaudio</li>
+</ul>
+
+<p><b>Projetos</b></p>
+<ul>
+<li>Modelos de programas de console, raylib, SDL3, SDL2, Dear ImGui, SFML, OpenGL ES e Vulkan, além de exemplos de física</li>
+<li>Git: clonar por HTTPS, ver mudanças e diffs, commit, pull e push</li>
+<li>Visualizador de assets para imagens (inclusive TGA), sons, modelos 3D (OBJ, STL, PLY, glTF) e fontes</li>
+<li>Exporte qualquer programa como APK, ou como Android App Bundle para o Google Play, com nome, id de pacote, ícone e versão próprios, assinado com a sua própria keystore</li>
+</ul>
+
+<p><b>Sobre o download do toolchain</b></p>
+<p>O compilador (clang, lld, CMake, Ninja, Make) não vem dentro do app. Quando você pede, o NativeForge baixa esses programas do repositório de pacotes do Termux (packages-cf.termux.dev) e os instala dentro do app. São arquivos executáveis que o F-Droid não compilou nem verificou. O app pergunta antes de baixar, e nada é baixado sem a sua permissão.</p>
+
+<p>NativeForge é software livre sob a GNU GPL, versão 3 ou posterior.</p>

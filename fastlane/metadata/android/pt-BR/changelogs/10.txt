@@ -1,0 +1,6 @@
+• Inteligência de código com clangd: autocompletar, erros ao vivo, ir para a definição, renomear
+• clang-format (formatar ao salvar) e clang-tidy opcional
+• Teclado físico e mouse: atalhos do VS Code, paleta de comandos, abrir rápido, editor dividido
+• Visualizador de assets: imagens (inclusive TGA), sons, modelos 3D e fontes
+• O download do toolchain agora pede permissão antes
+• Licença GPL-3.0-or-later

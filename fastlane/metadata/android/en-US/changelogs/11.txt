@@ -1,0 +1,3 @@
+• Your own signing keys: create a keystore, or import JKS, PKCS#12 or BKS files from keytool or Android Studio, and back them up
+• Export Android App Bundles (AAB) for Google Play, signed with your upload key
+• Save exported APKs and bundles to any folder

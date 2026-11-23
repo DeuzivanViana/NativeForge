@@ -1,0 +1,4 @@
+• SDL2 2.32 with SDL2_image, SDL2_ttf and SDL2_mixer, for older games and tutorials
+• Dear ImGui with SDL2/SDL3, OpenGL ES 3 and Vulkan backends, plus a new ImGui template
+• Vulkan headers and a Vulkan triangle template (NativeActivity)
+• Package repositories: add your own HTTPS package indexes in Settings

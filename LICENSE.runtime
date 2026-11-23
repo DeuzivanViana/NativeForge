@@ -1,0 +1,32 @@
+NativeForge runtime exception
+
+The NativeForge IDE is licensed under the GNU General Public License, version 3
+or (at your option) any later version (see LICENSE).
+
+As an exception, the files that NativeForge copies into the APKs it exports are
+also available under the zlib license below, so that programs written with
+NativeForge can be distributed under any license. These files are:
+
+  * runtime-template/            (the host app that exported programs run in)
+  * feature/runner/              (program hosts and the native shim, nativeforge_shim.c)
+
+The org.libsdl.app Java files in feature/runner/src/main/java are part of SDL
+and are already under the zlib license.
+
+Copyright (C) 2025-2026 The NativeForge authors
+
+This software is provided 'as-is', without any express or implied warranty. In
+no event will the authors be held liable for any damages arising from the use
+of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it freely,
+subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not claim
+   that you wrote the original software. If you use this software in a product,
+   an acknowledgment in the product documentation would be appreciated but is
+   not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.

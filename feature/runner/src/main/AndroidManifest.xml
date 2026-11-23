@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:glEsVersion="0x00020000" android:required="true" />
+
+    <application>
+        <!-- Runs in its own process: a crashing program never takes the IDE down,
+             and every run starts with freshly loaded libraries. -->
+        <activity
+            android:name="io.nativeforge.feature.runner.NativeProgramActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
+            android:exported="false"
+            android:process=":runner"
+            android:screenOrientation="unspecified"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="nativeforge_shim" />
+        </activity>
+
+        <!-- SDL3 programs: SDL's Java glue drives the surface, input and audio. -->
+        <activity
+            android:name="io.nativeforge.feature.runner.SdlProgramActivity"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:exported="false"
+            android:preferMinimalPostProcessing="true"
+            android:process=":runner"
+            android:screenOrientation="unspecified"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+
+        <!-- SDL2 programs: SDL 2's Java glue, relocated to org.libsdl.sdl2. -->
+        <activity
+            android:name="io.nativeforge.feature.runner.Sdl2ProgramActivity"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:exported="false"
+            android:preferMinimalPostProcessing="true"
+            android:process=":runner"
+            android:screenOrientation="unspecified"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+    </application>
+</manifest>

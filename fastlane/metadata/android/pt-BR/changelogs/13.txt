@@ -1,0 +1,2 @@
+• Corrigido o realce de sintaxe de C++: o código depois de um comentário (em arquivos .cpp e .h) não fica mais com a cor de comentário
+• Chamadas de função, lambdas, for de intervalo e macros de várias linhas voltaram a ser coloridos

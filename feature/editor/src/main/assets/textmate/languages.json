@@ -1,0 +1,31 @@
+{
+  "languages": [
+    {
+      "grammar": "textmate/grammars/c.tmLanguage.json",
+      "name": "c",
+      "scopeName": "source.c",
+      "languageConfiguration": "textmate/c-family.language-configuration.json"
+    },
+    {
+      "grammar": "textmate/grammars/cpp.tmLanguage.json",
+      "name": "cpp",
+      "scopeName": "source.cpp",
+      "languageConfiguration": "textmate/c-family.language-configuration.json",
+      "embeddedLanguages": {
+        "meta.embedded.block.cpp": "cpp"
+      }
+    },
+    {
+      "grammar": "textmate/grammars/cpp-macro.tmLanguage.json",
+      "name": "cpp-macro",
+      "scopeName": "source.cpp.embedded.macro",
+      "languageConfiguration": "textmate/c-family.language-configuration.json"
+    },
+    {
+      "grammar": "textmate/grammars/cmake.tmLanguage.json",
+      "name": "cmake",
+      "scopeName": "source.cmake",
+      "languageConfiguration": "textmate/cmake.language-configuration.json"
+    }
+  ]
+}

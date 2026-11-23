@@ -1,0 +1,3 @@
+• Chaves de assinatura próprias: crie uma keystore ou importe arquivos JKS, PKCS#12 ou BKS do keytool ou do Android Studio, e faça backup
+• Exporte Android App Bundles (AAB) para o Google Play, assinados com a sua chave de upload
+• Salve APKs e bundles exportados em qualquer pasta
