@@ -1,6 +1,7 @@
 name: Release
 
-# On a version tag (v1.2.3): rebuilds the bundled libraries from source, runs the
+# On a version tag (v1.2.3), pushed with git or created with a release on
+# github.com: rebuilds the bundled libraries from source, runs the
 # tests, builds the release APK, signs it when the signing secrets are set, and
 # publishes a GitHub release with the APK and its SHA-256.
 #
@@ -86,4 +87,9 @@ jobs:
           code=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts)
           notes=fastlane/metadata/android/en-US/changelogs/$code.txt
           [ -f "$notes" ] || notes=/dev/null
-          gh release create "$tag" dist/* --title "NativeForge ${tag#v}" --notes-file "$notes"
+          # The tag may come from a release created on github.com: add the files to it.
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" dist/* --clobber
+          else
+            gh release create "$tag" dist/* --title "NativeForge ${tag#v}" --notes-file "$notes"
+          fi
