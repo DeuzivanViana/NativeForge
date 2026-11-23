@@ -24,9 +24,11 @@ repository, and how to submit. Policy references are from the
    recipe builds that tag; `release.yml` publishes the same tag on GitHub.
 2. **Prebuilt libraries in the source tree.** `app/src/main/assets/packages/`
    holds about 20 MB of `.tar.xz` archives (SDL2/SDL3, raylib, SFML, ImGui...).
-   F-Droid's scanner rejects binaries, so the recipe deletes them
-   (`scandelete`) and rebuilds them in `prebuild` with
-   `packages/build-android-libs.sh`, which only uses pinned upstream tarballs
+   F-Droid's scanner rejects binaries, so the recipe deletes them (`rm`, which
+   runs before `prebuild`) and rebuilds them in `prebuild` with
+   `packages/build-android-libs.sh`, then deletes the script's work directory
+   (`build/android-libs`) so the scanner only sees the new archives. The
+   script only uses pinned upstream tarballs
    (Ubuntu archive), single files from upstream git tags and the Box3D tag,
    all checked against `packages/sources.sha256`. `libs-from-source.yml`
    runs the same rebuild on GitHub. Reviewers may still ask to turn the
