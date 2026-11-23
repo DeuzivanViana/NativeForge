@@ -12,6 +12,21 @@ touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 
 <p align="center"><img src="fastlane/metadata/android/en-US/images/icon.png" width="96" alt="NativeForge icon"></p>
 
+## Screenshots
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_editor.jpg" width="200" alt="Editor with the command palette">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_physics_3d.jpg" width="200" alt="3D physics example (raylib + Box3D)">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_new_project.jpg" width="200" alt="New project: templates">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_examples.jpg" width="200" alt="Example projects and build options">
+</p>
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_export_apk.jpg" width="200" alt="Export as APK or App Bundle">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6_packages.jpg" width="200" alt="Packages">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7_themes.jpg" width="200" alt="App and editor themes">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8_settings.jpg" width="200" alt="Settings">
+</p>
+
 ## Features
 
 | Area | What it does | Where |
