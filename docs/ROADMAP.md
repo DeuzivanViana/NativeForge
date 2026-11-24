@@ -30,6 +30,10 @@
   and buttons for 10 seconds.
 * Later: the program's sound in the browser, packages, export and git screens
   in the browser.
+* New bundled library: SQLite 3.54.1 (`sqlite3`, static, with FTS5, R*Tree,
+  JSON and math functions), linked automatically with the built-in build,
+  CMake (`find_package(SQLite3)` also works) and Makefiles. New example: a
+  to-do list in the terminal stored in `todo.db`, in C and C++.
 
 ## 0.11.1 — terminal start-up fix
 

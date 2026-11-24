@@ -1614,6 +1614,81 @@
           "m"
         ]
       }
+    },
+    {
+      "name": "sqlite3",
+      "version": "3.54.1",
+      "description": "SQLite 3: SQL database in a single file, with FTS5, R*Tree, JSON and math functions (C)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/sqlite3-3.54.1.tar.xz",
+      "sha256": "984a16c7c0506aa69e07ccea81870438ccb10204c4d8582d4955eccdf393a14e",
+      "sizeBytes": 752060,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "sqlite3",
+          "dl",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sqlite3",
+      "version": "3.54.1",
+      "description": "SQLite 3: SQL database in a single file, with FTS5, R*Tree, JSON and math functions (C)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/sqlite3-3.54.1.tar.xz",
+      "sha256": "e4f569a7f740e8e2c0e40c6ff03c41e8a366482e98070b987fc38cf2e572a642",
+      "sizeBytes": 782576,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "sqlite3",
+          "dl",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "sqlite3",
+      "version": "3.54.1",
+      "description": "SQLite 3: SQL database in a single file, with FTS5, R*Tree, JSON and math functions (C)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/sqlite3-3.54.1.tar.xz",
+      "sha256": "427a8812fecc9b9139eae27483939aeb2094af6a229712b0fad365852c670c2c",
+      "sizeBytes": 833324,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "sqlite3",
+          "dl",
+          "m"
+        ]
+      }
     }
   ]
 }

@@ -298,6 +298,19 @@ object ProjectTemplates {
             },
         ),
         SimpleTemplate(
+            id = "sqlite-todo",
+            displayName = "To-do list (SQLite)",
+            description = "Console app that keeps its data in an SQLite database.",
+            details = "A terminal to-do list stored in todo.db with SQLite 3: create a table, add, finish, find and " +
+                "remove tasks with prepared statements, and type any SQL query to see its rows. The C++ version " +
+                "wraps the connection and statements in small RAII classes.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.CONSOLE,
+            languages = C_AND_CPP,
+            packages = listOf("sqlite3"),
+            sources = { language -> resourceSources(language, "sqlite-todo") },
+        ),
+        SimpleTemplate(
             id = "json-contacts",
             displayName = "Contact book (JSON)",
             description = "Console app that saves its data as JSON.",

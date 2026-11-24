@@ -13,12 +13,12 @@
 <li>Four build systems: a built-in incremental build, CMake (Ninja or Makefiles), Make and Ninja</li>
 <li>Desktop Makefiles work unchanged: gcc, g++ and cc are mapped to clang for Android</li>
 <li>Console programs run in a terminal with a PTY; graphical programs run full screen</li>
-<li>Bundled libraries: SDL3 and SDL2 (image, ttf, mixer), Dear ImGui, LVGL, raylib and raygui, SFML, OpenGL ES, Box2D, Box3D, Lua, GLM, EnTT, nlohmann/json, stb and miniaudio</li>
+<li>Bundled libraries: SDL3 and SDL2 (image, ttf, mixer), Dear ImGui, LVGL, raylib and raygui, SFML, OpenGL ES, Box2D, Box3D, Lua, SQLite, GLM, EnTT, nlohmann/json, stb and miniaudio</li>
 </ul>
 
 <p><b>Projects</b></p>
 <ul>
-<li>Templates for console, raylib, SDL3, SDL2, Dear ImGui, LVGL, SFML, OpenGL ES and Vulkan programs, plus examples (physics, LVGL apps, synthesizer, Lua, JSON...)</li>
+<li>Templates for console, raylib, SDL3, SDL2, Dear ImGui, LVGL, SFML, OpenGL ES and Vulkan programs, plus examples (physics, LVGL apps, synthesizer, Lua, SQLite, JSON...)</li>
 <li>Open projects from any folder of the phone or SD card and build them where they are</li>
 <li>Git: clone over HTTPS, see changes and diffs, commit, pull and push</li>
 <li>Asset viewer for images (including TGA), sounds, 3D models (OBJ, STL, PLY, glTF) and fonts</li>

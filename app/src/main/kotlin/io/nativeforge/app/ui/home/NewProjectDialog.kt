@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Gradient
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
@@ -367,6 +368,7 @@ private fun templateIcon(template: ProjectTemplate): ImageVector = when (templat
     "sdl3-synth" -> Icons.Filled.Piano
     "ecs-particles" -> Icons.Filled.AutoAwesome
     "lua-console" -> Icons.Filled.Code
+    "sqlite-todo" -> Icons.Filled.Storage
     "json-contacts" -> Icons.Filled.Contacts
     else -> Icons.Filled.Terminal
 }
