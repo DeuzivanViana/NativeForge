@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +18,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.nativeforge.core.project.ProjectNameValidator
 import io.nativeforge.core.ui.component.DialogPrimaryButton
+import io.nativeforge.core.ui.component.ProgressBar
 import io.nativeforge.core.ui.component.DialogSecondaryButton
 import io.nativeforge.core.ui.component.FormSection
 import io.nativeforge.core.ui.component.NfDialog
@@ -109,11 +109,7 @@ fun CloneDialog(
                 state?.error != null -> Text(state.error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 state != null -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(state.message + (state.percent?.let { " · $it%" } ?: ""), style = MaterialTheme.typography.bodySmall)
-                    if (state.percent != null) {
-                        LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
-                    } else {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
+                    ProgressBar(state.percent?.let { it / 100f }, Modifier.fillMaxWidth())
                 }
             }
         }

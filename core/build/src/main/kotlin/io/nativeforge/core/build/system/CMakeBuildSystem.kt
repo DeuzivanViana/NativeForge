@@ -72,6 +72,9 @@ class CMakeBuildSystem : BuildSystem {
         val configure = buildList {
             add(toolchain.cmake.path)
             addAll(listOf("-G", generator.cmakeName, "-S", project.root.path, "-B", buildDir.path))
+            // NativeForge always passes its own variables (NATIVEFORGE_*, the standard libraries);
+            // a project that does not read them is fine, so don't warn about them on every configure.
+            add("--no-warn-unused-cli")
             definitions.forEach { (key, value) -> add("-D$key=$value") }
         }
         val build = buildList {

@@ -6,6 +6,7 @@ import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ScrollView
 import android.widget.TextView
@@ -43,6 +44,10 @@ fun BuildOutputView(
             ScrollView(context).apply {
                 isFillViewport = true
                 isVerticalScrollBarEnabled = true
+                // The overscroll glow drew a coloured band across the top of the panel.
+                overScrollMode = View.OVER_SCROLL_NEVER
+                clipToPadding = true
+                clipChildren = true
                 addView(text, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
                 val state = OutputState(text)
                 tag = state
@@ -69,8 +74,8 @@ private class OutputState(val text: TextView) {
     }
 
     fun render(scroll: ScrollView, log: List<LogLine>, textColor: Int, errorColor: Int, selectionColor: Int) {
-        text.setTextColor(textColor)
-        text.highlightColor = selectionColor
+        if (text.currentTextColor != textColor) text.setTextColor(textColor)
+        if (text.highlightColor != selectionColor) text.highlightColor = selectionColor
         val colorsChanged = errorColor != this.errorColor || textColor != this.textColor
         this.textColor = textColor
         this.errorColor = errorColor

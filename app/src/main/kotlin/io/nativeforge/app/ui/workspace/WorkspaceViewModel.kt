@@ -70,7 +70,6 @@ data class WorkspaceUiState(
     val activeFile: String? = null,
     val dirtyFiles: Set<String> = emptySet(),
     val buildStatus: BuildStatus = BuildStatus.IDLE,
-    val log: List<LogLine> = emptyList(),
     val diagnostics: List<Diagnostic> = emptyList(),
     val panelVisible: Boolean = false,
     val message: String? = null,
@@ -115,6 +114,15 @@ class WorkspaceViewModel(
     private val _state = MutableStateFlow(WorkspaceUiState())
     val state: StateFlow<WorkspaceUiState> = _state.asStateFlow()
     private var buildJob: Job? = null
+
+    /**
+     * Build output, apart from [state] so that a fast build only recomposes the output panel,
+     * not the whole workspace. Lines are batched (see [appendLog]).
+     */
+    private val _log = MutableStateFlow<List<LogLine>>(emptyList())
+    val log: StateFlow<List<LogLine>> = _log.asStateFlow()
+    private val pendingLog = ArrayList<LogLine>()
+    private var logFlush: Job? = null
     private val _search = MutableStateFlow(ProjectSearchState())
     val search: StateFlow<ProjectSearchState> = _search.asStateFlow()
     private var searchJob: Job? = null
@@ -667,7 +675,8 @@ class WorkspaceViewModel(
         if (buildJob?.isActive == true) return
         buildJob = viewModelScope.launch {
             documents.keys.toList().forEach { save(it) }
-            _state.update { it.copy(buildStatus = BuildStatus.RUNNING, log = emptyList(), diagnostics = emptyList(), panelVisible = true) }
+            clearLog()
+            _state.update { it.copy(buildStatus = BuildStatus.RUNNING, diagnostics = emptyList(), panelVisible = true) }
 
             if (!installMissingPackages(project)) {
                 _state.update { it.copy(buildStatus = BuildStatus.FAILED) }
@@ -708,12 +717,15 @@ class WorkspaceViewModel(
         when (event) {
             is BuildEvent.StepStarted -> appendLog("[${event.index + 1}/${event.total}] ${event.step.description}", false)
             is BuildEvent.Output -> appendLog(event.line, event.stream == OutputStream.STDERR)
-            is BuildEvent.DiagnosticReported -> _state.update { it.copy(diagnostics = it.diagnostics + event.diagnostic) }
+            is BuildEvent.DiagnosticReported -> _state.update {
+                if (it.diagnostics.size >= MAX_DIAGNOSTICS) it else it.copy(diagnostics = it.diagnostics + event.diagnostic)
+            }
             is BuildEvent.StepFinished -> if (event.exitCode != 0) appendLog("Step failed with exit code ${event.exitCode}", true)
             is BuildEvent.Finished -> {
                 lastArtifact = event.result.artifact
                 val seconds = event.result.durationMillis / 1000.0
                 appendLog(if (event.result.success) "Build succeeded in %.1fs".format(seconds) else "Build failed", !event.result.success)
+                flushLog()
                 _state.update { it.copy(buildStatus = if (event.result.success) BuildStatus.SUCCEEDED else BuildStatus.FAILED) }
                 // CMake writes a more exact compilation database while configuring.
                 intel.refreshDatabase()
@@ -794,6 +806,8 @@ class WorkspaceViewModel(
     }
 
     fun togglePanel() = _state.update { it.copy(panelVisible = !it.panelVisible) }
+
+    fun hidePanel() = _state.update { it.copy(panelVisible = false) }
 
     // ---- Search in project ----
 
@@ -918,8 +932,35 @@ class WorkspaceViewModel(
         }
     }
 
-    private fun appendLog(text: String, isError: Boolean) =
-        _state.update { it.copy(log = (it.log + LogLine(text, isError)).takeLast(MAX_LOG_LINES)) }
+    /**
+     * Queues a line for the output panel. Lines are published at most every [LOG_FLUSH_MS]: a
+     * build printing thousands of lines then costs a few list copies and redraws instead of one
+     * per line. Only called on the main thread (view model scope).
+     */
+    private fun appendLog(text: String, isError: Boolean) {
+        pendingLog += logLine(text, isError)
+        if (logFlush?.isActive == true) return
+        logFlush = viewModelScope.launch {
+            delay(LOG_FLUSH_MS)
+            flushLog()
+        }
+    }
+
+    private fun flushLog() {
+        logFlush?.cancel()
+        logFlush = null
+        if (pendingLog.isEmpty()) return
+        val batch = pendingLog.toList()
+        pendingLog.clear()
+        _log.update { appendCapped(it, batch, MAX_LOG_LINES) }
+    }
+
+    private fun clearLog() {
+        logFlush?.cancel()
+        logFlush = null
+        pendingLog.clear()
+        _log.value = emptyList()
+    }
 
     private fun defaultFile(project: Project): File? =
         project.sourceDirectory.walkTopDown().firstOrNull { it.isFile && it.nameWithoutExtension == "main" }
@@ -959,6 +1000,8 @@ class WorkspaceViewModel(
 
     private companion object {
         const val MAX_LOG_LINES = 2000
+        const val LOG_FLUSH_MS = 50L
+        const val MAX_DIAGNOSTICS = 1000
         const val MAX_TREE_NODES = 5000
         const val MAX_EDITABLE_BYTES = 4L * 1024 * 1024
         const val SEARCH_DEBOUNCE_MS = 250L

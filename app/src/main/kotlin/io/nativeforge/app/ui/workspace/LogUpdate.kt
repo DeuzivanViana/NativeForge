@@ -38,3 +38,27 @@ fun charsOfFirstLines(shown: List<LogLine>, lines: Int): Int {
     for (i in 0 until lines) total += shown[i].text.length + 1
     return total
 }
+
+/**
+ * [log] with [batch] appended, keeping the last [max] lines. Lines kept from [log] stay the same
+ * instances, which [planLogUpdate] relies on to update the shown text in place.
+ */
+fun appendCapped(log: List<LogLine>, batch: List<LogLine>, max: Int): List<LogLine> {
+    if (batch.isEmpty()) return log
+    val total = log.size + batch.size
+    if (total <= max) return log + batch
+    val keepOld = (max - batch.size).coerceAtLeast(0)
+    val result = ArrayList<LogLine>(max)
+    if (keepOld > 0) result.addAll(log.subList(log.size - keepOld, log.size))
+    result.addAll(if (batch.size > max) batch.subList(batch.size - max, batch.size) else batch)
+    return result
+}
+
+/**
+ * One output line as shown: a program printing megabytes without a newline would otherwise make
+ * one huge line that the text view lays out again on every update.
+ */
+fun logLine(text: String, isError: Boolean, maxChars: Int = MAX_LOG_LINE_CHARS): LogLine =
+    LogLine(if (text.length <= maxChars) text else text.take(maxChars) + " … (${text.length - maxChars} more characters)", isError)
+
+const val MAX_LOG_LINE_CHARS = 4_000

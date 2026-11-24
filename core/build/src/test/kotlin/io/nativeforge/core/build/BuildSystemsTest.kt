@@ -126,6 +126,8 @@ class BuildSystemsTest {
         assertTrue(configure.containsAll(listOf("-G", "Ninja")))
         assertTrue("-DCMAKE_PREFIX_PATH=${prefix.path}" in configure)
         assertTrue("-DNATIVEFORGE_RUNTIME=NATIVE_ACTIVITY" in configure)
+        // Projects that ignore the NATIVEFORGE_* variables must not get an "unused-cli" warning.
+        assertTrue("--no-warn-unused-cli" in configure)
         assertEquals(listOf(toolchain.cmake.path, "--build"), plan.steps[1].process.command.take(2))
         assertEquals("libmain.so", plan.artifact.file.name)
     }

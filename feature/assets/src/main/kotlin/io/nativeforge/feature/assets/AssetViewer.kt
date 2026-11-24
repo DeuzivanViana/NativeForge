@@ -175,8 +175,9 @@ private fun Checkerboard() {
 private fun AudioPlayer(file: File) {
     var error by remember { mutableStateOf<String?>(null) }
     val player = remember(file) {
-        runCatching { MediaPlayer().apply { setDataSource(file.path); prepare() } }
-            .onFailure { error = "Android cannot play this file (${it.message ?: it.javaClass.simpleName})" }
+        val created = MediaPlayer()
+        runCatching { created.apply { setDataSource(file.path); prepare() } }
+            .onFailure { created.release(); error = "Android cannot play this file (${it.message ?: it.javaClass.simpleName})" }
             .getOrNull()
     }
     DisposableEffect(player) { onDispose { player?.release() } }

@@ -2,6 +2,8 @@ package io.nativeforge.app.ui.workspace
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class LogUpdateTest {
     private fun line(text: String) = LogLine(text, isError = false)
@@ -46,5 +48,30 @@ class LogUpdateTest {
         assertEquals(0, charsOfFirstLines(lines, 0))
         assertEquals(4, charsOfFirstLines(lines, 1))
         assertEquals(5, charsOfFirstLines(lines, 2))
+    }
+
+    @Test
+    fun appendCappedKeepsOldInstancesAndTheLimit() {
+        val a = line("a"); val b = line("b"); val c = line("c"); val d = line("d"); val e = line("e")
+        val old = listOf(a, b, c)
+        val next = appendCapped(old, listOf(d, e), max = 4)
+        assertEquals(listOf(b, c, d, e), next)
+        assertEquals(LogUpdate.Incremental(1, listOf(d, e)), planLogUpdate(old, next))
+        assertEquals(listOf(a, b, c, d), appendCapped(old, listOf(d), max = 10))
+        assertSame(old, appendCapped(old, emptyList(), max = 10))
+    }
+
+    @Test
+    fun appendCappedWithABatchLargerThanTheLimitKeepsItsEnd() {
+        val batch = (1..5).map { line("$it") }
+        assertEquals(batch.takeLast(3), appendCapped(listOf(line("old")), batch, max = 3))
+    }
+
+    @Test
+    fun veryLongLinesAreShortened() {
+        val shown = logLine("x".repeat(30), isError = true, maxChars = 10)
+        assertEquals("x".repeat(10) + " … (20 more characters)", shown.text)
+        assertTrue(shown.isError)
+        assertEquals("short", logLine("short", false, maxChars = 10).text)
     }
 }
