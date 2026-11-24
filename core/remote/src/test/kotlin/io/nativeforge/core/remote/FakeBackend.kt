@@ -13,6 +13,10 @@ import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.project.template.ProjectOptions
 import io.nativeforge.core.project.template.ProjectTemplate
 import io.nativeforge.core.project.template.ProjectTemplates
+import io.nativeforge.core.remote.screen.ProgramStream
+import io.nativeforge.core.remote.screen.RemoteInput
+import io.nativeforge.core.remote.screen.StreamSink
+import io.nativeforge.core.remote.screen.VideoFrame
 import io.nativeforge.core.toolchain.Abi
 import io.nativeforge.core.toolchain.Toolchain
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +55,11 @@ class FakeBackend(root: File) : RemoteBackend {
     override fun codeIntelEnabled() = false
     override fun consoleCommand(project: Project, artifact: BuildArtifact) = PtyCommand("/bin/sh", listOf(artifact.file.path), project.root.path, emptyMap())
     override fun runOnDevice(project: Project, artifact: BuildArtifact): String? { deviceRuns += project.name; return null }
+    val streams = mutableListOf<FakeStream>()
+    /** An H.264 Annex B file the dev server plays as the program's picture (see DevServerTest). */
+    var devVideo: File? = null
+    override fun streamProgram(project: Project, artifact: BuildArtifact, width: Int, height: Int, sink: StreamSink): ProgramStream =
+        devVideo?.let { DevVideoStream(it, sink) } ?: FakeStream(width, height, sink).also { streams += it }
     override fun shellCommand() = PtyCommand("/bin/sh", listOf("-i"), System.getProperty("java.io.tmpdir"), mapOf("PS1" to "$ "))
     override val ptyFactory = PtyFactory { command, _, _ -> ProcessPty(command) }
     override fun theme() = RemoteTheme(
@@ -91,4 +100,57 @@ object NoToolchain : Toolchain {
     override fun baseLinkFlags() = emptyList<String>()
     override fun runtimeLibraries() = emptyList<File>()
     override fun missingComponents() = emptyList<String>()
+}
+
+/** A stream that sends a codec configuration at once and a small key frame whenever one is asked for. */
+class FakeStream(override val width: Int, override val height: Int, val sink: StreamSink) : ProgramStream {
+    val inputs = java.util.concurrent.CopyOnWriteArrayList<RemoteInput>()
+    @Volatile var stopped = false
+    @Volatile var answerKeyFrames = true
+    private var pts = 0L
+
+    init {
+        sink.onFrame(VideoFrame(CONFIG, 0, keyFrame = false, config = true))
+    }
+
+    override fun input(event: RemoteInput) { inputs += event }
+    override fun requestKeyFrame() { if (answerKeyFrames) frame(key = true) }
+    fun frame(key: Boolean) = sink.onFrame(VideoFrame(byteArrayOf(0, 0, 0, 1, if (key) 0x65 else 0x41, 1, 2, 3), pts++, key))
+    override fun stop() { stopped = true; sink.onEnded("Stopped") }
+
+    companion object {
+        val CONFIG = byteArrayOf(0, 0, 0, 1, 0x67, 0x42, 0xc0.toByte(), 0x1f, 0x11, 0, 0, 0, 1, 0x68, 0xce.toByte(), 0x3c, 0x80.toByte())
+    }
+}
+
+/** Plays an H.264 file in a loop at 30 frames per second and prints the input it gets. */
+class DevVideoStream(file: File, private val sink: StreamSink) : ProgramStream {
+    private val data = file.readBytes()
+    private val units = io.nativeforge.core.remote.screen.H264.nalUnits(data)
+    override val width = 640
+    override val height = 360
+    @Volatile private var running = true
+
+    init {
+        Thread {
+            val config = units.filter { (s, _) -> (data[s].toInt() and 0x1f) in 7..8 }
+                .fold(ByteArray(0)) { acc, (s, e) -> acc + byteArrayOf(0, 0, 0, 1) + data.copyOfRange(s, e) }
+            sink.onFrame(VideoFrame(config, 0, keyFrame = false, config = true))
+            var pts = 0L
+            while (running) {
+                for ((s, e) in units) {
+                    if (!running) break
+                    val type = data[s].toInt() and 0x1f
+                    if (type != 1 && type != 5) continue
+                    sink.onFrame(VideoFrame(byteArrayOf(0, 0, 0, 1) + data.copyOfRange(s, e), pts, keyFrame = type == 5))
+                    pts += 33_333
+                    Thread.sleep(33)
+                }
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    override fun input(event: RemoteInput) = println("INPUT $event")
+    override fun requestKeyFrame() = Unit // the file has a key frame every second
+    override fun stop() { running = false; sink.onEnded("Stopped") }
 }

@@ -257,8 +257,27 @@ work still happens on the phone; the browser is the screen and keyboard.
   a high-performance Wi-Fi lock, so builds and terminals keep running with the
   screen off; it stops after the user's idle time. Terminals use Termux's PTY
   JNI through `com.termux.terminal.PtyBridge` (raw bytes for xterm.js).
-* Graphical programs started from the browser run on the phone's screen;
-  streaming that screen to the browser is a later stage.
+* Graphical programs started from the browser are streamed to it by default
+  (the run button's menu can send them to the phone's screen instead):
+  * `AndroidProgramStream` (app) creates a private `VirtualDisplay` whose
+    surface is the input of the hardware H.264 encoder, and a local socket
+    for input. Android only lets an app launch activities on displays it may
+    embed into, which its own virtual display is not, so the host activity
+    still opens on the phone (showing a note) and the program draws into a
+    `Presentation` on the virtual display (`feature/runner/.../RemoteHost`).
+    SDL's surface view moves into the presentation; NativeActivity gets the
+    presentation window's surface and input queue instead of its own. The
+    presentation is made from the application context, so it does not stop
+    with the activity, and the hosts keep the program running without focus.
+  * `RemoteInputBridge` (in the `:runner` process) reads the browser's keys,
+    mouse and touches from that socket (only this app's uid may connect) and
+    injects them with `Window.injectInputEvent` into the presentation's
+    window, so programs see them like a USB keyboard and mouse.
+  * `ScreenHub` (`core/remote/screen`) fans the encoded frames out over
+    `/ws/screen` with a queue per browser (a slow browser drops back to the
+    next key frame instead of stalling the encoder) and turns browser input
+    into Android key codes and pixels (`KeyMap`, `StreamSize`). The page
+    decodes with WebCodecs (`web/js/screen.js`).
 
 See `docs/SECURITY.md` for the security model.
 

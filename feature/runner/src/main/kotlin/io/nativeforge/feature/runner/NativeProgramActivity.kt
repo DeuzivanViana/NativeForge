@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Process
 import android.system.Os
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 
 /**
@@ -40,17 +41,41 @@ class NativeProgramActivity : NativeActivity() {
         super.onCreate(savedInstanceState)
         RunnerWindow.apply(this, spec)
         immersive = spec.immersive
+        remote = RemoteHost.fromIntent(this)?.also(::showInBrowser)
     }
+
+    private var remote: RemoteHost? = null
 
     private var immersive = false
 
+    /**
+     * Moves the program to the remote host's presentation: NativeActivity took this
+     * window's surface and input queue in onCreate; they are handed back (so the phone
+     * shows a note) and the presentation's are given to the program instead.
+     */
+    private fun showInBrowser(host: RemoteHost) {
+        window.takeSurface(null)
+        window.takeInputQueue(null)
+        setContentView(host.placeholder())
+        host.presentation.window?.apply {
+            takeSurface(this@NativeProgramActivity)
+            takeInputQueue(this@NativeProgramActivity)
+        }
+        host.show(View(this))
+        // The program keeps drawing while the phone's own window is in the background or
+        // the screen is off; programs pause without focus (raylib stops its loop).
+        window.decorView.post { super.onWindowFocusChanged(true) }
+    }
+
     override fun onWindowFocusChanged(hasFocus: Boolean) {
+        if (remote != null) return // focus follows the browser, see showInBrowser
         super.onWindowFocusChanged(hasFocus)
         // Bars come back after dialogs or app switches; hide them again.
         if (hasFocus && immersive) RunnerWindow.hideSystemBars(this)
     }
 
     override fun onDestroy() {
+        remote?.close()
         super.onDestroy()
         // Native globals cannot be unloaded; end the process so the next run starts clean.
         if (isFinishing) Process.killProcess(Process.myPid())

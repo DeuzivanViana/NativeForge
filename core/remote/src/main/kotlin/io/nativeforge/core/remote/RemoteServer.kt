@@ -26,6 +26,9 @@ import io.nativeforge.core.remote.security.AccessControl
 import io.nativeforge.core.remote.security.NetworkPolicy
 import io.nativeforge.core.remote.security.PairingResult
 import io.nativeforge.core.remote.security.TrustedBrowser
+import io.nativeforge.core.remote.screen.ScreenHub
+import io.nativeforge.core.remote.screen.ScreenViewer
+import io.nativeforge.core.remote.screen.StreamSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -60,8 +63,9 @@ data class RemoteServerStatus(
 )
 
 /**
- * The web IDE's server: static files, a JSON API over HTTPS and two WebSocket channels
- * (`/ws` for events, build output and clangd; `/ws/terminal` for terminal bytes).
+ * The web IDE's server: static files, a JSON API over HTTPS and three WebSocket channels
+ * (`/ws` for events, build output and clangd; `/ws/terminal` for terminal bytes;
+ * `/ws/screen` for the video of a streamed program and its input).
  *
  * Security model (see docs/SECURITY.md, "Remote access"):
  * * Only the pairing endpoint and the page's own static files answer without a session.
@@ -84,6 +88,8 @@ class RemoteServer(
     private val mainSockets = CopyOnWriteArraySet<WebSocket>()
     private val terminals = TerminalHub(backend.ptyFactory, logger)
     private val intel = CodeIntelHub(backend, logger, ::broadcast)
+    private val screen = ScreenHub(logger, clock).also { it.onEvent = ::broadcast }
+    private val screenSockets = CopyOnWriteArraySet<WebSocket>()
     private val lastActivity = AtomicLong(clock())
     private var http: HttpServer? = null
     private var scheduler: ScheduledExecutorService? = null
@@ -133,6 +139,7 @@ class RemoteServer(
         mainSockets.forEach { runCatching { it.close(1001, "Server stopped") } }
         mainSockets.clear()
         terminals.closeAll()
+        screen.stop("Remote access stopped")
         intel.stop()
         http?.stop()
         http = null
@@ -148,7 +155,10 @@ class RemoteServer(
     private fun tick() {
         mainSockets.forEach { socket -> runCatching { socket.ping() }.onFailure { mainSockets.remove(socket) } }
         terminals.list().forEach { session -> session.clients.forEach { runCatching { it.ping() } } }
+        screenSockets.forEach { runCatching { it.ping() } }
         if (buildJob?.isActive == true) touch()
+        // Watching a program counts as activity, even without input.
+        if ((screen.session?.viewerCount ?: 0) > 0) touch()
         val idle = config.idleTimeoutMillis
         if (idle > 0 && clock() - lastActivity.get() > idle) {
             logger.info(TAG, "Stopping remote access after ${idle / 60000} idle minutes")
@@ -198,6 +208,8 @@ class RemoteServer(
                 val session = terminals[request.query["id"]] ?: return Respond(HttpResponse.error(404, "No such terminal"))
                 if (request.isWebSocketUpgrade) Upgrade(TerminalChannel(session, token)) else Respond(HttpResponse.error(400, "WebSocket expected"))
             }
+            "/ws/screen" ->
+                if (request.isWebSocketUpgrade) Upgrade(ScreenChannel(token, request.query["id"])) else Respond(HttpResponse.error(400, "WebSocket expected"))
             "/api/logout" -> { access.logout(token); Respond(HttpResponse.json("{}").header("Set-Cookie", clearCookie())) }
             "/api/bootstrap" -> Respond(HttpResponse.json(bootstrap(browser).toString()))
             "/api/theme" -> Respond(HttpResponse.json(themeJson().toString()))
@@ -277,7 +289,7 @@ class RemoteServer(
 
     /** Closes the connections of browsers that were revoked or logged out. */
     private fun dropRevokedSockets() {
-        val sockets = mainSockets.toList() + terminals.list().flatMap { it.clients }
+        val sockets = mainSockets.toList() + terminals.list().flatMap { it.clients } + screenSockets
         sockets.forEach { socket ->
             val token = socket.attachment as? String ?: return@forEach
             if (access.authenticate(token) == null) runCatching { socket.close(4001, "Signed out") }
@@ -308,6 +320,7 @@ class RemoteServer(
         "build" to buildStateJson(),
         "intel" to intel.status,
         "terminals" to terminalsJson(),
+        "screen" to screen.session?.let { Json.obj("id" to it.id, "title" to it.title) },
     )
 
     private fun projectsJson() = runBlocking { backend.listProjects() }.map(::projectJson)
@@ -465,6 +478,41 @@ class RemoteServer(
         override fun onClose(socket: WebSocket) = session.detach(socket)
     }
 
+    // ---------------------------------------------------------------- program screen
+
+    /** Video of a streamed program to one browser, and that browser's keyboard and mouse back. */
+    private inner class ScreenChannel(private val token: String, private val id: String?) : WebSocketListener {
+        @Volatile private var viewer: ScreenHub.Viewer? = null
+
+        override fun onOpen(socket: WebSocket) {
+            socket.attachment = token
+            screenSockets += socket
+            viewer = screen.attach(
+                object : ScreenViewer {
+                    override fun sendText(text: String) = socket.sendText(text)
+                    override fun sendBinary(data: ByteArray) = socket.sendBinary(data)
+                    override fun close() = socket.close(1000, "Ended")
+                },
+                id,
+            )
+            if (viewer == null) socket.close(4004, "The program is not running")
+        }
+
+        override fun onText(socket: WebSocket, text: String) {
+            if (access.authenticate(token) == null) {
+                socket.close(4001, "Signed out")
+                return
+            }
+            touch()
+            viewer?.receive(text)
+        }
+
+        override fun onClose(socket: WebSocket) {
+            screenSockets -= socket
+            viewer?.close()
+        }
+    }
+
     // ---------------------------------------------------------------- main channel
 
     private inner class MainChannel(private val token: String) : WebSocketListener {
@@ -499,9 +547,10 @@ class RemoteServer(
     private fun handle(socket: WebSocket, type: String, message: JsonObject) {
         val id = message.int("id")
         when (type) {
-            "build" -> startBuild(project(message.string("project")), run = message.bool("run") == true)
+            "build" -> startBuild(project(message.string("project")), run = if (message.bool("run") == true) runTarget(message) else null)
             "cancel" -> buildJob?.cancel()
-            "run" -> runLast(project(message.string("project")))
+            "run" -> runLast(project(message.string("project")), runTarget(message))
+            "screen.stop" -> screen.stop()
             "lsp.sync" -> {
                 val project = project(message.string("project"))
                 intel.sync(project, files(project).resolve(message.string("path")), message.string("text").orEmpty())
@@ -551,14 +600,20 @@ class RemoteServer(
         )
     }
 
-    private fun startBuild(project: Project, run: Boolean) {
+    /** Where a graphical program shows: the browser (streamed, the default) or the phone's screen. */
+    private class RunTarget(val onPhone: Boolean, val width: Int, val height: Int)
+
+    private fun runTarget(message: JsonObject) =
+        RunTarget(message.string("on") == "phone", message.int("w") ?: 1280, message.int("h") ?: 720)
+
+    private fun startBuild(project: Project, run: RunTarget?) {
         if (buildJob?.isActive == true) throw IllegalStateException("A build is already running")
         synchronized(buildLog) {
             buildLog.clear()
             buildDiagnostics.clear()
         }
         buildProject = project.key
-        broadcast(Json.obj("t" to "build.start", "project" to project.key, "run" to run))
+        broadcast(Json.obj("t" to "build.start", "project" to project.key, "run" to (run != null)))
         onStatusChanged()
         buildJob = scope.launch {
             var finished: BuildEvent.Finished? = null
@@ -593,7 +648,9 @@ class RemoteServer(
             broadcast(Json.obj("t" to "build.done").merge(summary))
             intel.refreshDatabase(project)
             onStatusChanged()
-            if (success && run) runLast(project)
+            if (success && run != null) {
+                runCatching { runLast(project, run) }.onFailure { log("Could not run: ${it.message}", true) }
+            }
         }
     }
 
@@ -624,11 +681,19 @@ class RemoteServer(
         broadcast(Json.obj("t" to "build.diag", "d" to entry))
     }
 
-    private fun runLast(project: Project) {
+    private fun runLast(project: Project, target: RunTarget) {
         val artifact = artifacts[project.key]?.takeIf { it.file.isFile } ?: throw IllegalStateException("Build the project first")
         if (project.config.runtime == io.nativeforge.core.project.model.RuntimeKind.CONSOLE) {
             val session = terminals.open(backend.consoleCommand(project, artifact), "▶ ${project.name}", 24, 80)
             broadcast(Json.obj("t" to "run.console", "id" to session.id, "title" to session.title))
+        } else if (!target.onPhone) {
+            val (width, height) = StreamSize.fit(target.width, target.height, project.config.export.orientation)
+            try {
+                screen.start("▶ ${project.name}") { sink -> backend.streamProgram(project, artifact, width, height, sink) }
+            } catch (e: Exception) {
+                logger.warn(TAG, "Could not stream ${project.name}", e)
+                broadcast(Json.obj("t" to "run.device", "ok" to false, "message" to "Could not show the program here: ${e.message}"))
+            }
         } else {
             val error = backend.runOnDevice(project, artifact)
             broadcast(

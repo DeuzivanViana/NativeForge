@@ -1,6 +1,7 @@
 package io.nativeforge.feature.runner
 
 import android.os.Bundle
+import android.view.View
 import android.os.Process
 import android.system.Os
 import android.util.Log
@@ -19,11 +20,30 @@ class SdlProgramActivity : SDLActivity() {
 
     private var spec: LaunchSpec? = null
 
+    private var remote: RemoteHost? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         spec = SdlHosts.prepare(this)
+        remote = RemoteHost.fromIntent(this)
         super.onCreate(savedInstanceState)
         spec?.let { RunnerWindow.apply(this, it) }
+        remote?.let { SdlHosts.startInBrowser(this, it) { resumeNativeThread() } }
     }
+
+    /** SDL puts its surface in the content view; a streamed run shows it on the remote host instead. */
+    override fun setContentView(view: View?) {
+        val host = remote
+        if (host == null || view == null) return super.setContentView(view)
+        host.presentation.setContentView(view)
+        super.setContentView(host.placeholder())
+    }
+
+    // A streamed run keeps going while the phone's window is hidden or the screen is off.
+    override fun pauseNativeThread() {
+        if (remote == null) super.pauseNativeThread()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) = super.onWindowFocusChanged(hasFocus || remote != null)
 
     override fun getLibraries(): Array<String> = arrayOf("SDL3")
 
@@ -34,6 +54,7 @@ class SdlProgramActivity : SDLActivity() {
     override fun getArguments(): Array<String> = spec?.arguments?.toTypedArray() ?: emptyArray()
 
     override fun onDestroy() {
+        remote?.close()
         super.onDestroy()
         SdlHosts.endProcessIfFinishing(this)
     }
@@ -69,6 +90,18 @@ internal object SdlHosts {
         } catch (e: UnsatisfiedLinkError) {
             RunErrors.write("Could not load ${launch.program}: ${e.message}")
             throw e
+        }
+    }
+
+    /**
+     * Shows a streamed run's SDL surface on the remote host and starts SDL's thread even if
+     * the phone's window never gets focus or resumes (screen off, other app in front).
+     */
+    fun startInBrowser(activity: android.app.Activity, host: RemoteHost, resume: () -> Unit) {
+        host.show()
+        activity.window.decorView.post {
+            activity.onWindowFocusChanged(true)
+            resume()
         }
     }
 

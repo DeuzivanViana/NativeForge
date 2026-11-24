@@ -5,6 +5,7 @@ import { h, fill, icon, iconButton, toast, dialog, prompt, confirm, menu, resiza
 import { applyPalette } from './theme.js';
 import { FileEditor } from './editor.js';
 import { TerminalView } from './terminal.js';
+import { ScreenView } from './screen.js';
 
 const root = document.getElementById('app');
 const app = { theme: null, projects: [], templates: [], channel: null, workspace: null, device: '' };
@@ -79,6 +80,7 @@ async function boot() {
   app.bootBuild = data.build;
   app.bootTerminals = data.terminals;
   app.intel = data.intel;
+  app.screen = data.screen; // the program shown in the browser, if one runs
   applyPalette(app.theme);
   document.title = `NativeForge · ${app.device}`;
   app.channel?.close();
@@ -86,6 +88,8 @@ async function boot() {
   app.channel = channel;
   channel.on('theme', (m) => { app.theme = m.theme; applyPalette(app.theme); app.workspace?.setTheme(app.theme); });
   channel.on('open', () => document.querySelector('.offline')?.remove());
+  channel.on('screen.start', (m) => { app.screen = { id: m.id, title: m.title }; });
+  channel.on('screen.end', (m) => { if (app.screen?.id === m.id) app.screen = null; });
   channel.on('close', () => {
     if (!document.querySelector('.offline')) document.body.append(h('div', { class: 'offline' }, 'Reconnecting to the phone…'));
   });
@@ -265,6 +269,8 @@ class Workspace {
     this.diagnostics = new Map(); // path -> clangd diagnostics
     this.buildProblems = [];
     this.terminals = []; // { id, title, view, tab, host }
+    this.screen = null; // ScreenView of a graphical program
+    try { this.runOn = localStorage.getItem('nf-run-on') || 'browser'; } catch { this.runOn = 'browser'; }
     this.panelTab = 'output';
     this.offs = [];
     this.render();
@@ -276,6 +282,8 @@ class Workspace {
     const ch = app.channel;
     this.buildBtn = iconButton('build', 'Build (Ctrl+Shift+B)', () => this.build(false));
     this.runBtn = iconButton('play', 'Build and run (F5)', () => this.build(true), 'success');
+    this.runOnBtn = iconButton(this.runOn === 'phone' ? 'phone' : 'monitor', '', (e) => this.chooseRunTarget(e));
+    this.updateRunOn();
     this.stopBtn = iconButton('stop', 'Cancel build', () => ch.send({ t: 'cancel' }), 'danger');
     this.stopBtn.style.display = 'none';
     this.status = h('span', { class: 'chip' }, 'Idle');
@@ -302,6 +310,7 @@ class Workspace {
     const splitV = h('div', { class: 'splitter-v' });
     const splitH = h('div', { class: 'splitter-h' });
     this.cursorEl = h('span', { class: 'item' }, '');
+    this.screenItem = h('span', { class: 'item click', style: { display: 'none' }, title: 'Show the running program', onclick: () => app.screen && this.openScreen(app.screen) }, icon('game', 'i s'), '');
     this.intelEl = h('span', { class: 'item', title: 'clangd: completion, live errors, go to definition' }, h('span', { class: 'dotc' }), 'clangd');
     this.problemCount = h('span', { class: 'item click', onclick: () => this.showPanel('problems') }, icon('error', 'i s'), '0', icon('warning', 'i s'), '0');
     this.el = h('div', { class: 'workspace' },
@@ -309,13 +318,13 @@ class Workspace {
         iconButton('back', 'Projects', async () => { if (await this.saveAll()) location.hash = '#/'; }),
         this.titleEl, this.status, h('div', { class: 'spacer' }),
         iconButton('save', 'Save (Ctrl+S)', () => this.save()),
-        this.buildBtn, this.runBtn, this.stopBtn,
+        this.buildBtn, this.runBtn, this.runOnBtn, this.stopBtn,
         iconButton('download', 'Download the built program', () => this.downloadArtifact()),
         iconButton('terminal', 'New terminal (Ctrl+Shift+`)', () => this.newTerminal()),
         iconButton('panel', 'Toggle panel (Ctrl+`)', () => this.panel.classList.toggle('hidden'))),
       h('div', { class: 'ws-body' }, this.explorer, splitV,
         h('div', { class: 'center' }, this.tabBar, this.editorArea, splitH, this.panel)),
-      h('div', { class: 'statusbar' }, h('span', { class: 'item' }, icon('phone', 'i s'), app.device), this.problemCount, this.intelEl, h('div', { class: 'spacer' }), this.cursorEl));
+      h('div', { class: 'statusbar' }, h('span', { class: 'item' }, icon('phone', 'i s'), app.device), this.problemCount, this.intelEl, this.screenItem, h('div', { class: 'spacer' }), this.cursorEl));
     fill(root, this.el);
     resizable(splitV, this.explorer, 'x', 'nf-explorer', { min: 160, max: 700 });
     resizable(splitH, this.panel, 'y', 'nf-panel', { min: 80, max: 1200, invert: true });
@@ -329,11 +338,15 @@ class Workspace {
       ch.on('build.done', (m) => this.onBuildDone(m)),
       ch.on('run.console', (m) => this.attachTerminal(m.id, m.title, true)),
       ch.on('run.device', (m) => { this.appendLog(m.message, !m.ok); toast(m.message, m.ok ? 'ok' : 'err'); }),
+      ch.on('screen.start', (m) => this.openScreen(m)),
+      ch.on('screen.end', (m) => { if (this.screen?.id === m.id && m.reason) this.appendLog(`Program ended: ${m.reason}`, false); this.updateScreenItem(); }),
       ch.on('diag', (m) => { if (m.project === this.key) this.setDiagnostics(m.path, m.items); }),
       ch.on('intel', (m) => { this.setIntel(m.status); if (m.status === 'failed' && m.message) this.appendLog(`clangd: ${m.message}`, true); }),
       ch.on('fs', (m) => { if (m.project === this.key) this.treeChanged(); }),
       ch.on('open', () => this.resync()),
     );
+    this.updateScreenItem();
+    if (app.screen) this.openScreen(app.screen);
     this.keys = (e) => this.onKey(e);
     addEventListener('keydown', this.keys);
     this.beforeUnload = (e) => { if (this.tabs.some((t) => t.editor.dirty)) { e.preventDefault(); e.returnValue = ''; } };
@@ -706,7 +719,53 @@ class Workspace {
     if (!await this.saveAll()) return;
     this.clearLog();
     this.showPanel('output');
-    app.channel.send({ t: 'build', project: this.key, run });
+    // The program's off-screen display takes the editor area's shape, in device pixels.
+    const rect = this.editorArea.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    app.channel.send({ t: 'build', project: this.key, run, on: this.runOn, w: Math.round(rect.width * dpr), h: Math.round(rect.height * dpr) });
+  }
+
+  chooseRunTarget(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const pick = (target) => {
+      this.runOn = target;
+      try { localStorage.setItem('nf-run-on', target); } catch { /* storage blocked */ }
+      this.updateRunOn();
+    };
+    menu(r.left, r.bottom + 4, [
+      { label: 'Run graphical programs here, in the browser', icon: this.runOn === 'browser' ? 'check' : 'monitor', onClick: () => pick('browser') },
+      { label: 'Run graphical programs on the phone\'s screen', icon: this.runOn === 'phone' ? 'check' : 'phone', onClick: () => pick('phone') },
+    ]);
+  }
+
+  updateRunOn() {
+    fill(this.runOnBtn, icon(this.runOn === 'phone' ? 'phone' : 'monitor'));
+    this.runOnBtn.title = this.runOn === 'phone' ? 'Graphical programs run on the phone\'s screen (click to change)' : 'Graphical programs run in this browser (click to change)';
+  }
+
+  // ---- program screen
+  openScreen(session) {
+    if (this.screen && this.screen.id === session.id && !this.screen.ended) { this.screen.focus(); return; }
+    this.closeScreen();
+    this.screen = new ScreenView(session, {
+      onStop: () => app.channel.send({ t: 'screen.stop' }),
+      onClose: () => this.closeScreen(),
+    });
+    this.editorArea.append(this.screen.el);
+    this.updateScreenItem();
+    setTimeout(() => this.screen?.focus(), 0);
+  }
+
+  closeScreen() {
+    this.screen?.dispose();
+    this.screen = null;
+    this.updateScreenItem();
+  }
+
+  updateScreenItem() {
+    const hidden = app.screen && !this.screen;
+    this.screenItem.style.display = hidden ? '' : 'none';
+    if (hidden) this.screenItem.lastChild.textContent = `${app.screen.title} is running · show`;
   }
 
   onBuildStart() {
@@ -838,5 +897,6 @@ class Workspace {
     removeEventListener('beforeunload', this.beforeUnload);
     for (const t of this.tabs) t.editor.destroy();
     for (const t of this.terminals) t.view.dispose(); // the shells keep running on the phone
+    this.screen?.dispose(); // so does the program
   }
 }

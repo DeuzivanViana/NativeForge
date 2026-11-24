@@ -18,8 +18,14 @@
   fingerprint the app shows, one-time pairing codes, hashed session tokens,
   strict CSP, origin and host checks, project-confined file access
   (docs/SECURITY.md).
-* Later: streaming graphical programs (raylib, SDL, LVGL) to the browser,
-  packages, export and git screens in the browser.
+* Graphical programs (raylib, SFML, OpenGL ES, Vulkan, SDL2, SDL3, Dear
+  ImGui, LVGL) show in the browser: the phone draws them on an off-screen
+  display, encodes it as H.264 in hardware and the page decodes it with
+  WebCodecs. Keyboard, mouse (buttons, wheel), touch and multi-touch go back
+  to the program; a toggle sends the mouse as touch; full screen captures
+  keys like Esc. The run button's menu still offers the phone's screen.
+* Later: the program's sound in the browser, packages, export and git screens
+  in the browser.
 
 ## 0.11.1 — terminal start-up fix
 

@@ -8,6 +8,8 @@ import io.nativeforge.core.common.Outcome
 import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.project.template.ProjectOptions
 import io.nativeforge.core.project.template.ProjectTemplate
+import io.nativeforge.core.remote.screen.ProgramStream
+import io.nativeforge.core.remote.screen.StreamSink
 import kotlinx.coroutines.flow.Flow
 import java.io.InputStream
 import java.io.OutputStream
@@ -54,6 +56,13 @@ interface RemoteBackend {
      * @return null when started, otherwise why it could not start.
      */
     fun runOnDevice(project: Project, artifact: BuildArtifact): String?
+
+    /**
+     * Starts a graphical program on an off-screen display of [width] x [height] pixels and
+     * sends its picture to [sink]. Throws [IllegalStateException] with a message for the user
+     * when this phone cannot do it.
+     */
+    fun streamProgram(project: Project, artifact: BuildArtifact, width: Int, height: Int, sink: StreamSink): ProgramStream
 
     /** The interactive shell of the app's terminal. */
     fun shellCommand(): PtyCommand
