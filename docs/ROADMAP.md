@@ -35,6 +35,10 @@
   counted as a touch.
 * Drop files and whole folders from the computer on a folder in the
   explorer to upload them there (asks before replacing files).
+* Fixed: every run of a graphical program (on the phone or in the browser)
+  left its own entry in the phone's recent apps. Runs now share one task that
+  leaves the recent apps when the program ends; streamed runs never show
+  there, and entries left by earlier versions are removed on the next run.
 * Later: the program's sound in the browser, packages, export and git screens
   in the browser.
 * New bundled library: SQLite 3.54.1 (`sqlite3`, static, with FTS5, R*Tree,

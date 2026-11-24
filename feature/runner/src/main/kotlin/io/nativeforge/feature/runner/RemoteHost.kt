@@ -174,7 +174,7 @@ internal class RemoteHost private constructor(private val activity: Activity, pr
             if (display == null) {
                 // The IDE closed the display already (the browser stopped the run).
                 Log.w(TAG, "Display $displayId is gone")
-                activity.finish()
+                activity.finishAndRemoveTask()
                 return null
             }
             return RemoteHost(activity, RemoteRun(displayId, socket, intent.getBooleanExtra(EXTRA_BLACK, false)), display)
