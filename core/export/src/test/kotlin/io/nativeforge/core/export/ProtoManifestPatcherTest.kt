@@ -39,6 +39,27 @@ class ProtoManifestPatcherTest {
         assertEquals("unspecified", attributes(patched)["activity/screenOrientation"])
     }
 
+    @Test
+    fun `adds uses-permission children before the other children`() {
+        val patched = ProtoManifestPatcher().patch(
+            manifest(),
+            ManifestPatch(permissions = listOf("android.permission.CAMERA", "android.permission.INTERNET", "android.permission.CAMERA")),
+        )
+        val manifest = ProtoMessage.decode(patched).message(1)!!
+        val children = manifest.messages(5).map { it.message(1)!! }
+        assertEquals(listOf("uses-permission", "uses-permission", "permission", "application"), children.map { it.string(3) })
+        val names = children.take(2).map { it.message(4)!! }
+        assertEquals(listOf("android.permission.CAMERA", "android.permission.INTERNET"), names.map { it.string(3) })
+        names.forEach {
+            assertEquals("http://schemas.android.com/apk/res/android", it.string(1))
+            assertEquals("name", it.string(2))
+            assertEquals(ManifestPatcher.ATTR_NAME.toLong(), it.varint(5))
+        }
+
+        val again = ProtoManifestPatcher().patch(patched, ManifestPatch(permissions = listOf("android.permission.INTERNET")))
+        assertEquals(4, ProtoMessage.decode(again).message(1)!!.messages(5).size, "declared permissions are not repeated")
+    }
+
     companion object {
         private fun attribute(name: String, value: String, resourceId: Int = 0, int: Long? = null) = ProtoMessage().apply {
             if (resourceId != 0) setString(1, "http://schemas.android.com/apk/res/android")

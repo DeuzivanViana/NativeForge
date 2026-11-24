@@ -90,6 +90,11 @@ data class ExportSettings(
     val format: Format = Format.APK,
     /** Id of a keystore saved in the IDE (see the app's signing keys), or null for the device key. */
     val signingKeyId: String? = null,
+    /**
+     * Android permissions the exported app declares (`<uses-permission>`), as full names such
+     * as `android.permission.CAMERA`. See [AppPermission] for the ones the export screen offers.
+     */
+    val permissions: List<String> = emptyList(),
 ) {
     @Serializable
     enum class Format(val displayName: String, val extension: String) {
@@ -106,6 +111,40 @@ data class ExportSettings(
         @SerialName("sensor_portrait") SENSOR_PORTRAIT("Portrait (both ways)", 7),
         @SerialName("sensor_landscape") SENSOR_LANDSCAPE("Landscape (both ways)", 6),
         @SerialName("full_sensor") FULL_SENSOR("Any rotation", 10),
+    }
+}
+
+/**
+ * Permissions the export screen offers, each a group of Android permission names.
+ * [runtime] ones are "dangerous": the exported app asks the user for them when it starts.
+ */
+enum class AppPermission(
+    val displayName: String,
+    val description: String,
+    val androidNames: List<String>,
+    val runtime: Boolean = false,
+) {
+    INTERNET("Internet", "Network sockets, HTTP and online games", listOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE")),
+    CAMERA("Camera", "Take pictures or read the camera stream", listOf("android.permission.CAMERA"), runtime = true),
+    MICROPHONE("Microphone", "Record audio (SDL audio capture, voice)", listOf("android.permission.RECORD_AUDIO"), runtime = true),
+    LOCATION("Location", "GPS and network location", listOf("android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION"), runtime = true),
+    VIBRATE("Vibration", "Vibrate the phone or rumble (SDL haptics)", listOf("android.permission.VIBRATE")),
+    SENSORS("Fast motion sensors", "Accelerometer and gyroscope above 200 Hz (Android 12+)", listOf("android.permission.HIGH_SAMPLING_RATE_SENSORS")),
+    WAKE_LOCK("Wake lock", "Keep the CPU running while the screen is off", listOf("android.permission.WAKE_LOCK")),
+    ;
+
+    fun isIn(permissions: Collection<String>): Boolean = permissions.containsAll(androidNames)
+
+    companion object {
+        /** Adds or removes [permission]'s names in [current], keeping order and other entries. */
+        fun toggle(current: List<String>, permission: AppPermission, enabled: Boolean): List<String> =
+            if (enabled) (current + permission.androidNames).distinct() else current - permission.androidNames.toSet()
+
+        /** Entries of [current] that no [AppPermission] covers (typed in by the user). */
+        fun custom(current: List<String>): List<String> {
+            val known = entries.flatMap { it.androidNames }.toSet()
+            return current.filter { it !in known }
+        }
     }
 }
 

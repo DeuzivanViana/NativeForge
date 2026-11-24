@@ -5,6 +5,9 @@ import io.nativeforge.core.project.model.ExportSettings
 /** Validates user-entered export settings before an APK is produced. */
 object ExportValidator {
     private val SEGMENT = Regex("^[A-Za-z][A-Za-z0-9_]*$")
+
+    /** A dotted name such as `android.permission.CAMERA` or `com.example.MY_PERMISSION`. */
+    private val PERMISSION = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$")
     private val RESERVED = setOf(
         "abstract", "boolean", "break", "byte", "case", "catch", "char", "class", "const", "continue",
         "default", "do", "double", "else", "enum", "extends", "final", "finally", "float", "for", "goto",
@@ -20,6 +23,7 @@ object ExportValidator {
         packageIdProblem(settings.packageId)?.let(::add)
         if (settings.versionName.isBlank()) add("Version name must not be empty")
         if (settings.versionCode !in 1..2_100_000_000) add("Version code must be between 1 and 2100000000")
+        settings.permissions.filterNot { PERMISSION.matches(it) }.forEach { add("\"$it\" is not a valid permission name") }
     }
 
     fun packageIdProblem(packageId: String): String? {

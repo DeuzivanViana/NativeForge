@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.MoreVert
@@ -59,6 +60,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.nativeforge.app.di.appContainer
 import io.nativeforge.core.export.ExportValidator
+import io.nativeforge.core.project.model.AppPermission
 import io.nativeforge.core.project.model.ExportSettings
 import io.nativeforge.core.project.model.RuntimeKind
 import io.nativeforge.core.ui.component.CompactButtonPadding
@@ -258,6 +260,11 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
                     onCheckedChange = { value -> viewModel.update { it.copy(bundleAssets = value) } },
                 )
             }
+
+            PermissionsSection(
+                permissions = settings.permissions,
+                onChange = { value -> viewModel.update { it.copy(permissions = value) } },
+            )
 
             FormSection("Package") {
                 SegmentedChoice(
@@ -469,4 +476,49 @@ private fun shareApk(context: Context, apk: File) {
         .putExtra(Intent.EXTRA_STREAM, apkUri(context, apk))
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     context.startActivity(Intent.createChooser(intent, "Share ${apk.name}"))
+}
+
+/** Checkboxes for the common permissions plus free-form ones (full names, e.g. android.permission.NFC). */
+@Composable
+private fun PermissionsSection(permissions: List<String>, onChange: (List<String>) -> Unit) {
+    var custom by remember { mutableStateOf("") }
+    fun addCustom() {
+        val name = custom.trim()
+        if (name.isNotEmpty()) onChange((permissions + name).distinct())
+        custom = ""
+    }
+    FormSection("Permissions") {
+        AppPermission.entries.forEach { permission ->
+            SwitchRow(
+                title = permission.displayName,
+                subtitle = if (permission.runtime) "${permission.description}. Asked when the app starts." else permission.description,
+                checked = permission.isIn(permissions),
+                onCheckedChange = { enabled -> onChange(AppPermission.toggle(permissions, permission, enabled)) },
+            )
+        }
+        AppPermission.custom(permissions).forEach { name ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                ToolbarIconButton(Icons.Filled.Close, "Remove $name", onClick = { onChange(permissions - name) })
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NfTextField(
+                value = custom,
+                onValueChange = { custom = it },
+                label = "Other permission",
+                placeholder = "android.permission.NFC",
+                monospace = true,
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { addCustom() }),
+                modifier = Modifier.weight(1f),
+            )
+            CompactButton("Add", onClick = ::addCustom)
+        }
+        Text(
+            "None are declared by default. Camera, microphone and location are asked from the user when the app opens.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }

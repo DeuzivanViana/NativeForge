@@ -224,6 +224,7 @@ class ApkExporter(
         label = request.settings.appName,
         screenOrientation = request.settings.orientation.androidValue,
         oldPackageName = TEMPLATE_PACKAGE,
+        permissions = request.settings.permissions,
     )
 
     private fun isSignatureFile(name: String): Boolean {

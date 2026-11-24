@@ -17,8 +17,40 @@ class ProtoManifestPatcher {
     fun patch(manifest: ByteArray, patch: ManifestPatch): ByteArray {
         val root = ProtoMessage.decode(manifest)
         require(root.message(NODE_ELEMENT)?.string(ELEMENT_NAME) == "manifest") { "Not a proto AndroidManifest.xml" }
-        root.updateMessages(NODE_ELEMENT) { patchElement(it, patch) }
+        root.updateMessages(NODE_ELEMENT) { manifest ->
+            patchElement(manifest, patch)
+            addPermissions(manifest, patch.permissions)
+        }
         return root.encode()
+    }
+
+    /** Adds a `<uses-permission>` child for each permission not declared yet, before the other children. */
+    private fun addPermissions(manifest: ProtoMessage, permissions: List<String>) {
+        val declared = manifest.messages(ELEMENT_CHILD)
+            .mapNotNull { it.message(NODE_ELEMENT) }
+            .filter { it.string(ELEMENT_NAME) == USES_PERMISSION }
+            .mapNotNull { element ->
+                element.messages(ELEMENT_ATTRIBUTE)
+                    .firstOrNull { it.varint(ATTR_RESOURCE_ID)?.toInt() == ManifestPatcher.ATTR_NAME }
+                    ?.string(ATTR_VALUE)
+            }
+            .toSet()
+        val children = permissions.distinct().filter { it !in declared }.map { permission ->
+            val attribute = ProtoMessage().apply {
+                setString(ATTR_NAMESPACE_URI, ANDROID_NAMESPACE)
+                setString(ATTR_NAME, "name")
+                setString(ATTR_VALUE, permission)
+                setVarint(ATTR_RESOURCE_ID, ManifestPatcher.ATTR_NAME.toLong())
+            }
+            val element = ProtoMessage().apply {
+                setString(ELEMENT_NAME, USES_PERMISSION)
+                setMessage(ELEMENT_ATTRIBUTE, attribute)
+            }
+            ProtoField.Bytes(ELEMENT_CHILD, ProtoMessage().apply { setMessage(NODE_ELEMENT, element) }.encode())
+        }
+        if (children.isEmpty()) return
+        val firstChild = manifest.fields.indexOfFirst { it.number == ELEMENT_CHILD }
+        manifest.fields.addAll(if (firstChild < 0) manifest.fields.size else firstChild, children)
     }
 
     private fun patchElement(element: ProtoMessage, patch: ManifestPatch) {
@@ -69,12 +101,16 @@ class ProtoManifestPatcher {
         const val ELEMENT_NAME = 3
         const val ELEMENT_ATTRIBUTE = 4
         const val ELEMENT_CHILD = 5
+        const val ATTR_NAMESPACE_URI = 1
         const val ATTR_NAME = 2
         const val ATTR_VALUE = 3
         const val ATTR_RESOURCE_ID = 5
         const val ATTR_COMPILED_ITEM = 6
         const val ITEM_PRIMITIVE = 7
         const val PRIMITIVE_INT_DECIMAL = 6
+
+        const val ANDROID_NAMESPACE = "http://schemas.android.com/apk/res/android"
+        const val USES_PERMISSION = "uses-permission"
 
         val LABELLED_ELEMENTS = setOf("application", "activity", "activity-alias")
         val COMPONENT_ELEMENTS = setOf("application", "activity", "activity-alias", "service", "receiver", "provider")
