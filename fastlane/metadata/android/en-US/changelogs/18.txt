@@ -1,0 +1,5 @@
+• Examples fit every screen: no more overlapping buttons and text on small phones, tablets or landscape
+• C++ versions of the Vulkan, LVGL, synthesizer and Lua templates
+• New examples: snake game (SDL3) and finger painting (raylib + raygui)
+• Faster builds: source files compile on several cores
+• Faster first setup: libraries download in parallel

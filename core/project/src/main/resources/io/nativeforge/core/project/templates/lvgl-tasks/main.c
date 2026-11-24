@@ -86,6 +86,15 @@ static void on_checked(lv_event_t *e)
     update_progress();
 }
 
+/* A tap on the task's text ticks its box too. */
+static void on_text_clicked(lv_event_t *e)
+{
+    lv_obj_t *checkbox = lv_event_get_user_data(e);
+    if (lv_obj_has_state(checkbox, LV_STATE_CHECKED)) lv_obj_remove_state(checkbox, LV_STATE_CHECKED);
+    else lv_obj_add_state(checkbox, LV_STATE_CHECKED);
+    lv_obj_send_event(checkbox, LV_EVENT_VALUE_CHANGED, NULL);
+}
+
 static void on_delete(lv_event_t *e)
 {
     lv_obj_t *row = lv_obj_get_parent(lv_event_get_target_obj(e));
@@ -108,10 +117,18 @@ static void add_row(task_t *task)
     lv_obj_set_scrollable(row, false);
 
     lv_obj_t *checkbox = lv_checkbox_create(row);
-    lv_checkbox_set_text(checkbox, task->text);
-    lv_obj_set_flex_grow(checkbox, 1);
+    lv_checkbox_set_text(checkbox, "");
     if (task->done) lv_obj_add_state(checkbox, LV_STATE_CHECKED);
     lv_obj_add_event_cb(checkbox, on_checked, LV_EVENT_VALUE_CHANGED, NULL);
+
+    /* The text is a label of its own so that long tasks wrap onto more lines on narrow screens
+       (a checkbox keeps its text on one line). */
+    lv_obj_t *text = lv_label_create(row);
+    lv_label_set_text(text, task->text);
+    lv_label_set_long_mode(text, LV_LABEL_LONG_MODE_WRAP);
+    lv_obj_set_flex_grow(text, 1);
+    lv_obj_set_clickable(text, true);
+    lv_obj_add_event_cb(text, on_text_clicked, LV_EVENT_CLICKED, checkbox);
 
     lv_obj_t *remove = lv_button_create(row);
     lv_obj_set_style_bg_color(remove, lv_palette_main(LV_PALETTE_RED), 0);

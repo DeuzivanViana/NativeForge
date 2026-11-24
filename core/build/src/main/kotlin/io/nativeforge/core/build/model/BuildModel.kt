@@ -31,6 +31,11 @@ data class BuildArtifact(
 data class BuildStep(
     val description: String,
     val process: ProcessSpec,
+    /**
+     * True when the step does not depend on the parallel steps next to it (each source file's
+     * compile step), so the executor may run them at the same time on several cores.
+     */
+    val parallel: Boolean = false,
 )
 
 /** Ordered steps that produce [artifact]. An empty step list means everything is up to date. */
@@ -43,6 +48,8 @@ data class BuildPlan(
      * projects name their outputs freely).
      */
     val artifactSearchRoot: File? = null,
+    /** How many [BuildStep.parallel] steps may run at the same time. */
+    val parallelJobs: Int = 1,
 )
 
 data class BuildResult(

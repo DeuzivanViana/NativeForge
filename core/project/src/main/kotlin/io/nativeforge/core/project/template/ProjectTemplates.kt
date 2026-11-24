@@ -37,8 +37,8 @@ object ProjectTemplates {
             languages = CPP_AND_C,
             packages = listOf("raylib"),
             sources = { language ->
-                if (language == Language.C) mapOf("src/main.c" to TemplateSources.RAYLIB)
-                else mapOf("src/main.cpp" to TemplateSources.RAYLIB_CPP)
+                if (language == Language.C) mapOf("src/main.c" to TemplateResources.read("raylib/main.c"))
+                else mapOf("src/main.cpp" to TemplateResources.read("raylib/main.cpp"))
             },
         ),
         SimpleTemplate(
@@ -131,14 +131,15 @@ object ProjectTemplates {
             displayName = "Vulkan",
             description = "A spinning triangle with raw Vulkan.",
             details = "No engine: android_main() creates a Vulkan instance, swapchain and pipeline and draws a " +
-                "triangle. The shaders are in shaders/ with their SPIR-V embedded in main.c. Needs a device with Vulkan.",
+                "triangle. The shaders are in shaders/ with their SPIR-V embedded in the source. Needs a device with Vulkan.",
             category = TemplateCategory.GRAPHICS,
             runtime = RuntimeKind.NATIVE_ACTIVITY,
-            languages = listOf(Language.C),
+            languages = C_AND_CPP,
             packages = listOf("native-app-glue", "vulkan"),
-            sources = {
+            sources = { language ->
                 mapOf(
-                    "src/main.c" to TemplateSources.VULKAN,
+                    if (language == Language.C) "src/main.c" to TemplateSources.VULKAN
+                    else "src/main.cpp" to TemplateSources.VULKAN_CPP,
                     "shaders/triangle.vert" to TemplateSources.VULKAN_VERTEX_SHADER,
                     "shaders/triangle.frag" to TemplateSources.VULKAN_FRAGMENT_SHADER,
                 )
@@ -155,7 +156,7 @@ object ProjectTemplates {
             runtime = RuntimeKind.NATIVE_ACTIVITY,
             languages = listOf(Language.CPP),
             packages = listOf("raylib", "raygui", "box2d"),
-            sources = { mapOf("src/main.cpp" to TemplateSources.RAYLIB_PHYSICS) },
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("raylib-physics/main.cpp")) },
         ),
         SimpleTemplate(
             id = "raylib-3d-physics",
@@ -168,7 +169,7 @@ object ProjectTemplates {
             runtime = RuntimeKind.NATIVE_ACTIVITY,
             languages = listOf(Language.CPP),
             packages = listOf("raylib", "raygui", "box3d"),
-            sources = { mapOf("src/main.cpp" to TemplateSources.RAYLIB_3D_PHYSICS) },
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("raylib-3d-physics/main.cpp")) },
         ),
         SimpleTemplate(
             id = "lvgl-widgets-demo",
@@ -178,22 +179,22 @@ object ProjectTemplates {
                 "and a shop page in tabs. A quick way to see what LVGL apps look like on your phone.",
             category = TemplateCategory.EXAMPLE,
             runtime = RuntimeKind.SDL2,
-            languages = listOf(Language.C),
+            languages = C_AND_CPP,
             packages = listOf("sdl2", "lvgl"),
-            sources = { mapOf("src/main.c" to TemplateResources.read("lvgl-widgets-demo/main.c")) },
+            sources = { language -> resourceSources(language, "lvgl-widgets-demo") },
         ),
         SimpleTemplate(
             id = "lvgl-tasks",
             displayName = "To-do list app",
             description = "LVGL: tabs, check boxes, keyboard, chart; saves its data.",
-            details = "A complete small app in C with LVGL: add tasks with the on-screen keyboard, tick them off, " +
+            details = "A complete small app with LVGL (C or C++): add tasks with the on-screen keyboard, tick them off, " +
                 "delete them, and follow your progress on an arc and a bar chart. Tasks are saved in the app's " +
                 "private folder and loaded at the next start.",
             category = TemplateCategory.EXAMPLE,
             runtime = RuntimeKind.SDL2,
-            languages = listOf(Language.C),
+            languages = C_AND_CPP,
             packages = listOf("sdl2", "lvgl"),
-            sources = { mapOf("src/main.c" to TemplateResources.read("lvgl-tasks/main.c")) },
+            sources = { language -> resourceSources(language, "lvgl-tasks") },
         ),
         SimpleTemplate(
             id = "lvgl-calculator",
@@ -229,9 +230,39 @@ object ProjectTemplates {
                 "and SDL's built-in debug text. No sound files needed.",
             category = TemplateCategory.EXAMPLE,
             runtime = RuntimeKind.SDL3,
-            languages = listOf(Language.C),
+            languages = C_AND_CPP,
             packages = listOf("sdl3"),
-            sources = { mapOf("src/main.c" to TemplateResources.read("sdl3-synth/main.c")) },
+            sources = { language -> resourceSources(language, "sdl3-synth") },
+        ),
+        SimpleTemplate(
+            id = "sdl3-snake",
+            displayName = "Snake game",
+            description = "SDL3 2D renderer: swipe to steer, best score saved.",
+            details = "A complete little game with SDL3's 2D renderer: swipe or use the arrow keys to steer, eat to " +
+                "grow, and the game speeds up. The board and text are sized from the screen, so it fits every phone " +
+                "upright or sideways. The best score is saved in the app's private folder. The same source builds " +
+                "as C or C++.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.SDL3,
+            languages = C_AND_CPP,
+            packages = listOf("sdl3"),
+            // Written in the common part of C and C++: the same file serves both languages.
+            sources = { language ->
+                mapOf((if (language == Language.C) "src/main.c" else "src/main.cpp") to TemplateResources.read("sdl3-snake/main.c"))
+            },
+        ),
+        SimpleTemplate(
+            id = "raylib-paint",
+            displayName = "Finger painting",
+            description = "raylib + raygui: colours, brush size, undo.",
+            details = "Paint with your finger on a canvas kept in a raylib render texture. raygui provides the brush " +
+                "size slider and the Undo and Clear buttons. Strokes are stored as point lists in C++ vectors, so " +
+                "Undo just paints the others again and the drawing survives turning the phone.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.NATIVE_ACTIVITY,
+            languages = listOf(Language.CPP),
+            packages = listOf("raylib", "raygui"),
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("raylib-paint/main.cpp")) },
         ),
         SimpleTemplate(
             id = "ecs-particles",
@@ -250,17 +281,19 @@ object ProjectTemplates {
             id = "lua-console",
             displayName = "Lua scripting console",
             description = "Embed Lua 5.4 in C; interactive prompt.",
-            details = "A C program that hosts the Lua interpreter: it exposes C functions to Lua, calls a Lua " +
-                "function from C, runs scripts/startup.lua (edit it without rebuilding) and opens a Lua prompt " +
+            details = "A C or C++ program that hosts the Lua interpreter: it exposes native functions to Lua, calls a " +
+                "Lua function from native code, runs scripts/startup.lua (edit it without rebuilding) and opens a Lua prompt " +
                 "in the terminal.",
             category = TemplateCategory.EXAMPLE,
             runtime = RuntimeKind.CONSOLE,
-            languages = listOf(Language.C),
+            languages = C_AND_CPP,
             packages = listOf("lua"),
-            sources = {
-                mapOf(
-                    "src/main.c" to TemplateResources.read("lua-console/main.c"),
-                    "scripts/startup.lua" to TemplateResources.read("lua-console/startup.lua"),
+            sources = { language ->
+                val startup = TemplateResources.read("lua-console/startup.lua")
+                resourceSources(language, "lua-console") + mapOf(
+                    "scripts/startup.lua" to
+                        if (language == Language.C) startup
+                        else startup.replace("main.c ", "main.cpp ").replace("inside C.", "inside C++."),
                 )
             },
         ),
@@ -279,6 +312,11 @@ object ProjectTemplates {
     )
 
     fun byId(id: String): ProjectTemplate? = all.firstOrNull { it.id == id }
+
+    /** src/main.c or src/main.cpp from the template's resource folder, for the chosen language. */
+    private fun resourceSources(language: Language, folder: String): Map<String, String> =
+        if (language == Language.C) mapOf("src/main.c" to TemplateResources.read("$folder/main.c"))
+        else mapOf("src/main.cpp" to TemplateResources.read("$folder/main.cpp"))
 }
 
 /** Template made of static files; covers every built-in template. */

@@ -73,15 +73,20 @@ lv_display_t * lv_nativeforge_init(float requested_scale)
 
     float ddpi = 0.0f;
     density = (SDL_GetDisplayDPI(0, &ddpi, NULL, NULL) == 0 && ddpi > 0.0f) ? ddpi / 160.0f : 1.0f;
-    scale = requested_scale > 0.0f ? requested_scale : density;
-    if(scale < 1.0f) scale = 1.0f;
-
     SDL_DisplayMode mode;
     int width = 800, height = 480;
     if(SDL_GetDesktopDisplayMode(0, &mode) == 0 && mode.w > 0 && mode.h > 0) {
         width = mode.w;
         height = mode.h;
     }
+
+    scale = requested_scale > 0.0f ? requested_scale : density;
+    if(requested_scale < 0.0f) {
+        /* LV_NATIVEFORGE_SCALE_MIN_SIZE: zoom out until the short side has enough LVGL pixels. */
+        float fit = (float)(width < height ? width : height) / -requested_scale;
+        if(fit < scale) scale = fit;
+    }
+    if(scale < 1.0f) scale = 1.0f;
     lv_display_t * display = lv_sdl_window_create((int32_t)(width / scale), (int32_t)(height / scale));
     if(display == NULL) {
         SDL_Log("lv_nativeforge: could not create the SDL window: %s", SDL_GetError());

@@ -17,6 +17,7 @@ import java.io.File
  *
  * Builds are incremental. Each object is rebuilt only when its source, one of
  * the headers recorded in its clang depfile (`-MMD`), or the compile flags changed.
+ * Sources are compiled on several cores at once; only the link waits for all of them.
  */
 class SingleSourceBuildSystem(
     private val upToDate: IncrementalChecker = IncrementalChecker(),
@@ -56,6 +57,7 @@ class SingleSourceBuildSystem(
                 steps += BuildStep(
                     description = "Compiling $relative",
                     process = ProcessSpec(command, project.root, env),
+                    parallel = true, // objects only depend on their own source
                 )
                 upToDate.recordPending(objectFile, command)
             }
@@ -78,6 +80,8 @@ class SingleSourceBuildSystem(
         return BuildPlan(
             steps = steps,
             artifact = BuildArtifact(artifactFile, CompilerFlags.artifactKind(request), CompilerFlags.runtimeLibraries(request)),
+            // At most 4: each clang can take several hundred MB on a phone.
+            parallelJobs = toolchain.parallelJobs.coerceAtMost(4),
         )
     }
 

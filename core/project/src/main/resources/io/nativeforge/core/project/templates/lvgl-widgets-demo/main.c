@@ -8,14 +8,15 @@
  * page, in tabs. Its source is in LVGL's repository (demos/widgets) and is a good place to
  * see how real screens are put together: https://github.com/lvgl/lvgl/tree/master/demos/widgets
  *
- * Try LV_NATIVEFORGE_SCALE_PIXELS instead of LV_NATIVEFORGE_SCALE_AUTO to see the demo at the
- * screen's full resolution (smaller, sharper).
+ * The demo's phone layout needs about 400 LVGL pixels across, so on small phones (or with a
+ * large display size setting) the screen is zoomed out a little to make room. Try
+ * LV_NATIVEFORGE_SCALE_PIXELS to see the demo at the screen's full resolution (smaller, sharper).
  */
 int main(int argc, char *argv[])
 {
     LV_UNUSED(argc);
     LV_UNUSED(argv);
-    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_AUTO) == NULL) return 1;
+    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_MIN_SIZE(400)) == NULL) return 1;
 
     lv_demo_widgets();
 

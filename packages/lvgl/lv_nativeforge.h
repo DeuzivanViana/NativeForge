@@ -39,11 +39,19 @@ extern "C" {
 #define LV_NATIVEFORGE_SCALE_PIXELS 1.0f
 
 /**
+ * Like LV_NATIVEFORGE_SCALE_AUTO, but zooms out on screens whose short side would have fewer
+ * than @p min_size LVGL pixels, so layouts made for that width still fit (for example
+ * LV_NATIVEFORGE_SCALE_MIN_SIZE(400) for LVGL's widgets demo on small phones).
+ */
+#define LV_NATIVEFORGE_SCALE_MIN_SIZE(min_size) (-(float)(min_size))
+
+/**
  * Initializes LVGL (if lv_init() was not called yet), opens a full screen SDL window and
  * creates a display for it, a touch/mouse pointer, a keyboard and a mouse wheel input
  * device. LVGL's log messages go to logcat (More > Program log in the IDE).
  *
- * @param scale LV_NATIVEFORGE_SCALE_AUTO, LV_NATIVEFORGE_SCALE_PIXELS or any factor >= 1
+ * @param scale LV_NATIVEFORGE_SCALE_AUTO, LV_NATIVEFORGE_SCALE_PIXELS,
+ *              LV_NATIVEFORGE_SCALE_MIN_SIZE(n) or any factor >= 1
  *              (for example 2.0f to draw everything twice as large as at 160 DPI).
  * @return the display, or NULL when SDL could not open a window (see the log).
  */

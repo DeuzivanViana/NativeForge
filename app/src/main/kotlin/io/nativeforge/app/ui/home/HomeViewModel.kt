@@ -14,6 +14,9 @@ import io.nativeforge.core.project.model.SourceFiles
 import io.nativeforge.core.vcs.GitCredentials
 import io.nativeforge.core.vcs.GitException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -66,9 +69,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     fun refresh() {
         viewModelScope.launch {
-            val missing = container.toolchain.missingComponents()
+            val missing = withContext(Dispatchers.IO) { container.toolchain.missingComponents() }
             val projects = container.projectRepository.listProjects()
-            val summaries = withContext(Dispatchers.IO) { projects.map(::summarize) }.sortedByDescending { it.modifiedMillis }
+            // Each summary walks the project's files and reads its Git status: do several at once.
+            val summaries = coroutineScope {
+                projects.map { project -> async(summaryDispatcher) { summarize(project) } }.awaitAll()
+            }.sortedByDescending { it.modifiedMillis }
             _state.update {
                 it.copy(
                     projects = summaries,
@@ -77,6 +83,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
     }
+
+    private val summaryDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     private fun summarize(project: Project): ProjectSummary {
         var newest = File(project.root, ProjectConfig.FILE_NAME).lastModified()
@@ -225,12 +233,22 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     fun installToolchain() {
         viewModelScope.launch {
+            var total = 0
+            var installed = 0
             container.packageManager.install(ClangToolchain.REQUIRED_PACKAGES).collect { event ->
+                // Several archives download at once, so progress counts installed packages.
+                val progress = if (total > 0) installed.toFloat() / total else null
                 val status = when (event) {
-                    is InstallEvent.Resolved -> ToolchainStatus.Installing("Installing ${event.packages.size} packages…", 0f)
-                    is InstallEvent.Downloading -> ToolchainStatus.Installing("Downloading ${event.pkg.name}…", null)
-                    is InstallEvent.Extracting -> ToolchainStatus.Installing("Extracting ${event.pkg.name}…", null)
-                    is InstallEvent.Installed -> null
+                    is InstallEvent.Resolved -> {
+                        total = event.packages.size
+                        ToolchainStatus.Installing("Installing $total packages…", 0f)
+                    }
+                    is InstallEvent.Downloading -> null
+                    is InstallEvent.Extracting -> ToolchainStatus.Installing("Installing ${event.pkg.name} (${installed + 1} of $total)…", progress)
+                    is InstallEvent.Installed -> {
+                        installed++
+                        null
+                    }
                     is InstallEvent.Failed -> ToolchainStatus.Failed(event.error.message)
                     InstallEvent.Completed -> null
                 }

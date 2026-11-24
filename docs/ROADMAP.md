@@ -1,5 +1,25 @@
 # Roadmap
 
+## 0.10.0 — examples that fit every screen, C++ everywhere, faster builds
+
+* Examples are laid out from the screen size (a unit of 1/360 of the short
+  side) instead of fixed pixels: raylib, the 2D and 3D physics toolbars,
+  particles, the synthesizer, SDL2/SDL3 and SFML no longer overlap or run off
+  small phones, tablets or landscape. LVGL texts wrap, and the widgets demo
+  zooms out on narrow screens (`LV_NATIVEFORGE_SCALE_MIN_SIZE(n)`).
+* C++ for every template: Vulkan, the LVGL widgets demo and to-do list, the
+  synthesizer and the Lua console now come in C++ too. The bundled C
+  libraries (SDL, raylib, raygui, LVGL, Lua through `lua.hpp`, Box3D,
+  miniaudio, stb, Vulkan) all declare their API `extern "C"`.
+* New examples: a snake game (SDL3 renderer, swipe controls, saved best
+  score; one source for C and C++) and finger painting (raylib + raygui,
+  colours, brush size, undo).
+* The built-in build compiles source files on several cores (up to 4) and
+  links when all are done; output of each file stays together in the log.
+* Library downloads run three at a time while earlier ones are extracted, which
+  speeds up the first toolchain install. The project list reads file counts
+  and Git status for several projects at once.
+
 ## 0.9.1 — layout and security fixes
 
 * Buttons in the home screen, dialogs and Export move to the next line when the

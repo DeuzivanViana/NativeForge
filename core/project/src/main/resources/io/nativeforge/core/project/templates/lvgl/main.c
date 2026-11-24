@@ -99,6 +99,9 @@ int main(int argc, char *argv[])
     lv_obj_t *title = lv_label_create(screen);
     lv_label_set_text(title, LV_SYMBOL_HOME "  @PROJECT_NAME@");
     lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+    /* A long project name continues on the next line instead of running off the screen. */
+    lv_obj_set_width(title, lv_pct(100));
+    lv_label_set_long_mode(title, LV_LABEL_LONG_MODE_WRAP);
 
     lv_obj_t *counter = card(screen, "Counter");
     counter_label = lv_label_create(counter);
