@@ -2,7 +2,7 @@
 
 <p><b>Editor</b></p>
 <ul>
-<li>Syntax highlighting for C, C++ and CMake, tabs, a split editor, and 15 editor themes</li>
+<li>Syntax highlighting for C, C++ and CMake, tabs, a split editor, and 33 editor themes, with 32 matching app themes (30 dark)</li>
 <li>Code intelligence from clangd: completion, live errors and warnings, go to definition, rename symbol, and symbol information</li>
 <li>clang-format with the LLVM, Google, Chromium, Mozilla, WebKit, Microsoft or GNU style, or your project's .clang-format; optional format on save and clang-tidy checks</li>
 <li>Physical keyboard and mouse support with VS Code shortcuts: command palette (Ctrl+Shift+P), quick open (Ctrl+P), build (Ctrl+Shift+B), go to line, move lines, comment, and Ctrl+wheel zoom</li>

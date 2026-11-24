@@ -10,9 +10,15 @@ data class EditorThemeColors(val background: Int, val foreground: Int, val keywo
 object EditorThemePreviews {
     private val cache = mutableMapOf<EditorTheme, EditorThemeColors>()
 
-    fun colors(context: Context, theme: EditorTheme): EditorThemeColors = synchronized(cache) {
-        cache.getOrPut(theme) { runCatching { parse(context, theme) }.getOrDefault(FALLBACK) }
+    /** Parses the theme file on first use (blocking I/O: call it off the main thread), then caches. */
+    fun colors(context: Context, theme: EditorTheme): EditorThemeColors {
+        cached(theme)?.let { return it }
+        val parsed = runCatching { parse(context, theme) }.getOrDefault(FALLBACK)
+        return synchronized(cache) { cache.getOrPut(theme) { parsed } }
     }
+
+    /** Colors already parsed, or null. */
+    fun cached(theme: EditorTheme): EditorThemeColors? = synchronized(cache) { cache[theme] }
 
     private fun parse(context: Context, theme: EditorTheme): EditorThemeColors {
         val json = JSONObject(context.assets.open(theme.assetPath).bufferedReader().use { it.readText() })
