@@ -101,13 +101,13 @@ internal class RemoteInputBridge(
                         val height = input.readInt()
                         onDisplaySize(width, height)
                     }
-                    RemoteInputWire.QUIT -> main.post { activity.finish() }
+                    RemoteInputWire.QUIT -> main.post { activity.finishAndRemoveTask() }
                     else -> throw IOException("Unknown input message $type")
                 }
             }
         } catch (e: IOException) {
             // The IDE stopped the stream (or its process went away): end the program too.
-            if (!closed) main.post { if (!activity.isFinishing) activity.finish() }
+            if (!closed) main.post { if (!activity.isFinishing) activity.finishAndRemoveTask() }
         } catch (e: Exception) {
             Log.w(TAG, "Remote input stopped", e)
         }

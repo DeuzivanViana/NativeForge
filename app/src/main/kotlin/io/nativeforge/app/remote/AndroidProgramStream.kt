@@ -19,6 +19,7 @@ import io.nativeforge.core.remote.screen.ProgramStream
 import io.nativeforge.core.remote.screen.RemoteInput
 import io.nativeforge.core.remote.screen.StreamSink
 import io.nativeforge.core.remote.screen.VideoFrame
+import io.nativeforge.feature.runner.ProgramLauncher
 import io.nativeforge.feature.runner.RemoteInputWire
 import io.nativeforge.feature.runner.RemoteRun
 import java.io.BufferedOutputStream
@@ -333,6 +334,8 @@ class AndroidProgramStream private constructor(
         // LocalServerSocket.accept() does not return when the socket closes: wake it up first.
         if (client == null) runCatching { LocalSocket().use { it.connect(LocalSocketAddress(socketName)) } }
         runCatching { server.close() }
+        // Also when the program hangs or crashed: no task of it stays in the recent apps.
+        runCatching { ProgramLauncher.removeProgramTasks(context) }
     }
 
     companion object {

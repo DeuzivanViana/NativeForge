@@ -11,6 +11,8 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density"
             android:exported="false"
             android:process=":runner"
+            android:taskAffinity=":runner"
+            android:autoRemoveFromRecents="true"
             android:screenOrientation="unspecified"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
             <meta-data
@@ -25,6 +27,8 @@
             android:exported="false"
             android:preferMinimalPostProcessing="true"
             android:process=":runner"
+            android:taskAffinity=":runner"
+            android:autoRemoveFromRecents="true"
             android:screenOrientation="unspecified"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
 
@@ -35,6 +39,8 @@
             android:exported="false"
             android:preferMinimalPostProcessing="true"
             android:process=":runner"
+            android:taskAffinity=":runner"
+            android:autoRemoveFromRecents="true"
             android:screenOrientation="unspecified"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
     </application>
