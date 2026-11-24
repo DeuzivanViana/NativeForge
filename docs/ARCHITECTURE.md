@@ -148,6 +148,41 @@ protocol buffer manifest through the small wire-format codec in
 `bundle/Protobuf.kt`, `base/native.pb` is trimmed to the included ABIs, and the
 bundle gets a JAR signature only, with `META-INF/MANIFEST.MF` first.
 
+### Exporting to the web (WebAssembly)
+
+Console programs can also be exported as a web page. Emscripten does not fit on
+a phone (its own LLVM, Node.js and Python), so the export uses the clang and
+wasm-ld that the toolchain already has, with the `wasm32-wasip1` target and the
+WASI sysroot of Termux's `wasi-libc` package (C, C++ and compiler-rt builtins,
+downloaded once after a consent dialog):
+
+1. `WasiToolchain` (`core/toolchain`) wraps the device toolchain. Its flags start
+   with `--no-default-config`, so clang ignores the `clang.cfg` written for
+   Android (target, `-L<prefix>/lib`, which holds Android's `libc.a`, and
+   `-rpath`). It links wasi-libc's signal, clock, mmap and getpid emulations and
+   a 1 MiB stack, and links the wasm builtins into the resource directory of the
+   installed clang when `wasi-libc` was built for another clang version.
+   Packages contribute only header folders outside the Termux prefix
+   (`webDependencies`), so header-only libraries work.
+2. The export screen builds with the built-in build system into
+   `build/web/<type>/`, so web objects never replace Android ones.
+3. `WebExporter` (`core/export`) writes `exports/web/<name>/` and
+   `exports/<name>-web.zip` with a self-contained `index.html`, the `.wasm` and
+   a README. The page inlines the module and the project's `assets/` (base64),
+   the WASI preview 1 host (`resources/.../web/wasi.js`: args, environment,
+   clocks, random, an in-memory file system with the assets preopened at `/`,
+   stdin) and a terminal (`page.js`: ANSI colours, `\r`, clear screen). Its
+   Content-Security-Policy allows only that script and style by SHA-256 plus
+   `'wasm-unsafe-eval'`, with no network access.
+4. Programs run on the page's thread. With JavaScript Promise Integration
+   (Chromium 137+, Android WebView) `fd_read`, `fd_write` and `poll_oneoff` are
+   `WebAssembly.Suspending` imports: input is typed in the terminal, output
+   appears while the program runs, `sleep()` does not spin and Stop works.
+   Other browsers ask for input with `prompt()`. The export screen previews the
+   page in a WebView loaded as data, without file, content or network access.
+
+Graphical runtimes (SDL, raylib, OpenGL ES) are not exported to the web.
+
 ### Independent build systems
 
 `BuildSystemRegistry` holds four `BuildSystem`s, chosen per project by

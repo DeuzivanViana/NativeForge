@@ -20,6 +20,12 @@ class ToolchainLayout(val filesDir: File) {
     /** Android-targeted libraries (SDL, raylib...) live outside the Termux prefix. */
     val androidLibrariesDir: File get() = File(filesDir, "android-libs")
 
+    /** WebAssembly sysroot (libc, libc++) from Termux's `wasi-libc` package, used by [WasiToolchain]. */
+    val wasiSysroot: File get() = File(prefix, "share/wasi-sysroot")
+
+    /** clang's resource directories (`lib/clang/<major>`), one per installed clang version. */
+    val clangResourceRoot: File get() = File(libDir, "clang")
+
     fun ensureDirectories() {
         listOf(prefix, binDir, libDir, tmpDir, homeDir, androidLibrariesDir).forEach { it.mkdirs() }
     }

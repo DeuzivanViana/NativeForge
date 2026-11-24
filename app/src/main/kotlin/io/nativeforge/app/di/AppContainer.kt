@@ -13,6 +13,7 @@ import io.nativeforge.core.build.system.BuildSystemRegistry
 import io.nativeforge.core.common.Logger
 import io.nativeforge.core.common.process.JvmProcessRunner
 import io.nativeforge.core.export.ApkExporter
+import io.nativeforge.core.export.web.WebExporter
 import io.nativeforge.core.export.signing.ApksigSigningEngine
 import io.nativeforge.core.export.signing.SigningKeyStore
 import io.nativeforge.core.packages.PackageManager
@@ -27,6 +28,7 @@ import io.nativeforge.core.toolchain.Abi
 import io.nativeforge.core.toolchain.ClangToolchain
 import io.nativeforge.core.toolchain.Toolchain
 import io.nativeforge.core.toolchain.ToolchainLayout
+import io.nativeforge.core.toolchain.WasiToolchain
 import io.nativeforge.core.vcs.GitClient
 import java.io.File
 
@@ -43,6 +45,9 @@ class AppContainer(context: Context) {
     val abi: Abi = Abi.preferred(Build.SUPPORTED_ABIS.toList())
     val layout = ToolchainLayout(appContext.filesDir).also { it.ensureDirectories() }
     val toolchain: Toolchain = ClangToolchain(layout, abi)
+
+    /** Builds console programs as WebAssembly for the web export (same clang, WASI sysroot). */
+    val wasiToolchain = WasiToolchain(toolchain, layout)
 
     val projectRepository: ProjectRepository = FileSystemProjectRepository(
         workspaceRoot = File(appContext.filesDir, "projects").also { it.mkdirs() },
@@ -85,6 +90,7 @@ class AppContainer(context: Context) {
     val buildService = BuildService(BuildSystemRegistry.default(), BuildExecutor(JvmProcessRunner()))
 
     val apkExporter = ApkExporter(ApksigSigningEngine())
+    val webExporter = WebExporter()
 
     /** Git without a git binary; its config files live in the toolchain's home folder. */
     val git: GitClient by lazy { GitClient(layout.homeDir) }
