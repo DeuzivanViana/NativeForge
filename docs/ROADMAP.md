@@ -24,6 +24,10 @@
   WebCodecs. Keyboard, mouse (buttons, wheel), touch and multi-touch go back
   to the program; a toggle sends the mouse as touch; full screen captures
   keys like Esc. The run button's menu still offers the phone's screen.
+* Black screen while remote access is on (default on): pure black full
+  screen for OLED phones that keeps the phone awake and unlocked, so the
+  browser can start graphical programs; a tap shows the address, pairing code
+  and buttons for 10 seconds.
 * Later: the program's sound in the browser, packages, export and git screens
   in the browser.
 

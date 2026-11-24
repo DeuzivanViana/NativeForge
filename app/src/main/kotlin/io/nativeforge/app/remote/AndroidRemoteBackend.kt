@@ -107,7 +107,8 @@ class AndroidRemoteBackend(private val context: Context, private val container: 
         val staged = ProgramRunner.stageIfOutside(context, artifact)
             ?: throw IllegalStateException("Could not copy ${artifact.file.name} to NativeForge's storage to run it")
         val spec = ProgramRunner.launchSpec(context, container, project, staged)
-        val stream = AndroidProgramStream.open(context, container.logger, width, height, sink) { ProgramRunner.consumeStartError(context) }
+        val blackScreen = container.remoteAccess.settings.value.blackScreen
+        val stream = AndroidProgramStream.open(context, container.logger, width, height, sink, blackScreen) { ProgramRunner.consumeStartError(context) }
         val result = try {
             ProgramLauncher.launch(context, spec, stream.run)
         } catch (e: Exception) {
