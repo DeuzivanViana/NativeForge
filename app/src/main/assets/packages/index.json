@@ -1546,8 +1546,8 @@
         "sdl2"
       ],
       "downloadUrl": "asset:packages/aarch64/lvgl-9.6.0.tar.xz",
-      "sha256": "d5676d1b9dada2a2b7758c54f0effd173f7586edd9f4a3eac046165994c50b3a",
-      "sizeBytes": 1056176,
+      "sha256": "e13b872ff669007eba698245c25372cad846f849bef7b966b744fa319165b177",
+      "sizeBytes": 1056132,
       "format": "tar.xz",
       "target": "isolated",
       "build": {
@@ -1572,8 +1572,8 @@
         "sdl2"
       ],
       "downloadUrl": "asset:packages/arm/lvgl-9.6.0.tar.xz",
-      "sha256": "0d5eb5b705d68860c14c2cf37dcfc57aa15422ded58d92500efae49e1990fbbe",
-      "sizeBytes": 1068664,
+      "sha256": "b5a07b7c569931cd52237387da3816b8a1174435453a58a86edc1e589b2bbf81",
+      "sizeBytes": 1068796,
       "format": "tar.xz",
       "target": "isolated",
       "build": {
@@ -1598,8 +1598,8 @@
         "sdl2"
       ],
       "downloadUrl": "asset:packages/x86_64/lvgl-9.6.0.tar.xz",
-      "sha256": "ba0f3bf42839d844aec7196c99ea17e19a88898a74fa11e8c629cfefbec4bca4",
-      "sizeBytes": 1093984,
+      "sha256": "dfc6a77304f00cddc7863fcc12520d950b9f40b84d63f82b22786ef0ac66ca01",
+      "sizeBytes": 1094156,
       "format": "tar.xz",
       "target": "isolated",
       "build": {

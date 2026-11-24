@@ -24,9 +24,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -165,7 +169,7 @@ class PackageManager(
      * Installs [names] and their dependencies, emitting progress. Packages in
      * [reinstall] are installed again even when present.
      */
-    fun install(names: List<String>, reinstall: Set<String> = emptySet()): Flow<InstallEvent> = flow {
+    fun install(names: List<String>, reinstall: Set<String> = emptySet()): Flow<InstallEvent> = channelFlow {
         mutex.withLock {
             val plan = try {
                 // Every source must be read: the catalog may only hold the bundled index.
@@ -179,7 +183,7 @@ class PackageManager(
                 }
             } catch (e: DependencyResolutionException) {
                 val failures = lastFailures
-                emit(
+                send(
                     InstallEvent.Failed(
                         if (failures.isEmpty()) {
                             NfError.NotFound(e.message.orEmpty())
@@ -190,19 +194,38 @@ class PackageManager(
                 )
                 return@withLock
             }
-            emit(InstallEvent.Resolved(plan))
-            for (pkg in plan) {
-                val result = outcomeOf(errorFactory = { NfError.Io("Failed to install ${pkg.name}: ${it.message}", it) }) {
-                    installOne(pkg) { event -> emit(event) }
+            send(InstallEvent.Resolved(plan))
+            coroutineScope {
+                // Archives download (and are checked) a few at a time while earlier ones are
+                // extracted, which keeps the network busy. Extraction stays in dependency order.
+                val slots = Semaphore(PARALLEL_DOWNLOADS)
+                val archives = plan.map { pkg ->
+                    async {
+                        slots.withPermit {
+                            outcomeOf(errorFactory = { NfError.Io("Failed to install ${pkg.name}: ${it.message}", it) }) {
+                                download(pkg) { event -> send(event) }
+                            }
+                        }
+                    }
                 }
-                if (result is Outcome.Failure) {
-                    emit(InstallEvent.Failed(result.error))
-                    return@withLock
+                for ((index, pkg) in plan.withIndex()) {
+                    val result = when (val archive = archives[index].await()) {
+                        is Outcome.Success -> outcomeOf(errorFactory = { NfError.Io("Failed to install ${pkg.name}: ${it.message}", it) }) {
+                            send(InstallEvent.Extracting(pkg))
+                            extract(pkg, archive.value)
+                        }
+                        is Outcome.Failure -> archive
+                    }
+                    if (result is Outcome.Failure) {
+                        archives.forEach { it.cancel() }
+                        send(InstallEvent.Failed(result.error))
+                        return@coroutineScope
+                    }
+                    send(InstallEvent.Installed(pkg))
                 }
-                emit(InstallEvent.Installed(pkg))
+                _installed.value = database.all()
+                send(InstallEvent.Completed)
             }
-            _installed.value = database.all()
-            emit(InstallEvent.Completed)
         }
     }.flowOn(dispatchers.io)
 
@@ -240,7 +263,8 @@ class PackageManager(
         return ordered.values.filter { it.info.target == InstallTarget.ISOLATED || it.info.name in names }.map { it.toNativeDependency() }
     }
 
-    private suspend fun installOne(pkg: PackageInfo, emit: suspend (InstallEvent) -> Unit) {
+    /** Downloads [pkg]'s archive and checks its SHA-256. */
+    private suspend fun download(pkg: PackageInfo, emit: suspend (InstallEvent) -> Unit): File {
         val archive = File(downloadDir, "${pkg.name}_${pkg.version}.${pkg.format.name.lowercase()}")
         emit(InstallEvent.Downloading(pkg, 0, pkg.sizeBytes))
         http.download(pkg.downloadUrl, archive)
@@ -252,8 +276,11 @@ class PackageManager(
             archive.delete()
             error(if (expected == null) "${pkg.name} has no SHA-256 in its index" else "Checksum mismatch for ${pkg.name}")
         }
+        return archive
+    }
 
-        emit(InstallEvent.Extracting(pkg))
+    /** Unpacks a checked archive from [download] and records the package as installed. */
+    private fun extract(pkg: PackageInfo, archive: File) {
         val root = installRoot(pkg)
         // A reinstall of an isolated package starts from an empty directory.
         if (pkg.target == InstallTarget.ISOLATED && database.get(pkg.name) != null) root.deleteRecursively()
@@ -294,5 +321,8 @@ class PackageManager(
 
     private companion object {
         const val TAG = "PackageManager"
+
+        /** Downloads at the same time; more rarely helps on a phone's connection. */
+        const val PARALLEL_DOWNLOADS = 3
     }
 }

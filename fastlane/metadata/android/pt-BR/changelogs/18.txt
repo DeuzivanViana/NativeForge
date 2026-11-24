@@ -1,0 +1,5 @@
+• Exemplos se ajustam a qualquer tela: sem botões e textos sobrepostos em celulares pequenos, tablets ou paisagem
+• Versões em C++ dos modelos Vulkan, LVGL, sintetizador e Lua
+• Novos exemplos: jogo da cobrinha (SDL3) e pintura com o dedo (raylib + raygui)
+• Compilação mais rápida: arquivos compilados em vários núcleos
+• Primeira instalação mais rápida: bibliotecas baixadas em paralelo

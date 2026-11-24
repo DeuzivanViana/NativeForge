@@ -172,12 +172,19 @@ int main(int argc, char *argv[])
             SDL_RenderFillRect(renderer, &rect);
         }
         SDL_UnlockAudioStream(stream);
-        /* SDL's built-in 8x8 debug font, scaled up. */
-        float text_scale = height / 300.0f;
+        /* SDL's built-in debug font is 8x8 pixels: scale it so that the longest line fits the
+           width, and is not larger than 1/45 of the screen's short side per character. */
+        static const char *const lines[] = {"Touch synth", "Play with up to 10 fingers", "Higher = brighter sound"};
+        const float longest = (float)SDL_strlen(lines[1]) * 8.0f + 16.0f;
+        const float short_side = (float)SDL_min(width, height);
+        const float text_scale = SDL_max(1.0f, SDL_min((float)width / longest, short_side / 45.0f / 8.0f));
+        /* A dark band behind the text keeps it readable over lit keys. */
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 140);
+        SDL_RenderFillRect(renderer, &(SDL_FRect){0, 0, (float)width, 46 * text_scale});
         SDL_SetRenderScale(renderer, text_scale, text_scale);
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        SDL_RenderDebugText(renderer, 8, 8, "Touch synth: play with up to 10 fingers");
-        SDL_RenderDebugText(renderer, 8, 20, "Higher on the screen = brighter sound");
+        for (int i = 0; i < 3; i++) SDL_RenderDebugText(renderer, 8, 8 + i * 12.0f, lines[i]);
         SDL_SetRenderScale(renderer, 1.0f, 1.0f);
         SDL_RenderPresent(renderer);
     }

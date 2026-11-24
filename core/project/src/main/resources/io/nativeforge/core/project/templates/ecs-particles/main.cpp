@@ -2,6 +2,7 @@
 
 #include <entt/entt.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -17,15 +18,24 @@ struct Bouncy {};  // a "tag" component: no data, it only marks entities
 
 namespace {
 
-constexpr float kGravity = 900.0f;
+// Distances are in units of 1/360 of the screen's short side, so the spray looks the same
+// on small and large phones, upright or sideways.
+float unit() { return std::min(GetScreenWidth(), GetScreenHeight()) / 360.0f; }
+
+// Largest font size, up to size, at which text fits in maxWidth pixels.
+int fitText(const char* text, int size, float maxWidth) {
+    while (size > 10 && MeasureText(text, size) > maxWidth) --size;
+    return size;
+}
 
 void spawn(entt::registry& registry, Vector2 at, int count) {
+    const float u = unit();
     for (int i = 0; i < count; ++i) {
         const float angle = GetRandomValue(0, 359) * DEG2RAD;
-        const float speed = static_cast<float>(GetRandomValue(150, 650));
+        const float speed = GetRandomValue(50, 216) * u;
         const auto entity = registry.create();
         registry.emplace<Position>(entity, at);
-        registry.emplace<Velocity>(entity, Vector2{std::cos(angle) * speed, std::sin(angle) * speed - 300.0f});
+        registry.emplace<Velocity>(entity, Vector2{std::cos(angle) * speed, std::sin(angle) * speed - 100 * u});
         const float life = GetRandomValue(150, 400) / 100.0f;
         registry.emplace<Lifetime>(entity, life, life);
         registry.emplace<Tint>(entity, ColorFromHSV(static_cast<float>(GetRandomValue(0, 359)), 0.75f, 1.0f));
@@ -35,8 +45,9 @@ void spawn(entt::registry& registry, Vector2 at, int count) {
 
 // System: integrates velocity and gravity for everything that moves.
 void movementSystem(entt::registry& registry, float dt) {
-    registry.view<Position, Velocity>().each([dt](Position& p, Velocity& v) {
-        v.value.y += kGravity * dt;
+    const float gravity = 300 * unit();
+    registry.view<Position, Velocity>().each([dt, gravity](Position& p, Velocity& v) {
+        v.value.y += gravity * dt;
         p.value.x += v.value.x * dt;
         p.value.y += v.value.y * dt;
     });
@@ -52,7 +63,7 @@ void bounceSystem(entt::registry& registry) {
     });
 }
 
-// System: ages particles and destroys the expired ones (collected first, destroyed after the loop).
+// System: ages particles and destroys the expired ones (EnTT allows destroying the current entity of a view).
 void lifetimeSystem(entt::registry& registry, float dt) {
     auto view = registry.view<Lifetime>();
     for (auto entity : view) {
@@ -76,7 +87,6 @@ int main() {
     InitWindow(0, 0, "@PROJECT_NAME@");
     SetTargetFPS(60);
     entt::registry registry;
-    const float scale = GetScreenHeight() / 900.0f;  // sizes relative to the screen
     spawn(registry, Vector2{GetScreenWidth() / 2.0f, GetScreenHeight() / 3.0f}, 400);
 
     while (!WindowShouldClose()) {
@@ -89,13 +99,16 @@ int main() {
 
         BeginDrawing();
         ClearBackground(Color{14, 15, 20, 255});
-        renderSystem(registry, 9.0f * scale);
+        const float u = unit(), margin = 12 * u, room = GetScreenWidth() - 2 * margin;
+        renderSystem(registry, 3 * u);
         char status[96];
         std::snprintf(status, sizeof status, "%d particles  |  %d FPS",
                       static_cast<int>(registry.view<Position>().size()), GetFPS());
-        DrawText(status, static_cast<int>(24 * scale), static_cast<int>(24 * scale), static_cast<int>(36 * scale), RAYWHITE);
-        DrawText("Touch and drag to spray particles", static_cast<int>(24 * scale), static_cast<int>(70 * scale),
-                 static_cast<int>(28 * scale), GRAY);
+        const char* hint = "Touch and drag to spray particles";
+        const int statusSize = fitText(status, static_cast<int>(18 * u), room);
+        DrawText(status, static_cast<int>(margin), static_cast<int>(margin), statusSize, RAYWHITE);
+        DrawText(hint, static_cast<int>(margin), static_cast<int>(margin + statusSize * 1.4f),
+                 fitText(hint, static_cast<int>(14 * u), room), GRAY);
         EndDrawing();
     }
     CloseWindow();
