@@ -13,15 +13,21 @@
 ## Module graph
 
 ```
-                    app ──────────────┬──────────────┬─────────────┐
-                     │                │              │             │
-   feature/editor  feature/terminal  feature/runner  core/ui   runtime-template
-                                          │                     (runner + terminal)
-                                          ▼
- core/build ──► core/toolchain ──► core/project ──► core/common
- core/packages ─┘                       ▲
- core/export ───────────────────────────┘
- core/vcs (JGit) ──► core/common
+app ──► every feature/* and core/* module; embeds runtime-template's APK
+runtime-template ──► feature/runner, feature/terminal
+
+feature/editor   ──► core/ui, core/lsp
+feature/terminal ──► core/ui
+feature/runner   ──► core/project          (+ NDK shim in src/main/cpp)
+feature/assets   ──► core/ui, core/assets
+
+core/codeintel ──► core/lsp, core/build
+core/build     ──► core/toolchain, core/project, core/common
+core/export    ──► core/toolchain, core/project, core/common
+core/packages  ──► core/toolchain, core/common
+core/toolchain ──► core/project ──► core/common
+core/vcs (JGit) ──► core/common
+core/lsp, core/assets: no project dependencies
 ```
 
 * `core/*` modules except `core/ui` are **pure Kotlin/JVM**. They have no Android
@@ -86,6 +92,7 @@ through `NativeDependency`.
 | `CONSOLE` | executable | `ConsoleActivity` (Termux terminal emulator, PTY) |
 | `NATIVE_ACTIVITY` | `libmain.so` exporting `ANativeActivity_onCreate` | `NativeProgramActivity` + `libnativeforge_shim.so` |
 | `SDL3` | shared object exporting `SDL_main` | `SdlProgramActivity` (SDLActivity with the SDL 3.4.20 Java glue) |
+| `SDL2` | shared object exporting `SDL_main` | `Sdl2ProgramActivity` (SDL2's glue, moved to `org.libsdl.sdl2`) |
 
 `NativeActivity` can only load libraries packaged in the APK, so it loads a tiny
 shim that `dlopen()`s the user's program (path passed through an environment
