@@ -1,0 +1,2 @@
+• Search in project (Ctrl+Shift+F, or the search field in the explorer): finds text in every file, with match case, whole word and regular expression options
+• Tap a result to open the file at the match; Replace all changes every match, and files open in the editor can be undone there

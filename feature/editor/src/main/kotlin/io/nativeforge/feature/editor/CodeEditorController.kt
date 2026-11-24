@@ -316,6 +316,17 @@ class CodeEditorController {
         view.ensureSelectionVisible()
     }
 
+    /** Selects [length] characters from a 1-based [line]/[column] (a search result), on that line only. */
+    fun select(line: Int, column: Int, length: Int) {
+        val view = editor ?: return
+        val targetLine = (line - 1).coerceIn(0, (view.text.lineCount - 1).coerceAtLeast(0))
+        val columns = view.text.getColumnCount(targetLine)
+        val start = (column - 1).coerceIn(0, columns)
+        val end = (start + length).coerceIn(start, columns)
+        view.setSelectionRegion(targetLine, start, targetLine, end)
+        view.ensureSelectionVisible()
+    }
+
     /** Inserts [text] at the caret and moves the caret by [caretOffset] characters inside it. */
     fun insert(text: String, caretOffset: Int = text.length) {
         editor?.insertText(text, caretOffset)

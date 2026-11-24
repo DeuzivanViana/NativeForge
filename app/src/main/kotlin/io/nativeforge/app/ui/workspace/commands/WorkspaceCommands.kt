@@ -48,6 +48,7 @@ enum class WorkspaceCommand(val title: String, val chords: List<KeyChord>) {
     CANCEL_BUILD("Cancel build", listOf(KeyChord(KeyEvent.KEYCODE_F5, shift = true))),
     FIND("Find", listOf(KeyChord(KeyEvent.KEYCODE_F, ctrl = true))),
     REPLACE("Find and replace", listOf(KeyChord(KeyEvent.KEYCODE_H, ctrl = true))),
+    SEARCH_IN_PROJECT("Search in project", listOf(KeyChord(KeyEvent.KEYCODE_F, ctrl = true, shift = true))),
     FIND_NEXT("Find next", listOf(KeyChord(KeyEvent.KEYCODE_F3))),
     FIND_PREVIOUS("Find previous", listOf(KeyChord(KeyEvent.KEYCODE_F3, shift = true))),
     GO_TO_LINE("Go to line…", listOf(KeyChord(KeyEvent.KEYCODE_G, ctrl = true))),
