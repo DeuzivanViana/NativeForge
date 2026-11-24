@@ -27,6 +27,7 @@ core/export    ──► core/toolchain, core/project, core/common
 core/packages  ──► core/toolchain, core/common
 core/toolchain ──► core/project ──► core/common
 core/vcs (JGit) ──► core/common
+core/remote    ──► core/codeintel, core/build, core/project (+ Bouncy Castle for its TLS key)
 core/lsp, core/assets: no project dependencies
 ```
 
@@ -194,6 +195,38 @@ be unit tested; `feature/assets` renders them (Compose for images, audio and
 fonts, a GLES2 `GLSurfaceView` for models). Opening a file whose extension maps
 to an `AssetKind` shows the viewer instead of the editor.
 
+### Remote access (browser IDE)
+
+The phone can serve the IDE to a browser on a computer (Home › cast icon). All
+work still happens on the phone; the browser is the screen and keyboard.
+
+* `core/remote` is pure JVM: a small HTTP/1.1 + WebSocket server on blocking
+  sockets (`http/`), pairing and session tokens (`security/AccessControl`), the
+  TLS key (`security/TlsIdentity`), peer/host/origin rules
+  (`security/NetworkPolicy`), project-confined file access (`ProjectFiles`),
+  terminal sessions that survive reconnects (`TerminalHub`), clangd for the
+  browser (`CodeIntelHub`) and the routes (`RemoteServer`). The app plugs in
+  through `RemoteBackend` (`app/.../remote/AndroidRemoteBackend`): the same
+  project repository, package manager, build service, settings and theme as
+  the screens.
+* The web UI lives in `core/remote/src/main/resources/.../web/` as plain ES
+  modules with no build step. CodeMirror 6 and xterm.js are copied unchanged
+  from npm by `core/remote/web/vendor.sh` (checked against `vendor.sha256`)
+  and loaded through an import map. `StaticAssets` serves them gzip'd under a
+  content-hash prefix (`/a/<hash>/`, cached for a year); `web/MANIFEST` lists
+  the files that make up the hash.
+* The page applies the app's palette as CSS variables and turns the selected
+  editor theme (the same TextMate JSON the app uses) into a CodeMirror theme;
+  changing the theme in the app updates open browsers.
+* `RemoteAccessService` is a foreground service with a partial wake lock and
+  a high-performance Wi-Fi lock, so builds and terminals keep running with the
+  screen off; it stops after the user's idle time. Terminals use Termux's PTY
+  JNI through `com.termux.terminal.PtyBridge` (raw bytes for xterm.js).
+* Graphical programs started from the browser run on the phone's screen;
+  streaming that screen to the browser is a later stage.
+
+See `docs/SECURITY.md` for the security model.
+
 ### Git
 
 `core/vcs` wraps JGit 5.13 (Java 8 APIs, which Android supports) behind
@@ -212,6 +245,7 @@ and never create symlinks; clones are HTTPS-only without submodules. See
 | A diagnostic format | `DiagnosticParser` | `BuildExecutor` constructor |
 | An editor language/theme | TextMate grammar/theme JSON | `assets/textmate/languages.json`, `EditorTheme` |
 | A screen | Composable + ViewModel | `Routes` / `NativeForgeNavHost` |
+| A remote (browser) API | route in `RemoteServer.authenticated` + UI in `web/js/` | `RemoteBackend` when it needs the app |
 
 ## Conventions
 

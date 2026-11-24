@@ -15,8 +15,12 @@ import io.nativeforge.app.ui.navigation.NativeForgeNavHost
 import io.nativeforge.core.ui.theme.NativeForgeTheme
 
 class MainActivity : ComponentActivity() {
+    /** Set when the remote access notification was tapped; the navigation host opens that screen. */
+    private val openRemote = androidx.compose.runtime.mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        openRemote.value = savedInstanceState == null && intent?.getBooleanExtra(EXTRA_OPEN_REMOTE, false) == true
         val settingsRepository = (application as NativeForgeApplication).container.settings
         applySystemBars(settingsRepository.settings.value.appTheme.palette.isDark)
         setContent {
@@ -24,9 +28,15 @@ class MainActivity : ComponentActivity() {
             val dark = settings.appTheme.palette.isDark
             LaunchedEffect(dark) { applySystemBars(dark) }
             NativeForgeTheme(theme = settings.appTheme) {
-                NativeForgeNavHost()
+                NativeForgeNavHost(openRemote = openRemote.value, onRemoteOpened = { openRemote.value = false })
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_OPEN_REMOTE, false)) openRemote.value = true
     }
 
     /** Physical keyboard shortcuts (Ctrl+S, F5...) reach the workspace before the editor view. */
@@ -54,5 +64,9 @@ class MainActivity : ComponentActivity() {
     private fun applySystemBars(dark: Boolean) {
         val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+    }
+
+    companion object {
+        const val EXTRA_OPEN_REMOTE = "io.nativeforge.app.OPEN_REMOTE"
     }
 }

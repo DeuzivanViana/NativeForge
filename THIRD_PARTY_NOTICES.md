@@ -46,3 +46,7 @@ Grammar and theme JSON files were taken from the `tm-grammars` 1.32.22 and
 The Android libraries in `app/src/main/assets/packages/` are built from the
 Ubuntu source packages of each project (Box3D and LVGL from their git tags, commits checked) by `packages/build-android-libs.sh`.
 Each archive ships the project's license file under `share/licenses/`.
+| [CodeMirror 6](https://codemirror.net/) (state, view, language, commands, autocomplete, lint, search, lang-cpp, streamparser) and [Lezer](https://lezer.codemirror.net/) (common, highlight, lr, cpp), with style-mod, w3c-keyname, crelt and find-cluster-break; files copied unchanged from npm by `core/remote/web/vendor.sh` | Editor of the remote web IDE (browser) | MIT |
+| [xterm.js](https://xtermjs.org/) 6.0.0 and its fit add-on | Terminal of the remote web IDE (browser) | MIT |
+| [ZXing core](https://github.com/zxing/zxing) 3.5.3 | QR code of the remote access address | Apache-2.0 |
+| Material icon paths ([material-design-icons](https://github.com/google/material-design-icons)) in the web IDE and the remote access notification | Icons | Apache-2.0 |

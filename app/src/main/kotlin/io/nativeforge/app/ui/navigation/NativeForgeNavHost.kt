@@ -20,14 +20,21 @@ object Routes {
     const val SETTINGS = "settings"
     const val WORKSPACE = "workspace/{project}"
     const val EXPORT = "export/{project}"
+    const val REMOTE = "remote"
 
     fun workspace(project: String) = "workspace/${Uri.encode(project)}"
     fun export(project: String) = "export/${Uri.encode(project)}"
 }
 
 @Composable
-fun NativeForgeNavHost() {
+fun NativeForgeNavHost(openRemote: Boolean = false, onRemoteOpened: () -> Unit = {}) {
     val navController = rememberNavController()
+    androidx.compose.runtime.LaunchedEffect(openRemote) {
+        if (openRemote) {
+            navController.navigate(Routes.REMOTE) { launchSingleTop = true }
+            onRemoteOpened()
+        }
+    }
     val projectArgument = listOf(navArgument("project") { type = NavType.StringType })
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
@@ -36,7 +43,11 @@ fun NativeForgeNavHost() {
                 onOpenProject = { navController.navigate(Routes.workspace(it)) },
                 onOpenPackages = { navController.navigate(Routes.PACKAGES) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                onOpenRemote = { navController.navigate(Routes.REMOTE) },
             )
+        }
+        composable(Routes.REMOTE) {
+            io.nativeforge.app.ui.remote.RemoteAccessScreen(onBack = navController::popBackStack)
         }
         composable(Routes.PACKAGES) {
             PackagesScreen(onBack = navController::popBackStack)

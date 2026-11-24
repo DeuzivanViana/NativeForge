@@ -46,6 +46,7 @@ touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 | Terminal | Termux terminal emulator with a PTY, extra keys bar | `feature/terminal` |
 | Graphics | NativeActivity host + native shim (raylib, SFML, OpenGL ES) and SDLActivity hosts for SDL3 and SDL2 | `feature/runner` |
 | Templates | Console, raylib, SDL3, SDL2, Dear ImGui, LVGL, SFML, OpenGL ES and Vulkan, in C or C++ (C libraries are used from C++ through their `extern "C"` headers), with the built-in build, CMake or a Makefile; example projects sized from the screen: 2D physics (raylib + Box2D), 3D physics (raylib + Box3D), LVGL widgets demo, to-do list and calculator, OpenGL ES cube (SDL3 + GLM), touch synthesizer (SDL3 audio), snake game (SDL3), finger painting (raylib + raygui), particles (raylib + EnTT), Lua console and JSON address book | `core/project` |
+| Remote access | Use the IDE from a computer's browser on the same Wi-Fi or VPN, with the app's look: projects, explorer, editor with clangd, build and run, problems, terminals. HTTPS with a certificate made on the phone, one-time pairing codes, local networks only; keeps running with the screen off and stops when idle | `core/remote`, `app/.../remote` |
 | Export | APK or Android App Bundle (AAB) for Google Play from a prebuilt runtime template (binary or proto manifest patched on the device), libraries and the project's `assets/`, custom icon, orientation, full screen, keep screen on, release or debug; signed with apksig using the device key or your own keystore (create, or import JKS/PKCS#12/BKS, back up) | `core/export`, `app/.../signing`, `runtime-template` |
 
 ## Building
@@ -91,6 +92,7 @@ core/vcs             Git client (JGit): clone, status, diff, commit, pull    (JV
 core/lsp             JSON-RPC and Language Server Protocol client             (JVM)
 core/codeintel       clangd session, compile database, clang-format          (JVM)
 core/assets          Asset kinds, model parsers (OBJ/STL/PLY/glTF), TGA      (JVM)
+core/remote          Remote web IDE: HTTPS/WebSocket server and web UI        (JVM)
 core/ui              Compose theme and shared components
 feature/editor       Code editor (Sora + TextMate)
 feature/terminal     Console activity (Termux terminal-view)

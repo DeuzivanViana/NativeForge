@@ -25,6 +25,7 @@ Read only what the task needs. Deeper docs:
 | `core/vcs` | JVM | JGit wrapper `GitClient` |
 | `core/lsp`, `core/codeintel` | JVM | LSP client; clangd session, compile DB, clang-format |
 | `core/assets` | JVM | OBJ/STL/PLY/glTF/TGA parsers |
+| `core/remote` | JVM | remote web IDE: HTTPS/WebSocket server, pairing, file API, terminals, clangd bridge; web UI in `src/main/resources/.../web/` (vendored JS via `web/vendor.sh`) |
 | `core/ui` | Android | Compose theme, shared components |
 | `feature/editor` | Android | Sora editor + TextMate (`src/main/assets/textmate/`) |
 | `feature/terminal` | Android | `ConsoleActivity` (Termux terminal-view, PTY) |
@@ -105,4 +106,5 @@ Requirements: JDK 17, Android SDK 35, NDK `27.2.12479018` (CMake 3.22.1 for libs
 | New/updated bundled library | `packages/build-android-libs.sh`, `packages/sources.sha256`, regenerated `app/src/main/assets/packages/`, `THIRD_PARTY_NOTICES.md`; CI `libs-from-source.yml` checks it |
 | New build system / runtime / package source | extension-point table in `docs/ARCHITECTURE.md` |
 | New screen | Composable + ViewModel, `Routes`, `di/ViewModelFactories.kt` |
+| Remote web IDE | `core/remote` (`RemoteServer` routes, `web/js/*.js`); new web files go in `web/MANIFEST`; app side in `app/.../remote/` |
 | Release | bump `versionCode`/`versionName` in `app/build.gradle.kts`; add `fastlane/metadata/android/{en-US,pt-BR}/changelogs/<versionCode>.txt` (≤500 chars); add a section to `docs/ROADMAP.md`; update the status line in `README.md`; after merge push tag `vX.Y.Z` (`release.yml` builds, signs, publishes) |

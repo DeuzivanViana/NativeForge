@@ -39,6 +39,7 @@ include(":core:vcs")
 include(":core:lsp")
 include(":core:codeintel")
 include(":core:assets")
+include(":core:remote")
 
 // Android core modules
 include(":core:ui")

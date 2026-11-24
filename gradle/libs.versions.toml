@@ -24,6 +24,7 @@ bouncycastle = "1.81"
 # JGit 5.13 is the last line that runs on Java 8 APIs, which Android API 26 provides.
 jgit = "5.13.5.202508271544-r"
 slf4j = "1.7.36"
+zxing = "3.5.3"
 
 # Testing
 junit = "4.13.2"
@@ -65,6 +66,7 @@ xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
 bouncycastle-pkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncycastle" }
 jgit = { group = "org.eclipse.jgit", name = "org.eclipse.jgit", version.ref = "jgit" }
 slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
