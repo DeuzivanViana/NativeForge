@@ -9,10 +9,15 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.TextView
 
-/** Where a streamed run shows: an off-screen display of the IDE and the socket its input comes from. */
-data class RemoteRun(val displayId: Int, val inputSocket: String)
+/**
+ * Where a streamed run shows: an off-screen display of the IDE and the socket its input
+ * comes from. With [blackScreen] the phone stays on and unlocked behind a black screen.
+ */
+data class RemoteRun(val displayId: Int, val inputSocket: String, val blackScreen: Boolean = false)
 
 /**
  * A run shown in the remote web IDE instead of on the phone.
@@ -24,7 +29,7 @@ data class RemoteRun(val displayId: Int, val inputSocket: String)
  * presentation is made from the application context, so it does not stop with the
  * activity when the screen turns off.
  */
-internal class RemoteHost private constructor(private val activity: Activity, run: RemoteRun, display: android.view.Display) {
+internal class RemoteHost private constructor(private val activity: Activity, private val run: RemoteRun, display: android.view.Display) {
     val presentation = Presentation(activity.applicationContext, display, android.R.style.Theme_Black_NoTitleBar_Fullscreen).apply {
         setCancelable(false)
     }
@@ -40,13 +45,43 @@ internal class RemoteHost private constructor(private val activity: Activity, ru
         input.start()
     }
 
-    /** What the phone shows while the program runs in the browser. */
-    fun placeholder(): View = TextView(activity).apply {
-        text = "Running in the browser"
-        gravity = Gravity.CENTER
-        setTextColor(Color.LTGRAY)
-        setBackgroundColor(Color.BLACK)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+    /**
+     * What the phone shows while the program runs in the browser. With a black screen the
+     * note appears for 10 seconds after a tap; the screen stays on and unlocked (so the next
+     * run can start) while its OLED pixels stay off.
+     */
+    fun placeholder(): View {
+        val note = TextView(activity).apply {
+            text = "Running in the browser"
+            gravity = Gravity.CENTER
+            setTextColor(Color.LTGRAY)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        }
+        val root = FrameLayout(activity).apply {
+            setBackgroundColor(Color.BLACK)
+            addView(note, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        }
+        if (!run.blackScreen) return root
+        activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        RunnerWindow.hideSystemBars(activity)
+        val sleep = Runnable {
+            note.visibility = View.INVISIBLE
+            setBrightness(0.01f)
+        }
+        sleep.run()
+        root.setOnClickListener {
+            note.visibility = View.VISIBLE
+            setBrightness(WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE)
+            root.removeCallbacks(sleep)
+            root.postDelayed(sleep, AWAKE_MILLIS)
+        }
+        return root
+    }
+
+    private fun setBrightness(value: Float) {
+        val attributes = activity.window.attributes
+        attributes.screenBrightness = value
+        activity.window.attributes = attributes
     }
 
     fun close() {
@@ -58,9 +93,11 @@ internal class RemoteHost private constructor(private val activity: Activity, ru
         private const val TAG = "RemoteHost"
         private const val EXTRA_DISPLAY = "io.nativeforge.runner.REMOTE_DISPLAY"
         private const val EXTRA_SOCKET = "io.nativeforge.runner.REMOTE_INPUT_SOCKET"
+        private const val EXTRA_BLACK = "io.nativeforge.runner.REMOTE_BLACK_SCREEN"
+        private const val AWAKE_MILLIS = 10_000L
 
         fun putInto(intent: Intent, run: RemoteRun): Intent =
-            intent.putExtra(EXTRA_DISPLAY, run.displayId).putExtra(EXTRA_SOCKET, run.inputSocket)
+            intent.putExtra(EXTRA_DISPLAY, run.displayId).putExtra(EXTRA_SOCKET, run.inputSocket).putExtra(EXTRA_BLACK, run.blackScreen)
 
         /** The remote host for [activity], or null when it runs on the phone's screen. */
         fun fromIntent(activity: Activity): RemoteHost? {
@@ -75,7 +112,7 @@ internal class RemoteHost private constructor(private val activity: Activity, ru
                 activity.finish()
                 return null
             }
-            return RemoteHost(activity, RemoteRun(displayId, socket), display)
+            return RemoteHost(activity, RemoteRun(displayId, socket, intent.getBooleanExtra(EXTRA_BLACK, false)), display)
         }
     }
 }

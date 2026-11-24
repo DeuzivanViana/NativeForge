@@ -257,6 +257,13 @@ work still happens on the phone; the browser is the screen and keyboard.
   a high-performance Wi-Fi lock, so builds and terminals keep running with the
   screen off; it stops after the user's idle time. Terminals use Termux's PTY
   JNI through `com.termux.terminal.PtyBridge` (raw bytes for xterm.js).
+* `RemoteScreenActivity` (on by default, "Black screen while on") shows pure
+  black full screen while remote access runs: OLED pixels stay off, but the
+  screen stays on and unlocked with NativeForge in front, which Android
+  requires before the browser may start graphical programs (background
+  activity starts are blocked). A tap shows the address and buttons for 10
+  seconds. The runner's placeholder on the phone behaves the same way while a
+  streamed program runs (`RemoteRun.blackScreen`).
 * Graphical programs started from the browser are streamed to it by default
   (the run button's menu can send them to the phone's screen instead):
   * `AndroidProgramStream` (app) creates a private `VirtualDisplay` whose

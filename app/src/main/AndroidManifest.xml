@@ -39,6 +39,13 @@
             android:name="io.nativeforge.app.remote.RemoteAccessService"
             android:exported="false" />
 
+        <!-- Black full screen while remote access is on (keeps the phone awake and unlocked). -->
+        <activity
+            android:name="io.nativeforge.app.remote.RemoteScreenActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:exported="false"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

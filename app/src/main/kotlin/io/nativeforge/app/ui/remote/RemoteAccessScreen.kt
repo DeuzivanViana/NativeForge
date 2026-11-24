@@ -60,11 +60,13 @@ import com.google.zxing.qrcode.QRCodeWriter
 import io.nativeforge.app.di.appContainer
 import io.nativeforge.app.remote.RemoteAccessSettings
 import io.nativeforge.app.remote.RemoteAccessState
+import io.nativeforge.app.remote.RemoteScreenActivity
 import io.nativeforge.core.remote.security.AccessControl
 import io.nativeforge.core.ui.component.CompactTopBar
 import io.nativeforge.core.ui.component.FormSection
 import io.nativeforge.core.ui.component.NfConfirmDialog
 import io.nativeforge.core.ui.component.SegmentedChoice
+import io.nativeforge.core.ui.component.SwitchRow
 import io.nativeforge.core.ui.component.ToolbarIconButton
 import kotlinx.coroutines.delay
 import java.text.DateFormat
@@ -131,7 +133,13 @@ fun RemoteAccessScreen(onBack: () -> Unit) {
                     if (state.running) {
                         OutlinedButton(onClick = manager::stop) { Text("Stop") }
                     } else {
-                        Button(onClick = manager::start, enabled = !state.starting) { Text("Start") }
+                        Button(
+                            onClick = {
+                                manager.start()
+                                if (settings.blackScreen) context.startActivity(RemoteScreenActivity.intent(context))
+                            },
+                            enabled = !state.starting,
+                        ) { Text("Start") }
                     }
                 }
                 state.error?.let { Text("Could not start: $it", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
@@ -142,6 +150,16 @@ fun RemoteAccessScreen(onBack: () -> Unit) {
             }
 
             FormSection("Screen off") {
+                SwitchRow(
+                    "Black screen while on",
+                    settings.blackScreen,
+                    { on -> manager.updateSettings { it.copy(blackScreen = on) } },
+                    subtitle = "Starting remote access turns the screen black but keeps it on and unlocked (OLED pixels stay off). " +
+                        "A tap shows the address for 10 seconds. Graphical programs can only start from the browser while the phone is unlocked.",
+                )
+                if (state.running) {
+                    TextButton(onClick = { context.startActivity(RemoteScreenActivity.intent(context)) }) { Text("Show black screen") }
+                }
                 Text(
                     "While remote access is on, a notification keeps NativeForge running and the phone keeps the CPU and Wi-Fi awake, " +
                         "so you can lock the screen and keep working from the computer.",

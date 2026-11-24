@@ -27,6 +27,8 @@ data class RemoteAccessSettings(
     val port: Int = DEFAULT_PORT,
     /** Stop after this many minutes without anything done from a browser; 0 = never. */
     val idleMinutes: Int = 30,
+    /** Show a black full screen (screen on, OLED pixels off) while remote access is on. */
+    val blackScreen: Boolean = true,
 ) {
     companion object {
         const val DEFAULT_PORT = 8443
@@ -69,6 +71,7 @@ class RemoteAccessManager(private val context: Context, private val container: A
         RemoteAccessSettings(
             port = prefs.getInt("port", RemoteAccessSettings.DEFAULT_PORT),
             idleMinutes = prefs.getInt("idle_minutes", 30),
+            blackScreen = prefs.getBoolean("black_screen", true),
         ),
     )
     val settings: StateFlow<RemoteAccessSettings> = _settings.asStateFlow()
@@ -85,7 +88,11 @@ class RemoteAccessManager(private val context: Context, private val container: A
     fun updateSettings(transform: (RemoteAccessSettings) -> RemoteAccessSettings) {
         val updated = transform(_settings.value)
         _settings.value = updated
-        prefs.edit().putInt("port", updated.port).putInt("idle_minutes", updated.idleMinutes).apply()
+        prefs.edit()
+            .putInt("port", updated.port)
+            .putInt("idle_minutes", updated.idleMinutes)
+            .putBoolean("black_screen", updated.blackScreen)
+            .apply()
     }
 
     /** Starts the foreground service, which starts the server. */

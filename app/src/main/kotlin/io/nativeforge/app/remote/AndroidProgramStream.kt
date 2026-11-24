@@ -46,6 +46,8 @@ class AndroidProgramStream private constructor(
     private val sink: StreamSink,
     /** Reason shown when the program's process goes away (its start error, if it wrote one). */
     private val endReason: () -> String?,
+    /** Keep the phone on behind a black screen while the program runs (see RemoteScreenActivity). */
+    private val blackScreen: Boolean,
 ) : ProgramStream {
     private val socketName = "nativeforge.remote-input." + ByteArray(12).also(SecureRandom()::nextBytes).joinToString("") { "%02x".format(it) }
     private val server = LocalServerSocket(socketName)
@@ -77,7 +79,7 @@ class AndroidProgramStream private constructor(
             runCatching { server.close() }
             throw e
         }
-        run = RemoteRun(display.display.displayId, socketName)
+        run = RemoteRun(display.display.displayId, socketName, blackScreen)
         Thread(::drain, "nf-stream-encoder").apply { isDaemon = true }.start()
         Thread(::serve, "nf-stream-socket").apply { isDaemon = true }.start()
     }
@@ -149,7 +151,10 @@ class AndroidProgramStream private constructor(
             try {
                 Thread.sleep(START_TIMEOUT_MS)
                 if (client == null && !stopped.get()) {
-                    finish(endReason() ?: "The program did not start. Unlock the phone's screen and run it again; after it starts, the screen can turn off.")
+                    finish(
+                        endReason() ?: "The program did not start: Android only opens it while the phone is unlocked. " +
+                            "Unlock it (or turn on Black screen in Remote access) and run again.",
+                    )
                 }
             } catch (_: InterruptedException) {
             }
@@ -245,7 +250,15 @@ class AndroidProgramStream private constructor(
          * Opens the display and encoder at the largest size the encoder supports up to
          * [width] x [height]. [endReason] explains why the program ended, when it can.
          */
-        fun open(context: Context, logger: Logger, width: Int, height: Int, sink: StreamSink, endReason: () -> String?): AndroidProgramStream {
+        fun open(
+            context: Context,
+            logger: Logger,
+            width: Int,
+            height: Int,
+            sink: StreamSink,
+            blackScreen: Boolean,
+            endReason: () -> String?,
+        ): AndroidProgramStream {
             var (w, h) = width to height
             val capabilities = runCatching {
                 MediaCodec.createEncoderByType(MIME).let { codec ->
@@ -256,7 +269,7 @@ class AndroidProgramStream private constructor(
                 w = (w * 3 / 4) / 16 * 16
                 h = (h * 3 / 4) / 16 * 16
             }
-            return AndroidProgramStream(context, logger, w, h, sink, endReason)
+            return AndroidProgramStream(context, logger, w, h, sink, endReason, blackScreen)
         }
     }
 }
