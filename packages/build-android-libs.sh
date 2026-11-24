@@ -58,6 +58,7 @@ SDL2_MIXER_VERSION=2.8.2
 IMGUI_VERSION=1.92.2b
 LVGL_VERSION=9.6.0
 LVGL_COMMIT=80ca777e37a2b176770726a02e07a6fb79ef0b39
+SQLITE_VERSION=3.54.1
 # Packages built by ONLY=... runs (names as in the index); empty means everything.
 ONLY=${ONLY:-}
 wanted() { [ -z "$ONLY" ] || [[ " $ONLY " == *" $1 "* ]]; }
@@ -92,6 +93,7 @@ fetch_new_sources() {
   fetch "$UBUNTU/universe/libs/libsdl2-ttf/libsdl2-ttf_${SDL2_TTF_VERSION}+dfsg.orig.tar.gz" "SDL2_ttf-$SDL2_TTF_VERSION"
   fetch "$UBUNTU/universe/libs/libsdl2-mixer/libsdl2-mixer_${SDL2_MIXER_VERSION}+dfsg.orig.tar.gz" "SDL2_mixer-$SDL2_MIXER_VERSION"
   fetch "$UBUNTU/universe/i/imgui/imgui_${IMGUI_VERSION}+ds.orig.tar.xz" "imgui-$IMGUI_VERSION"
+  fetch "$UBUNTU/main/s/sqlite3/sqlite3_${SQLITE_VERSION}.orig.tar.xz" "sqlite3-$SQLITE_VERSION"
   # minimp3 (CC0), removed from the Debian SDL2_mixer tarball.
   local mp3=$SRC/SDL2_mixer-$SDL2_MIXER_VERSION/src/codecs/minimp3
   mkdir -p "$mp3"
@@ -390,6 +392,34 @@ build_lvgl() { # abi sdl2-include-dir
   cp "$REPO/LICENSE.runtime" "$S/share/licenses/lvgl/lv_nativeforge-LICENSE"
 }
 
+# SQLite's single-file amalgamation (sqlite3.c, sqlite3.h, sqlite3ext.h), generated once from the
+# canonical sources with the host C compiler. The generator scripts run in jimsh, which SQLite's
+# configure builds from its own sources, so no Tcl installation is needed.
+amalgamate_sqlite() {
+  local A=$WORK/build/sqlite-amalgamation
+  [ -f "$A/sqlite3.c" ] && return
+  rm -rf "$A"; mkdir -p "$A"
+  (cd "$A" && "$SRC/sqlite3-$SQLITE_VERSION/configure" --disable-tcl >configure.log 2>&1 &&
+    make sqlite3.c >make.log 2>&1) || { tail -20 "$A"/*.log; exit 1; }
+}
+
+# SQLite as a static library: full-text search (FTS5), R*Tree, math functions and JSON.
+# Temporary tables and indexes stay in memory (Android has no /tmp); PRAGMA temp_store
+# can still move them to files under $TMPDIR.
+build_sqlite() { # abi
+  local abi=$1 B=$WORK/build/$1/sqlite S=$WORK/stage/$1/sqlite3 A=$WORK/build/sqlite-amalgamation
+  [ -f "$S/lib/libsqlite3.a" ] && return
+  amalgamate_sqlite
+  rm -rf "$B" "$S"; mkdir -p "$B" "$S/include" "$S/lib" "$S/share/licenses/sqlite3"
+  "$LLVM/clang" --target=$(triple $abi)$API -fPIC -O2 -DSQLITE_THREADSAFE=1 -DSQLITE_TEMP_STORE=2 \
+    -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_MATH_FUNCTIONS -DSQLITE_ENABLE_COLUMN_METADATA \
+    -DHAVE_USLEEP=1 -DHAVE_LOCALTIME_R=1 -DHAVE_GMTIME_R=1 -c "$A/sqlite3.c" -o "$B/sqlite3.o"
+  "$LLVM/llvm-ar" rcs "$S/lib/libsqlite3.a" "$B/sqlite3.o"
+  "$LLVM/llvm-strip" --strip-debug "$S/lib/libsqlite3.a"
+  cp "$A/sqlite3.h" "$A/sqlite3ext.h" "$S/include/"
+  cp "$SRC/sqlite3-$SQLITE_VERSION/LICENSE.md" "$S/share/licenses/sqlite3/LICENSE.md"
+}
+
 # Vulkan headers and the NDK's libvulkan.so link stub (the library itself is part of Android).
 stage_vulkan() { # abi
   local S=$WORK/stage/$1/vulkan sys=$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr
@@ -479,7 +509,7 @@ package() {
   SDL2_MIXER_VERSION=$SDL2_MIXER_VERSION IMGUI_VERSION=$IMGUI_VERSION LVGL_VERSION=$LVGL_VERSION \
   SDL3_IMAGE_VERSION=$SDL3_IMAGE_VERSION SDL3_TTF_VERSION=$SDL3_TTF_VERSION SDL3_MIXER_VERSION=$SDL3_MIXER_VERSION \
   BOX2D_VERSION=$BOX2D_VERSION BOX3D_VERSION=$BOX3D_VERSION LUA_VERSION=$LUA_VERSION GLM_VERSION=$GLM_VERSION JSON_VERSION=$JSON_VERSION \
-  RAYGUI_VERSION=$RAYGUI_VERSION ENTT_VERSION=$ENTT_VERSION MINIAUDIO_VERSION=$MINIAUDIO_VERSION \
+  RAYGUI_VERSION=$RAYGUI_VERSION ENTT_VERSION=$ENTT_VERSION MINIAUDIO_VERSION=$MINIAUDIO_VERSION SQLITE_VERSION=$SQLITE_VERSION \
   python3 - "$WORK/stage" "$OUT" "$SDL3_VERSION" "$RAYLIB_VERSION" "$SFML_VERSION" $ABIS <<'PY'
 import hashlib, json, os, subprocess, sys
 stage, out, sdl3, raylib, sfml, *abis = sys.argv[1:]
@@ -534,6 +564,9 @@ specs = {
     "lvgl": dict(version=v["LVGL_VERSION"], depends=["sdl2"],
                  description="LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
                  build=dict(linkLibraries=["lvgl", "m"])),
+    "sqlite3": dict(version=v["SQLITE_VERSION"],
+                    description="SQLite 3: SQL database in a single file, with FTS5, R*Tree, JSON and math functions (C)",
+                    build=dict(linkLibraries=["sqlite3", "dl", "m"])),
 }
 only = v.get("ONLY", "").split()
 if only:
@@ -599,6 +632,7 @@ if [ -z "${PACKAGE_ONLY:-}" ]; then
         build_imgui "$abi"
       fi
     fi
+    if wanted sqlite3; then build_sqlite "$abi"; fi
     if wanted lvgl; then
       # LVGL's SDL driver needs SDL2's headers; an ONLY run reads them from the bundled archive.
       if [ -d "$WORK/stage/$abi/sdl2/include/SDL2" ]; then

@@ -35,7 +35,7 @@ jobs:
           set +o pipefail  # yes exits on SIGPIPE when sdkmanager is done
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018" "cmake;3.22.1" > /dev/null
           test -x "$ANDROID_HOME/ndk/27.2.12479018/ndk-build" && test -x "$ANDROID_HOME/cmake/3.22.1/bin/ninja"
-          sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends curl git make python3 xz-utils
+          sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends curl gcc git libc6-dev make python3 xz-utils
 
       - name: Cache downloaded sources
         uses: actions/cache@v4

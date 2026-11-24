@@ -33,7 +33,9 @@ repository, and how to submit. Policy references are from the
    (Ubuntu archive), single files from upstream git tags and the Box3D and
    LVGL git tags (each checked against its commit), all checked against
    `packages/sources.sha256`. The LVGL clone needs `git`, which the recipe
-   already installs. `libs-from-source.yml`
+   already installs. SQLite's single-file source is generated with the host C
+   compiler, so the recipe's `apt-get install` line needs `gcc` and
+   `libc6-dev` too. `libs-from-source.yml`
    runs the same rebuild on GitHub. Reviewers may still ask to turn the
    sources into `srclibs` or git submodules.
 3. **Termux terminal from JitPack.** `terminal-view` and `terminal-emulator`
