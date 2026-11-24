@@ -1,6 +1,7 @@
 package io.nativeforge.core.remote.screen
 
 import io.nativeforge.core.common.Logger
+import io.nativeforge.core.project.model.ExportSettings
 import io.nativeforge.core.remote.Json
 import io.nativeforge.core.remote.bool
 import io.nativeforge.core.remote.int
@@ -27,9 +28,13 @@ interface ScreenViewer {
  * stalls the encoder: when its queue grows too long it is emptied and the viewer waits
  * for the next key frame.
  *
- * Wire format to the browser: text messages `hello`, `config` and `end` (JSON), and
- * binary video packets `[flags:1][pts µs:8][Annex B data]` where flag 1 marks a key
- * frame (which then starts with the SPS and PPS). Browsers send input as JSON.
+ * Wire format to the browser: text messages `hello`, `config`, `size` and `end` (JSON),
+ * and binary video packets `[flags:1][pts µs:8][Annex B data]` where flag 1 marks a key
+ * frame (which then starts with the SPS and PPS). Browsers send input and the size of
+ * their panel (`resize`) as JSON.
+ *
+ * The display follows the browser's panel unless the program asked for a window of a
+ * fixed size; then it keeps that size and the browser letterboxes it.
  */
 class ScreenHub(
     private val logger: Logger,
@@ -43,7 +48,11 @@ class ScreenHub(
 
     val session: Session? get() = current
 
-    inner class Session internal constructor(val id: String, val title: String) {
+    inner class Session internal constructor(
+        val id: String,
+        val title: String,
+        private val orientation: ExportSettings.Orientation,
+    ) {
         @Volatile internal var stream: ProgramStream? = null
         @Volatile internal var config: ByteArray? = null
         @Volatile internal var codec: String? = null
@@ -51,11 +60,63 @@ class ScreenHub(
         internal val viewers = CopyOnWriteArrayList<Viewer>()
         private val lastKeyRequest = AtomicLong(0)
 
+        /** The program asked for a window that does not resize; browser panels don't change it. */
+        @Volatile var fixedSize = false
+            private set
+
+        /** Display size for the latest browser panel. */
+        @Volatile private var panel: Pair<Int, Int>? = null
+
+        /** A window request that came before [stream] was set. */
+        @Volatile private var pendingWindow: Triple<Int, Int, Boolean>? = null
+
         val viewerCount: Int get() = viewers.size
 
         internal val sink = object : StreamSink {
             override fun onFrame(frame: VideoFrame) = deliver(this@Session, frame)
             override fun onEnded(reason: String?) = end(this@Session, reason)
+            override fun onWindowRequest(width: Int, height: Int, resizable: Boolean) = windowRequest(width, height, resizable)
+        }
+
+        @Synchronized
+        internal fun windowRequest(width: Int, height: Int, resizable: Boolean) {
+            if (ended) return
+            if (stream == null) {
+                pendingWindow = Triple(width, height, resizable)
+                return
+            }
+            fixedSize = !resizable
+            when {
+                resizable -> panel?.let { (w, h) -> resize(w, h) }
+                width > 0 && height > 0 -> StreamSize.program(width, height).let { (w, h) -> resize(w, h) }
+            }
+            sendSize()
+        }
+
+        /** A browser panel of [width] x [height] pixels (the last one to change wins). */
+        @Synchronized
+        internal fun panelResized(width: Int, height: Int) {
+            val size = StreamSize.fit(width.coerceIn(1, MAX_PANEL), height.coerceIn(1, MAX_PANEL), orientation)
+            panel = size
+            if (fixedSize || stream == null) return
+            if (resize(size.first, size.second)) sendSize()
+        }
+
+        internal fun started() {
+            pendingWindow?.let { (w, h, resizable) -> pendingWindow = null; windowRequest(w, h, resizable) }
+        }
+
+        private fun resize(width: Int, height: Int): Boolean {
+            val stream = stream ?: return false
+            if (stream.width == width && stream.height == height) return false
+            runCatching { stream.resize(width, height) }.onFailure { logger.warn(TAG, "Could not resize the stream", it) }
+            return true
+        }
+
+        private fun sendSize() {
+            val stream = stream ?: return
+            val text = Json.obj("t" to "size", "width" to stream.width, "height" to stream.height, "fixed" to fixedSize).toString()
+            viewers.forEach { it.sendText(text) }
         }
 
         internal fun requestKeyFrame() {
@@ -154,6 +215,11 @@ class ScreenHub(
                 "wheel" -> parseWheel(message, stream)?.let(stream::input)
                 "keyframe" -> session.requestKeyFrame()
                 "release" -> releaseKeys()
+                "resize" -> {
+                    val w = message.int("w") ?: return
+                    val h = message.int("h") ?: return
+                    session.panelResized(w, h)
+                }
             }
         }
 
@@ -178,9 +244,13 @@ class ScreenHub(
      * Starts a stream, stopping the previous one. [open] creates the platform stream and
      * must deliver its output to the given sink.
      */
-    fun start(title: String, open: (StreamSink) -> ProgramStream): Session {
+    fun start(
+        title: String,
+        orientation: ExportSettings.Orientation = ExportSettings.Orientation.UNSPECIFIED,
+        open: (StreamSink) -> ProgramStream,
+    ): Session {
         stop("Replaced by a new run")
-        val session = Session(newId(), title)
+        val session = Session(newId(), title, orientation)
         current = session
         try {
             session.stream = open(session.sink)
@@ -189,6 +259,7 @@ class ScreenHub(
             throw e
         }
         if (session.ended) throw IllegalStateException("The program ended right away")
+        session.started()
         onEvent(Json.obj("t" to "screen.start").merge(session.json()))
         return session
     }
@@ -213,6 +284,7 @@ class ScreenHub(
                 "width" to stream.width,
                 "height" to stream.height,
                 "codec" to session.codec,
+                "fixed" to session.fixedSize,
             ).toString(),
         )
         session.viewers += viewer
@@ -226,7 +298,9 @@ class ScreenHub(
             session.config = frame.data
             session.codec = H264.codecString(frame.data) ?: session.codec
             val stream = session.stream
-            val text = Json.obj("t" to "config", "codec" to session.codec, "width" to stream?.width, "height" to stream?.height).toString()
+            val text = Json.obj(
+                "t" to "config", "codec" to session.codec, "width" to stream?.width, "height" to stream?.height, "fixed" to session.fixedSize,
+            ).toString()
             session.viewers.forEach { it.sendText(text) }
             return
         }
@@ -304,6 +378,7 @@ class ScreenHub(
         private const val KEY_REQUEST_INTERVAL_MS = 300L
         private const val MAX_POINTER_ID = 9
         private const val MAX_SCROLL = 50.0
+        private const val MAX_PANEL = 8192
         private val EMPTY = ByteArray(0)
         private val STOP = Any()
         private val random = SecureRandom()

@@ -9,9 +9,15 @@ import kotlin.math.roundToInt
  * injection) lives in the app; this module only moves frames and input.
  */
 interface ProgramStream {
-    /** Size of the off-screen display, in pixels. */
+    /** Size of the off-screen display, in pixels; changes with [resize]. */
     val width: Int
     val height: Int
+
+    /**
+     * Changes the off-screen display to about [width] x [height] (the platform may round
+     * it to what its encoder takes); the program sees its window resize.
+     */
+    fun resize(width: Int, height: Int) {}
 
     /** Delivers browser input to the program's window. */
     fun input(event: RemoteInput)
@@ -29,6 +35,13 @@ interface StreamSink {
 
     /** The program ended or the stream failed; [reason] is shown to the user. */
     fun onEnded(reason: String?)
+
+    /**
+     * The program asked for a window of [width] x [height] (SDL_CreateWindow, raylib's
+     * InitWindow). A size of 0 keeps the current one. A [resizable] window follows the
+     * browser's panel; any other keeps its size and the browser letterboxes it.
+     */
+    fun onWindowRequest(width: Int, height: Int, resizable: Boolean) {}
 }
 
 /**
@@ -82,7 +95,24 @@ object StreamSize {
         return align(w) to align(h)
     }
 
+    /**
+     * The display size for a window the program asked for: its own size and shape, made
+     * smaller to fit 1080p (or larger when a side is under [MIN_SIDE]), with even sides.
+     */
+    fun program(width: Int, height: Int): Pair<Int, Int> {
+        val w = width.coerceAtLeast(1).toDouble()
+        val h = height.coerceAtLeast(1).toDouble()
+        val long = maxOf(w, h)
+        val short = minOf(w, h)
+        val scale = minOf(MAX_LONG_SIDE / long, MAX_SHORT_SIDE / short).let { down ->
+            if (down < 1.0) down else maxOf(1.0, minOf(MIN_SIDE / short, MAX_LONG_SIDE / long))
+        }
+        return even(w * scale) to even(h * scale)
+    }
+
     private fun align(value: Double) = ((value / 16).roundToInt() * 16).coerceAtLeast(MIN_SIDE)
+
+    private fun even(value: Double) = ((value / 2).roundToInt() * 2).coerceAtLeast(2)
 }
 
 /** Reads what WebCodecs needs from the encoder's codec configuration. */

@@ -280,6 +280,18 @@ work still happens on the phone; the browser is the screen and keyboard.
     mouse and touches from that socket (only this app's uid may connect) and
     injects them with `Window.injectInputEvent` into the presentation's
     window, so programs see them like a USB keyboard and mouse.
+  * The display follows the size of the browser's panel (`resize` messages;
+    `AndroidProgramStream.resize` starts an encoder of the new size and points
+    the display at it; the presentation ignores the cancel Android sends when
+    its display changes). When the program asks for a window size it keeps
+    that size instead and the browser letterboxes it: SDL reports
+    SDL_CreateWindow's size and resizable flag through `setOrientationBis`,
+    and for raylib, whose InitWindow size Android ignores, the native shim
+    redirects the program's PLT slot for `InitWindow` (`plt_hook.c`) and
+    waits in `NativeProgramActivity.onProgramWindow` until the surface has
+    the new size, before raylib sets up its framebuffer.
+  * Mouse hovering is bracketed with HOVER_ENTER/HOVER_EXIT as on a real
+    device: raylib treats a pointer that never entered hovering as a finger.
   * `ScreenHub` (`core/remote/screen`) fans the encoded frames out over
     `/ws/screen` with a queue per browser (a slow browser drops back to the
     next key frame instead of stalling the encoder) and turns browser input

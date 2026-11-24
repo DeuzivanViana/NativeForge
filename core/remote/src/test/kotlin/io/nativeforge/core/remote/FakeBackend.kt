@@ -103,8 +103,13 @@ object NoToolchain : Toolchain {
 }
 
 /** A stream that sends a codec configuration at once and a small key frame whenever one is asked for. */
-class FakeStream(override val width: Int, override val height: Int, val sink: StreamSink) : ProgramStream {
+class FakeStream(width: Int, height: Int, val sink: StreamSink) : ProgramStream {
+    override var width = width
+        private set
+    override var height = height
+        private set
     val inputs = java.util.concurrent.CopyOnWriteArrayList<RemoteInput>()
+    val resizes = java.util.concurrent.CopyOnWriteArrayList<Pair<Int, Int>>()
     @Volatile var stopped = false
     @Volatile var answerKeyFrames = true
     private var pts = 0L
@@ -114,6 +119,7 @@ class FakeStream(override val width: Int, override val height: Int, val sink: St
     }
 
     override fun input(event: RemoteInput) { inputs += event }
+    override fun resize(width: Int, height: Int) { this.width = width; this.height = height; resizes += width to height }
     override fun requestKeyFrame() { if (answerKeyFrames) frame(key = true) }
     fun frame(key: Boolean) = sink.onFrame(VideoFrame(byteArrayOf(0, 0, 0, 1, if (key) 0x65 else 0x41, 1, 2, 3), pts++, key))
     override fun stop() { stopped = true; sink.onEnded("Stopped") }
@@ -151,6 +157,7 @@ class DevVideoStream(file: File, private val sink: StreamSink) : ProgramStream {
     }
 
     override fun input(event: RemoteInput) = println("INPUT $event")
+    override fun resize(width: Int, height: Int) = println("RESIZE $width x $height") // the video keeps its size
     override fun requestKeyFrame() = Unit // the file has a key frame every second
     override fun stop() { running = false; sink.onEnded("Stopped") }
 }

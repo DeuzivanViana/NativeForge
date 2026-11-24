@@ -25,21 +25,35 @@ import java.io.IOException
  * [Window.injectInputEvent], which runs them through the window's normal input
  * pipeline: SDL's views get them like a USB keyboard and mouse, and NativeActivity
  * forwards them to the program's AInputQueue.
+ *
+ * The other way, it tells the IDE the window size the program asks for, and hears back
+ * the display's size ([onDisplaySize]).
  */
 internal class RemoteInputBridge(
     private val activity: Activity,
     private val window: Window,
     private val socketName: String,
+    private val onDisplaySize: (width: Int, height: Int) -> Unit = { _, _ -> },
 ) {
     private val main = Handler(Looper.getMainLooper())
     private val socket = LocalSocket()
     @Volatile private var closed = false
+    private val outputLock = Any()
+    private var output: DataOutputStream? = null
+    private var pendingWindow: Triple<Int, Int, Boolean>? = null
 
     /** Pointers currently down on the touch screen, by id (multi-touch). */
     private val touches = LinkedHashMap<Int, Pair<Float, Float>>()
     private var touchDownTime = 0L
     private var mouseDownTime = 0L
     private var mouseButtons = 0
+
+    /**
+     * The mouse is over the window without a button down. Android brackets hovering with
+     * HOVER_ENTER and HOVER_EXIT; raylib counts a pointer as pressed unless it entered
+     * hovering, so a mouse that only moves must enter first.
+     */
+    private var hovering = false
     private val keyDownTimes = HashMap<Int, Long>()
 
     private val thread = Thread(::run, "nf-remote-input").apply { isDaemon = true }
@@ -48,9 +62,14 @@ internal class RemoteInputBridge(
         try {
             socket.connect(LocalSocketAddress(socketName, LocalSocketAddress.Namespace.ABSTRACT))
             val output = DataOutputStream(socket.outputStream)
-            @Suppress("DEPRECATION")
-            output.writeInt(window.decorView.display?.displayId ?: -1)
-            output.flush()
+            synchronized(outputLock) {
+                @Suppress("DEPRECATION")
+                output.writeInt(window.decorView.display?.displayId ?: -1)
+                pendingWindow?.let { (w, h, resizable) -> RemoteInputWire.writeWindow(output, w, h, resizable) }
+                pendingWindow = null
+                output.flush()
+                this.output = output
+            }
             val input = DataInputStream(socket.inputStream.buffered())
             while (!closed) {
                 when (val type = input.readByte().toInt()) {
@@ -76,6 +95,11 @@ internal class RemoteInputBridge(
                         val horizontal = input.readFloat()
                         val vertical = input.readFloat()
                         main.post { scroll(x, y, horizontal, vertical) }
+                    }
+                    RemoteInputWire.SIZE -> {
+                        val width = input.readInt()
+                        val height = input.readInt()
+                        onDisplaySize(width, height)
                     }
                     RemoteInputWire.QUIT -> main.post { activity.finish() }
                     else -> throw IOException("Unknown input message $type")
@@ -125,6 +149,11 @@ internal class RemoteInputBridge(
         val now = SystemClock.uptimeMillis()
         val masked = when (action) {
             RemoteInputWire.DOWN -> {
+                if (hovering) {
+                    // raylib would take finger 0 for the hovering mouse (both have id 0).
+                    hovering = false
+                    inject(mouseEvent(now, now, MotionEvent.ACTION_HOVER_EXIT, x, y, 0))
+                }
                 if (touches.isEmpty()) touchDownTime = now
                 touches[id] = x to y
                 if (touches.size == 1) MotionEvent.ACTION_DOWN else pointerAction(MotionEvent.ACTION_POINTER_DOWN, id)
@@ -163,12 +192,22 @@ internal class RemoteInputBridge(
     private fun mouse(action: Int, x: Float, y: Float, buttons: Int) {
         val now = SystemClock.uptimeMillis()
         val masked = when (action) {
-            RemoteInputWire.HOVER -> MotionEvent.ACTION_HOVER_MOVE
+            RemoteInputWire.HOVER -> if (mouseButtons == 0) MotionEvent.ACTION_HOVER_MOVE else MotionEvent.ACTION_MOVE
             RemoteInputWire.DOWN -> if (mouseButtons == 0) MotionEvent.ACTION_DOWN.also { mouseDownTime = now } else MotionEvent.ACTION_MOVE
             RemoteInputWire.MOVE -> if (mouseButtons == 0) MotionEvent.ACTION_HOVER_MOVE else MotionEvent.ACTION_MOVE
             RemoteInputWire.UP -> if (buttons == 0 && mouseButtons != 0) MotionEvent.ACTION_UP else if (mouseButtons == 0) return else MotionEvent.ACTION_MOVE
             RemoteInputWire.CANCEL -> if (mouseButtons == 0) return else MotionEvent.ACTION_CANCEL
             else -> return
+        }
+        when (masked) {
+            MotionEvent.ACTION_HOVER_MOVE -> if (!hovering) {
+                hovering = true
+                inject(mouseEvent(now, now, MotionEvent.ACTION_HOVER_ENTER, x, y, 0))
+            }
+            MotionEvent.ACTION_DOWN -> if (hovering) {
+                hovering = false
+                inject(mouseEvent(now, now, MotionEvent.ACTION_HOVER_EXIT, x, y, 0))
+            }
         }
         mouseButtons = if (action == RemoteInputWire.CANCEL) 0 else buttons
         val hover = masked == MotionEvent.ACTION_HOVER_MOVE
@@ -206,6 +245,25 @@ internal class RemoteInputBridge(
         )
     }
 
+    /** Tells the IDE the window size the program asked for (sent once connected). */
+    fun requestWindow(width: Int, height: Int, resizable: Boolean) {
+        Thread({
+            synchronized(outputLock) {
+                val out = output
+                if (out == null) {
+                    pendingWindow = Triple(width, height, resizable)
+                    return@Thread
+                }
+                try {
+                    RemoteInputWire.writeWindow(out, width, height, resizable)
+                    out.flush()
+                } catch (e: IOException) {
+                    Log.w(TAG, "Could not send the window size", e)
+                }
+            }
+        }, "nf-remote-window").apply { isDaemon = true }.start()
+    }
+
     fun close() {
         closed = true
         runCatching { socket.shutdownInput() }
@@ -224,12 +282,20 @@ internal class RemoteInputBridge(
     }
 }
 
-/** Messages on the input socket: a type byte, then the fields in [java.io.DataOutput] form. */
+/**
+ * Messages on the input socket: a type byte, then the fields in [java.io.DataOutput] form.
+ * The program's side first sends its display id (an int), then [WINDOW] messages; the
+ * IDE sends the rest.
+ */
 object RemoteInputWire {
     const val KEY = 1 // down: boolean, keyCode: int, metaState: int, repeat: int
     const val POINTER = 2 // action: byte, x: float, y: float, id: int, mouse: boolean, buttons: int
     const val SCROLL = 3 // x, y, horizontal, vertical: float
+    const val SIZE = 4 // width, height: int; the display's size after a WINDOW message
     const val QUIT = 9
+
+    /** From the program: the window size it asked for. */
+    const val WINDOW = 1 // width, height: int, resizable: boolean
 
     const val DOWN = 0
     const val MOVE = 1
@@ -247,5 +313,13 @@ object RemoteInputWire {
 
     fun writeScroll(out: DataOutputStream, x: Float, y: Float, horizontal: Float, vertical: Float) {
         out.writeByte(SCROLL); out.writeFloat(x); out.writeFloat(y); out.writeFloat(horizontal); out.writeFloat(vertical)
+    }
+
+    fun writeSize(out: DataOutputStream, width: Int, height: Int) {
+        out.writeByte(SIZE); out.writeInt(width); out.writeInt(height)
+    }
+
+    fun writeWindow(out: DataOutputStream, width: Int, height: Int, resizable: Boolean) {
+        out.writeByte(WINDOW); out.writeInt(width); out.writeInt(height); out.writeBoolean(resizable)
     }
 }

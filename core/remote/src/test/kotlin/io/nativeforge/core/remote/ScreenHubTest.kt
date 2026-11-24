@@ -181,6 +181,65 @@ class ScreenHubTest {
     }
 
     @Test
+    fun `the display follows the browser panel until the program asks for a fixed window`() {
+        val hub = hub()
+        lateinit var stream: FakeStream
+        val session = hub.start("p", Orientation.UNSPECIFIED) { sink -> FakeStream(1280, 720, sink).also { stream = it } }
+        val viewer = FakeViewer()
+        val v = hub.attach(viewer, session.id)!!
+        assertEquals(false, Json.parseObject(viewer.text())!!.bool("fixed"))
+
+        v.receive("""{"t":"resize","w":1000,"h":600}""")
+        assertEquals(listOf(1008 to 608), stream.resizes)
+        assertEquals(1008, Json.parseObject(sizeMessage(viewer))!!.int("width"))
+        // The same panel again changes nothing.
+        v.receive("""{"t":"resize","w":1000,"h":600}""")
+        assertEquals(1, stream.resizes.size)
+
+        // raylib's InitWindow(800, 450): that size, kept while the browser resizes.
+        stream.sink.onWindowRequest(800, 450, false)
+        assertEquals(800 to 450, stream.width to stream.height)
+        val fixed = Json.parseObject(sizeMessage(viewer))!!
+        assertEquals(true, fixed.bool("fixed"))
+        assertEquals(450, fixed.int("height"))
+        v.receive("""{"t":"resize","w":1600,"h":900}""")
+        assertEquals(800 to 450, stream.width to stream.height)
+
+        // A resizable SDL window goes back to the latest panel.
+        stream.sink.onWindowRequest(640, 480, true)
+        assertEquals(1600 to 896, stream.width to stream.height)
+        assertEquals(false, Json.parseObject(sizeMessage(viewer))!!.bool("fixed"))
+        hub.stop()
+    }
+
+    @Test
+    fun `a window request that comes while the stream opens is applied once it is up`() {
+        val hub = hub()
+        lateinit var stream: FakeStream
+        hub.start("p") { sink -> FakeStream(1280, 720, sink).also { stream = it; sink.onWindowRequest(320, 240, false) } }
+        assertEquals(320 to 240, stream.width to stream.height)
+        assertTrue(hub.session!!.fixedSize)
+        hub.stop()
+    }
+
+    @Test
+    fun `program window sizes keep their shape, fit 1080p and grow when tiny`() {
+        assertEquals(800 to 450, StreamSize.program(800, 450))
+        assertEquals(1920 to 1080, StreamSize.program(3840, 2160))
+        assertEquals(864 to 1920, StreamSize.program(1080, 2400))
+        assertEquals(320 to 240, StreamSize.program(320, 240))
+        assertEquals(320 to 240, StreamSize.program(160, 120))
+        assertEquals(802 to 452, StreamSize.program(801, 451))
+    }
+
+    private fun sizeMessage(viewer: FakeViewer): String {
+        while (true) {
+            val text = viewer.text()
+            if (Json.parseObject(text)?.string("t") == "size") return text
+        }
+    }
+
+    @Test
     fun `codec string comes from the SPS`() {
         assertEquals("avc1.42c01f", H264.codecString(FakeStream.CONFIG))
         assertEquals("avc1.640028", H264.codecString(byteArrayOf(0, 0, 1, 0x67, 0x64, 0, 0x28, 1)))

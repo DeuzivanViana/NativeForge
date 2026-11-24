@@ -28,6 +28,13 @@
   screen for OLED phones that keeps the phone awake and unlocked, so the
   browser can start graphical programs; a tap shows the address, pairing code
   and buttons for 10 seconds.
+* The program's picture follows the browser panel's size (also in full
+  screen); a window size set in the code (raylib's InitWindow,
+  SDL_CreateWindow without SDL_WINDOW_RESIZABLE) is kept and letterboxed.
+  Fixed: moving the mouse over a raylib program without a button pressed
+  counted as a touch.
+* Drop files and whole folders from the computer on a folder in the
+  explorer to upload them there (asks before replacing files).
 * Later: the program's sound in the browser, packages, export and git screens
   in the browser.
 * New bundled library: SQLite 3.54.1 (`sqlite3`, static, with FTS5, R*Tree,

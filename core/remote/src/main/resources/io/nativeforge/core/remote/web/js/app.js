@@ -114,6 +114,8 @@ function route() {
 
 // ------------------------------------------------------------------ home
 
+/** The phone's web server takes request bodies up to 32 MB (HttpServer.maxBodyBytes). */
+const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
 const RUNTIME_ICON = { CONSOLE: ['terminal', 'var(--success)'], SDL3: ['layers', 'var(--secondary)'], SDL2: ['layers', 'var(--secondary)'], NATIVE_ACTIVITY: ['game', 'var(--accent)'] };
 
 async function showHome() {
@@ -289,13 +291,27 @@ class Workspace {
     this.status = h('span', { class: 'chip' }, 'Idle');
     this.titleEl = h('span', { class: 'title' }, '…');
     this.tree = h('div', { class: 'tree', tabIndex: 0 });
+    this.dropHint = h('div', { class: 'drop-hint', style: { display: 'none' } });
     this.explorer = h('div', { class: 'explorer' },
       h('div', { class: 'head' }, h('span', null, 'Explorer'), h('div', { class: 'spacer' }),
         iconButton('newFile', 'New file', () => this.newEntry('', false)),
         iconButton('newFolder', 'New folder', () => this.newEntry('', true)),
-        iconButton('upload', 'Upload files', () => this.upload('')),
+        iconButton('upload', 'Upload files (or drop files and folders on a folder)', () => this.upload('')),
         iconButton('refresh', 'Refresh', () => this.loadTree())),
+      this.dropHint,
       this.tree);
+    // Files dropped anywhere else would make the browser open them in place of the IDE.
+    const outside = (ev) => {
+      if (!ev.dataTransfer?.types.includes('Files')) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'none';
+      if (this.dropDir !== undefined) this.endDrag();
+      if (ev.type === 'drop') toast('Drop files on a folder in the explorer to upload them there');
+    };
+    // dragend: the drag ended without a drop.
+    this.windowListeners = [['dragover', outside], ['drop', outside], ['dragend', () => this.endDrag()]];
+    for (const [type, fn] of this.windowListeners) window.addEventListener(type, fn);
+    this.explorer.addEventListener('dragleave', (ev) => { if (!this.explorer.contains(ev.relatedTarget)) this.endDrag(); });
     this.tabBar = h('div', { class: 'tabs' });
     this.editorArea = h('div', { class: 'editor-area' });
     this.placeholder = h('div', { class: 'placeholder' }, icon('code'), h('div', null, 'Open a file from the explorer'),
@@ -422,7 +438,10 @@ class Workspace {
           row.style.color = 'var(--text)';
           row.querySelectorAll('svg')[1].style.color = 'var(--warning)';
           this.dropTarget(row, e.path);
-        } else row.querySelectorAll('svg')[0].style.color = 'var(--muted)';
+        } else {
+          row.querySelectorAll('svg')[0].style.color = 'var(--muted)';
+          this.dropTarget(row, dirname(e.path)); // into the file's folder
+        }
         rows.push(row);
         if (e.dir && open) walk(e.path, depth + 1);
       }
@@ -433,21 +452,110 @@ class Workspace {
     try { sessionStorage.setItem(`nf-exp:${this.key}`, JSON.stringify([...this.expanded])); } catch { /* ignore */ }
   }
 
+  /**
+   * Makes [el] take drops into folder [dir]: entries dragged inside the explorer move there,
+   * files and folders dragged from the computer are uploaded there. A closed folder opens
+   * when something hovers over it for a moment.
+   */
   dropTarget(el, dir) {
-    el.ondragover = (ev) => { ev.preventDefault(); ev.stopPropagation(); el.classList.add('drop'); };
-    el.ondragleave = () => el.classList.remove('drop');
+    const highlight = () => {
+      this.tree.querySelectorAll('.drop').forEach((x) => x.classList.remove('drop'));
+      this.tree.classList.remove('drop');
+      // Light up the folder's row (a file row stands for its folder), or the whole tree for the top.
+      // Looked up each time: opening a folder renders new rows.
+      const row = dir ? [...this.tree.children].find((x) => x.title === dir) : null;
+      (row || this.tree).classList.add('drop');
+      this.dropHint.textContent = `Drop into ${dir ? `${dir}/` : 'the project folder'}`;
+      this.dropHint.style.display = '';
+    };
+    el.ondragover = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.dataTransfer.dropEffect = ev.dataTransfer.types.includes('Files') ? 'copy' : 'move';
+      if (this.dropDir !== dir) {
+        this.dropDir = dir;
+        highlight();
+        clearTimeout(this.expandTimer);
+        if (dir && !this.expanded.has(dir)) this.expandTimer = setTimeout(() => { this.expanded.add(dir); this.renderTree(); highlight(); }, 700);
+      }
+    };
     el.ondrop = async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      el.classList.remove('drop');
+      this.endDrag();
       const moved = ev.dataTransfer.getData('text/x-nf-path');
       if (moved) {
         const target = dir ? `${dir}/${basename(moved)}` : basename(moved);
         if (target !== moved && !target.startsWith(`${moved}/`)) await this.fsOp({ op: 'rename', path: moved, to: target }, moved, target);
-      } else if (ev.dataTransfer.files.length) {
-        await this.uploadFiles(dir, ev.dataTransfer.files);
+      } else if (ev.dataTransfer.types.includes('Files')) {
+        await this.uploadDropped(dir, ev.dataTransfer);
       }
     };
+  }
+
+  endDrag() {
+    clearTimeout(this.expandTimer);
+    this.dropDir = undefined;
+    this.tree.querySelectorAll('.drop').forEach((x) => x.classList.remove('drop'));
+    this.tree.classList.remove('drop');
+    this.dropHint.style.display = 'none';
+  }
+
+  /** Files and whole folders dropped from the computer, uploaded under [dir] with their folder structure. */
+  async uploadDropped(dir, dataTransfer) {
+    // Entries must be taken before the first await: the browser empties dataTransfer after the event.
+    const entries = [...dataTransfer.items || []].map((i) => i.webkitGetAsEntry?.()).filter(Boolean);
+    let files;
+    if (entries.length) {
+      files = [];
+      const readAll = (reader) => new Promise((resolve, reject) => {
+        const all = [];
+        const next = () => reader.readEntries((batch) => { if (batch.length) { all.push(...batch); next(); } else resolve(all); }, reject);
+        next();
+      });
+      const walk = async (entry, prefix) => {
+        if (entry.isFile) {
+          files.push({ path: prefix + entry.name, file: await new Promise((resolve, reject) => entry.file(resolve, reject)) });
+        } else if (entry.isDirectory) {
+          for (const child of await readAll(entry.createReader())) await walk(child, `${prefix}${entry.name}/`);
+        }
+      };
+      try {
+        for (const entry of entries) await walk(entry, '');
+      } catch (e) { toast(`Could not read the dropped files: ${e.message}`, 'err'); return; }
+    } else {
+      files = [...dataTransfer.files].map((file) => ({ path: file.name, file }));
+    }
+    await this.uploadFiles(dir, files);
+  }
+
+  /** [files]: File objects, or { path, file } with a path relative to [dir]. */
+  async uploadFiles(dir, files) {
+    const list = [...files].map((f) => (f instanceof File ? { path: f.name, file: f } : f));
+    if (!list.length) { toast('Nothing to upload (empty folder?)'); return; }
+    const target = (p) => (dir ? `${dir}/${p}` : p);
+    const existing = new Set(this.entries.filter((e) => !e.dir).map((e) => e.path));
+    const replaced = list.filter((f) => existing.has(target(f.path))).length;
+    const where = dir ? `${dir}/` : 'the project folder';
+    if (replaced && !await confirm('Replace files', `${replaced} of these file${replaced === 1 ? ' is' : 's are'} already in ${where}. Replace ${replaced === 1 ? 'it' : 'them'}?`, 'Replace', true)) return;
+    const tooBig = list.filter((f) => f.file.size > MAX_UPLOAD_BYTES);
+    const todo = list.filter((f) => f.file.size <= MAX_UPLOAD_BYTES);
+    if (todo.length > 3) toast(`Uploading ${todo.length} files to ${where}…`);
+    let done = 0;
+    for (const f of todo) {
+      try {
+        await api('/api/file', { method: 'PUT', query: { project: this.key, path: target(f.path) }, raw: await f.file.arrayBuffer() });
+        done++;
+      } catch (e) { toast(`${f.path}: ${e.message}`, 'err'); }
+    }
+    if (dir) this.expanded.add(dir);
+    for (const f of todo) { // open the folders that received files
+      const parts = target(f.path).split('/');
+      for (let i = 1; i < parts.length; i++) this.expanded.add(parts.slice(0, i).join('/'));
+    }
+    await this.loadTree();
+    if (tooBig.length) toast(`Not uploaded (over ${MAX_UPLOAD_BYTES / 1024 / 1024} MB): ${tooBig.map((f) => f.path).join(', ')}`, 'err');
+    if (done) toast(`Uploaded ${done} file${done === 1 ? '' : 's'} to ${where}`, 'ok');
   }
 
   toggle(path) {
@@ -517,18 +625,6 @@ class Workspace {
     input.onchange = () => { this.uploadFiles(dir, input.files); input.remove(); };
     document.body.append(input);
     input.click();
-  }
-
-  async uploadFiles(dir, files) {
-    for (const f of files) {
-      const path = dir ? `${dir}/${f.name}` : f.name;
-      try {
-        await api('/api/file', { method: 'PUT', query: { project: this.key, path }, raw: await f.arrayBuffer() });
-      } catch (e) { toast(`${f.name}: ${e.message}`, 'err'); }
-    }
-    if (dir) this.expanded.add(dir);
-    await this.loadTree();
-    toast(`Uploaded ${files.length} file${files.length === 1 ? '' : 's'}`, 'ok');
   }
 
   download(path) {
@@ -895,6 +991,7 @@ class Workspace {
     this.offs.forEach((off) => off());
     removeEventListener('keydown', this.keys);
     removeEventListener('beforeunload', this.beforeUnload);
+    for (const [type, fn] of this.windowListeners || []) window.removeEventListener(type, fn);
     for (const t of this.tabs) t.editor.destroy();
     for (const t of this.terminals) t.view.dispose(); // the shells keep running on the phone
     this.screen?.dispose(); // so does the program
