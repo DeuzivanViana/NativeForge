@@ -1,5 +1,17 @@
 # Roadmap
 
+## 0.11.1 — terminal start-up fix
+
+* Package installs relocate Termux's whole files directory
+  (`/data/data/com.termux/files` → the app's), not only its prefix: scripts
+  that name Termux's home, such as termux-tools'
+  `profile.d/init-termux-properties.sh`, printed `mkdir: cannot create
+  directory '/data/data/com.termux'` every time the terminal opened.
+* `ShellSetup.prepare()` rewrites the start-up scripts under `$PREFIX/etc`
+  that were installed by 0.11.0.
+* Exported apps are unchanged: they carry only the terminal view and the
+  program, never bash or Termux packages.
+
 ## 0.11.0 — a full terminal: bash and `pkg`
 
 * The terminal starts Termux's bash when it is installed, with a generated

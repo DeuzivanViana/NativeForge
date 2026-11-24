@@ -27,5 +27,8 @@ class ToolchainLayout(val filesDir: File) {
     companion object {
         /** Prefix hard-coded inside packages built for Termux. */
         const val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
+
+        /** Termux's files directory: its prefix (`usr`) and its home (`home`) live here. */
+        const val TERMUX_FILES = "/data/data/com.termux/files"
     }
 }

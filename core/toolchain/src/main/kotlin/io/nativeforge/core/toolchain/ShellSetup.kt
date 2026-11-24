@@ -38,6 +38,25 @@ class ShellSetup(private val layout: ToolchainLayout) {
         writeIfChanged(shrc, SHRC, executable = false)
         writeIfChanged(pkgScript, PKG_SCRIPT, executable = true)
         writeIfChanged(aptScript, APT_SCRIPT, executable = true)
+        relocateTermuxFiles(File(layout.prefix, "etc"))
+    }
+
+    /**
+     * Start-up scripts installed before 0.11.1 still name Termux's home
+     * (`/data/data/com.termux/files/home`): only the prefix was relocated then, and
+     * termux-tools' `profile.d/init-termux-properties.sh` failed at every start. Rewrites
+     * Termux's files directory to ours in the small text files under [dir].
+     */
+    private fun relocateTermuxFiles(dir: File) {
+        val needle = ToolchainLayout.TERMUX_FILES
+        dir.walkTopDown()
+            .filter { it.isFile && !java.nio.file.Files.isSymbolicLink(it.toPath()) && it.length() <= MAX_SCRIPT_SIZE }
+            .forEach { file ->
+                val bytes = runCatching { file.readBytes() }.getOrNull() ?: return@forEach
+                if (bytes.contains(0.toByte())) return@forEach
+                val text = bytes.decodeToString()
+                if (needle in text) runCatching { file.writeText(text.replace(needle, layout.filesDir.path)) }
+            }
     }
 
     /** Bash when it is installed, otherwise Android's `/system/bin/sh` with a hint to install it. */
@@ -67,6 +86,9 @@ class ShellSetup(private val layout: ToolchainLayout) {
 
     companion object {
         const val SYSTEM_SHELL = "/system/bin/sh"
+
+        /** Larger files under etc/ (certificate bundles) never name Termux's paths. */
+        private const val MAX_SCRIPT_SIZE = 64L * 1024
 
         /** Main class run by `pkg` (in the app module, which knows the APK's assets). */
         const val PKG_MAIN_CLASS = "io.nativeforge.app.cli.PkgMain"
