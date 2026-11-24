@@ -98,6 +98,7 @@ dependencies {
     implementation(projects.core.lsp)
     implementation(projects.core.codeintel)
     implementation(projects.core.assets)
+    implementation(projects.core.remote)
     implementation(projects.core.ui)
     implementation(projects.feature.editor)
     implementation(projects.feature.terminal)
@@ -111,6 +112,8 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    // QR code of the remote access address (Apache-2.0, pure Java).
+    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)

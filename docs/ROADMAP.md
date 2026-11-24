@@ -1,5 +1,26 @@
 # Roadmap
 
+## Unreleased — remote access: the IDE in a computer's browser
+
+* Home › cast icon › Start: the phone serves the IDE over HTTPS to a browser
+  on the same network (`core/remote`). Projects (create, open, delete),
+  explorer (new, rename, move by drag and drop, delete, upload, download),
+  editor tabs with CodeMirror 6 and clangd (completion, live errors, hover,
+  F12/Ctrl+click definition, Shift+Alt+F format), quick open (Ctrl+P), build
+  and run with output and problems, the built program as a download, and
+  terminals on the app's bash that survive reconnects.
+* Same look as the app: palette and editor theme come from the app's
+  settings and follow changes live.
+* Keeps working with the screen off (foreground service, wake and Wi-Fi
+  locks, battery optimization exemption on request); stops after an idle
+  time (30 minutes by default) or from the notification.
+* Security: local networks and VPNs only, TLS with a device certificate whose
+  fingerprint the app shows, one-time pairing codes, hashed session tokens,
+  strict CSP, origin and host checks, project-confined file access
+  (docs/SECURITY.md).
+* Later: streaming graphical programs (raylib, SDL, LVGL) to the browser,
+  packages, export and git screens in the browser.
+
 ## 0.11.1 — terminal start-up fix
 
 * Package installs relocate Termux's whole files directory

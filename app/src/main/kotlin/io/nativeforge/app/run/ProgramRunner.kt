@@ -89,7 +89,7 @@ object ProgramRunner {
      * project folder there is copied to `files/run/staged/` first (same file name, so a
      * library's soname still matches). Returns the artifact to run, or null if the copy failed.
      */
-    private fun stageIfOutside(context: Context, artifact: BuildArtifact): BuildArtifact? {
+    fun stageIfOutside(context: Context, artifact: BuildArtifact): BuildArtifact? {
         val dataDir = context.applicationInfo.dataDir.let { File(it).canonicalPath } + File.separator
         if (artifact.file.canonicalPath.startsWith(dataDir)) return artifact
         return runCatching {

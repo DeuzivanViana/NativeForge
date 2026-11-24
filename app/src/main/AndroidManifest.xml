@@ -7,6 +7,14 @@
          Asked only when the user opens such a folder; see app/.../storage/DeviceFolders.kt. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- Remote access (app/.../remote): a foreground service that keeps the web IDE's server
+         running with the screen off, holding a partial wake lock and a Wi-Fi lock. The battery
+         optimization exemption is only asked for when the user taps "Allow" on that screen. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name="io.nativeforge.app.NativeForgeApplication"
@@ -26,6 +34,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name="io.nativeforge.app.remote.RemoteAccessService"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

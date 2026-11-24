@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.CastConnected
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
@@ -70,8 +72,10 @@ fun HomeScreen(
     onOpenProject: (String) -> Unit,
     onOpenPackages: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenRemote: () -> Unit = {},
 ) {
     val container = appContainer()
+    val remote by container.remoteAccess.state.collectAsStateWithLifecycle()
     val viewModel: HomeViewModel = viewModel(factory = viewModelFactory { initializer { HomeViewModel(container) } })
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -124,6 +128,12 @@ fun HomeScreen(
                     ToolbarIconButton(Icons.Filled.Download, "Clone repository", { showClone = true })
                     ToolbarIconButton(Icons.Filled.Terminal, "Terminal", { ProgramRunner.openShell(context, container) })
                     ToolbarIconButton(Icons.Filled.Inventory2, "Packages", onOpenPackages)
+                    ToolbarIconButton(
+                        if (remote.running) Icons.Filled.CastConnected else Icons.Filled.Cast,
+                        "Remote access (use from a computer's browser)",
+                        onOpenRemote,
+                        highlighted = remote.running,
+                    )
                     ToolbarIconButton(Icons.Filled.Settings, "Settings", onOpenSettings)
                 },
             )

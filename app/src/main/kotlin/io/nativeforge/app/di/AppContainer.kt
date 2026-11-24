@@ -92,6 +92,9 @@ class AppContainer(context: Context) {
     val apkExporter = ApkExporter(ApksigSigningEngine())
     val webExporter = WebExporter()
 
+    /** The remote web IDE (Remote access screen): trusted browsers, TLS key and server. */
+    val remoteAccess: io.nativeforge.app.remote.RemoteAccessManager by lazy { io.nativeforge.app.remote.RemoteAccessManager(appContext, this) }
+
     /** Git without a git binary; its config files live in the toolchain's home folder. */
     val git: GitClient by lazy { GitClient(layout.homeDir) }
 
