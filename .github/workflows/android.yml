@@ -31,8 +31,8 @@ jobs:
       - name: Unit tests
         run: ./gradlew test --stacktrace
 
-      - name: Assemble debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Assemble release APK
+        run: ./gradlew :app:assembleRelease --stacktrace
 
       # Every exported app carries the runtime template: keep it shrunk and free of IDE files.
       - name: Check the runtime template size
@@ -46,8 +46,18 @@ jobs:
             echo "IDE-only files in the runtime template"; exit 1
           fi
 
+      # Signed with the release key (RELEASE_* secrets), so it installs over a published release.
+      # Pull requests from forks get no secrets and upload an unsigned APK.
+      - name: Sign
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: .github/scripts/sign-apk.sh "$(ls app/build/outputs/apk/release/*.apk | head -1)"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: nativeforge-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: nativeforge-release-apk
+          path: dist/
           if-no-files-found: error
