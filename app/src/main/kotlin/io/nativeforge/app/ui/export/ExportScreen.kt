@@ -89,6 +89,7 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
     var backupTarget by remember { mutableStateOf<SavedKeystore?>(null) }
     var deleteTarget by remember { mutableStateOf<SavedKeystore?>(null) }
     var saveSource by remember { mutableStateOf<File?>(null) }
+    var previewingWeb by remember { mutableStateOf(false) }
     val pickKeystore = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             val bytes = runCatching {
@@ -118,7 +119,7 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         CompactTopBar(
-            title = "Export APK",
+            title = "Export",
             subtitle = java.io.File(projectName).name,
             navigation = { ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) },
         )
@@ -355,7 +356,23 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
                 shape = MaterialTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth().height(40.dp),
             ) { Text(if (settings.format == ExportSettings.Format.AAB) "Build and export app bundle" else "Build and export APK") }
+
+            WebExportSection(
+                state = state,
+                consoleProgram = !graphical,
+                onExport = { viewModel.exportWeb() },
+                onPreview = { previewingWeb = true },
+                onSave = { zip -> saveSource = zip; saveCopy.launch(zip.name) },
+            )
         }
+    }
+
+    state.webDownloadPrompt?.let { prompt ->
+        WebDownloadDialog(prompt, onAccept = { viewModel.exportWeb(downloadAccepted = true) }, onDecline = viewModel::dismissWebDownload)
+    }
+    val webPage = state.webPage
+    if (previewingWeb && webPage != null) {
+        WebPreviewDialog(webPage, state.settings?.appName.orEmpty(), onDismiss = { previewingWeb = false })
     }
 
     if (creatingKey) CreateKeyDialog(viewModel, state.settings?.appName.orEmpty().ifBlank { java.io.File(projectName).name }) { creatingKey = false }

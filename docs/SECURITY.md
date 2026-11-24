@@ -14,6 +14,7 @@ protects against and what it cannot.
 | Deleting a project or folder follows a link out of it | `SafeFiles.deleteTree` never follows links and only deletes inside the workspace |
 | Package archives write through a planted link or hard-link outside the folder | `ArchiveExtractor` removes an existing link before writing and rejects outside targets; archives are verified with SHA-256 over HTTPS |
 | Exported APKs pick up private files through links in `assets/` | Only regular files are bundled |
+| Web exports run injected script or reach the network | The page's Content-Security-Policy allows only its own inline script and style (SHA-256 hashes) and WebAssembly compilation (`default-src 'none'`); the app name and arguments are escaped. The in-app preview loads it as data in a WebView without file, content or network access |
 | Build settings point outside the project (`../../`) | Program file, source folder and icon paths are resolved inside the project |
 | The editor opens a link to a private file | Links that leave the project are refused; binary and very large files are not opened |
 | Other apps start IDE screens or read files | Every component except the launcher is `exported=false`; the FileProvider only shares `exports/`; `allowBackup=false` |

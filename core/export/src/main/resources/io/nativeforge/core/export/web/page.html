@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="{{CSP}}">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<meta name="generator" content="NativeForge">
+<title>{{TITLE}}</title>
+<style>{{STYLE}}</style>
+</head>
+<body>
+<header class="bar">
+  <div class="title"><span class="dot" aria-hidden="true"></span><h1>{{TITLE}}</h1></div>
+  <span id="status" class="pill">Loading…</span>
+  <div class="actions">
+    <button id="stop" type="button" hidden>Stop</button>
+    <button id="run" type="button" class="primary" disabled>Run again</button>
+  </div>
+</header>
+<main id="terminal" tabindex="-1">
+  <div id="screen" role="log" aria-live="polite"></div>
+  <form id="prompt" class="prompt" autocomplete="off" hidden>
+    <span class="caret" aria-hidden="true">›</span>
+    <input id="stdin" type="text" spellcheck="false" autocapitalize="off" autocorrect="off" enterkeyhint="send" aria-label="Program input" placeholder="Type input, then Enter">
+    <button id="eof" type="button" title="End of input (Ctrl+D)">EOF</button>
+  </form>
+</main>
+<footer class="foot"><span id="hint"></span><span>Made with NativeForge · WebAssembly</span></footer>
+<script type="application/json" id="nf-config">{{CONFIG}}</script>
+<script type="application/octet-stream" id="nf-wasm">{{WASM}}</script>
+<script>{{SCRIPT}}</script>
+</body>
+</html>
