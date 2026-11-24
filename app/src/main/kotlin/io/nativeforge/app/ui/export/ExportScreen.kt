@@ -502,7 +502,8 @@ private fun PermissionsSection(permissions: List<String>, onChange: (List<String
                 ToolbarIconButton(Icons.Filled.Close, "Remove $name", onClick = { onChange(permissions - name) })
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // The field has its label above it: align the button with the 36 dp input box, not the whole column.
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             NfTextField(
                 value = custom,
                 onValueChange = { custom = it },
@@ -513,7 +514,9 @@ private fun PermissionsSection(permissions: List<String>, onChange: (List<String
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { addCustom() }),
                 modifier = Modifier.weight(1f),
             )
-            CompactButton("Add", onClick = ::addCustom)
+            Box(Modifier.height(36.dp), contentAlignment = Alignment.Center) {
+                CompactButton("Add", onClick = ::addCustom)
+            }
         }
         Text(
             "None are declared by default. Camera, microphone and location are asked from the user when the app opens.",

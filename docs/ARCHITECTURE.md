@@ -117,7 +117,9 @@ never takes the IDE down.
 There is no aapt2 or Gradle on the phone, so export works on binary files:
 
 1. `runtime-template` is built once, at IDE build time, and embedded in the IDE
-   as `assets/runtime/template.apk`.
+   as `assets/runtime/template.apk`. It is shrunk with R8 and carries no Compose
+   (the console is plain views) and no IDE resources (project templates are
+   excluded in its `packaging` block); CI fails if its dex grows past 4 MB.
 2. `ManifestPatcher` edits the template's compiled `AndroidManifest.xml` (AXML):
    package id, label, version, orientation, and every string prefixed with the
    template package (permissions, provider authorities). It also inserts the
@@ -125,8 +127,14 @@ There is no aapt2 or Gradle on the phone, so export works on binary files:
    (`ExportSettings.permissions`); the template declares none, and its
    `LauncherActivity` asks for the dangerous ones before starting the program.
 3. `ApkExporter` drops the template's signature and other ABIs, adds the
-   program as `lib/<abi>/libnf_program.so` with its runtime libraries, and
-   writes `assets/nativeforge/launch.json` (a `LaunchSpec`).
+   program as `lib/<abi>/libnf_program.so` with the runtime libraries it loads
+   (`RuntimeLibraries`: a library is kept when its file name or soname appears in
+   the program or in a kept library, which covers DT_NEEDED and `dlopen("libx.so")`),
+   the project's `assets/` folder under `assets/assets/`, and writes
+   `assets/nativeforge/launch.json` (a `LaunchSpec`). On start, the exported
+   app's `LauncherActivity` copies `assets/assets/` to `<files dir>/assets`
+   (`BundledAssets`, once per install or update) and starts the program in the
+   files dir, so `fopen("assets/x")` works as in the IDE.
 4. `ApksigSigningEngine` signs with v1+v2+v3 using a per-install key from
    `SigningKeyStore`, or a keystore the user created or imported
    (`app/.../signing/SigningKeyRepository`, files read by `Keystores`, JKS by

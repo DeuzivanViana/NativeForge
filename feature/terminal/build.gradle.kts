@@ -1,15 +1,13 @@
 plugins {
     alias(libs.plugins.nativeforge.android.library)
-    alias(libs.plugins.nativeforge.android.compose)
 }
 
 android {
     namespace = "io.nativeforge.feature.terminal"
 }
 
+// No Compose here: the console ships inside every exported app (runtime-template).
 dependencies {
-    implementation(projects.core.ui)
-    implementation(libs.androidx.activity.compose)
     api(libs.termux.terminal.view)
     api(libs.termux.terminal.emulator)
 }

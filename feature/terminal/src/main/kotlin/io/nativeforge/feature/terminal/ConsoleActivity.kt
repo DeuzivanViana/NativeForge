@@ -1,30 +1,21 @@
 package io.nativeforge.feature.terminal
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
+import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.LinearLayout
 import com.termux.terminal.KeyHandler
 import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
-import io.nativeforge.core.ui.theme.NativeForgeTheme
 import java.io.File
 
 /**
@@ -32,12 +23,21 @@ import java.io.File
  * compiled console program or an interactive shell, with a real PTY so that
  * programs reading stdin (scanf, std::cin, ncurses) behave as on a desktop.
  */
-class ConsoleActivity : ComponentActivity() {
+class ConsoleActivity : Activity() {
 
     private lateinit var terminalView: TerminalView
     private lateinit var session: TerminalSession
-    private var ctrlActive by mutableStateOf(false)
-    private var altActive by mutableStateOf(false)
+    private lateinit var extraKeys: ExtraKeysBar
+    private var ctrlActive = false
+        set(value) {
+            field = value
+            if (::extraKeys.isInitialized) extraKeys.setModifiers(value, altActive)
+        }
+    private var altActive = false
+        set(value) {
+            field = value
+            if (::extraKeys.isInitialized) extraKeys.setModifiers(ctrlActive, value)
+        }
     private var fontSizePx = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,21 +58,37 @@ class ConsoleActivity : ComponentActivity() {
         session = createSession(request)
         terminalView.attachSession(session)
 
-        setContent {
-            NativeForgeTheme {
-                Column(Modifier.fillMaxSize().background(Color.Black).systemBarsPadding().imePadding()) {
-                    AndroidView(factory = { terminalView }, modifier = Modifier.weight(1f).fillMaxWidth())
-                    ExtraKeysBar(
-                        ctrlActive = ctrlActive,
-                        altActive = altActive,
-                        onToggleCtrl = { ctrlActive = !ctrlActive },
-                        onToggleAlt = { altActive = !altActive },
-                        onKey = ::sendExtraKey,
-                    )
-                }
-            }
+        extraKeys = ExtraKeysBar(
+            this,
+            onToggleCtrl = { ctrlActive = !ctrlActive },
+            onToggleAlt = { altActive = !altActive },
+            onKey = ::sendExtraKey,
+        )
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(android.graphics.Color.BLACK)
+            addView(terminalView, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(extraKeys, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
+        setContentView(root)
+        fitSystemBarsAndKeyboard(root)
         terminalView.requestFocus()
+    }
+
+    /**
+     * Exported apps target a current API level, where Android 15 draws behind the system bars
+     * and stops resizing for the keyboard: from Android 11 on, pad for both explicitly. Older
+     * versions keep the default layout inside the bars and the manifest's adjustResize.
+     */
+    private fun fitSystemBarsAndKeyboard(root: ViewGroup) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        window.setDecorFitsSystemWindows(false)
+        root.setOnApplyWindowInsetsListener { view, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            val ime = insets.getInsets(WindowInsets.Type.ime())
+            view.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
+            WindowInsets.CONSUMED
+        }
     }
 
     override fun onDestroy() {
@@ -123,7 +139,7 @@ class ConsoleActivity : ComponentActivity() {
         }
 
         override fun onSessionFinished(finishedSession: TerminalSession) {
-            val message = "\r\n\u001b[2m[Process exited with code ${finishedSession.exitStatus}. Press back to close.]\u001b[0m\r\n"
+            val message = "\r\n\u001b[2m[Process exited with code ${finishedSession.exitStatus}. Press Enter or back to close.]\u001b[0m\r\n"
             val bytes = message.toByteArray()
             finishedSession.emulator?.append(bytes, bytes.size)
             terminalView.onScreenUpdated()
@@ -157,11 +173,22 @@ class ConsoleActivity : ComponentActivity() {
         override fun readControlKey(): Boolean = ctrlActive
         override fun readAltKey(): Boolean = altActive
 
+        // Once the program has exited, Enter closes the console. Hardware keyboards and some
+        // soft keyboards send a key event; others commit "\n", which arrives as a code point.
+        override fun onKeyDown(keyCode: Int, e: KeyEvent, session: TerminalSession): Boolean =
+            (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) && closeIfFinished(session)
+
         override fun onCodePoint(codePoint: Int, ctrlDown: Boolean, session: TerminalSession): Boolean {
             // Sticky modifiers apply to a single key press, as on Termux's extra keys.
             ctrlActive = false
             altActive = false
-            return false
+            return (codePoint == '\r'.code || codePoint == '\n'.code) && closeIfFinished(session)
+        }
+
+        private fun closeIfFinished(session: TerminalSession): Boolean {
+            if (session.isRunning) return false
+            finish()
+            return true
         }
     }
 

@@ -29,5 +29,12 @@ data class LaunchSpec(
 ) {
     companion object {
         const val ASSET_PATH = "nativeforge/launch.json"
+
+        /**
+         * APK assets folder that holds the project's `assets/` folder. Exported apps copy it to
+         * `<files dir>/assets` and start the program there, so "assets/player.png" opens the
+         * same way as in the IDE (working directory = project root), with plain fopen() too.
+         */
+        const val BUNDLED_ASSETS_DIR = "assets"
     }
 }
