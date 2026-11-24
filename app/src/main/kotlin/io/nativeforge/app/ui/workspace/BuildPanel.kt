@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -29,7 +27,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,7 +47,8 @@ import io.nativeforge.core.ui.theme.LocalDiagnosticColors
 
 /**
  * Bottom panel with the raw build output and the parsed problems list. Output text can be
- * selected (long press, then drag) and the copy button copies the whole tab.
+ * selected (long press, then drag the handles, scrolling as needed) and the copy button copies
+ * the whole tab.
  */
 @Composable
 fun BuildPanel(
@@ -89,21 +87,13 @@ fun BuildPanel(
                 ToolbarIconButton(Icons.Filled.Close, "Close panel", onClose)
             }
             when (tab) {
-                0 -> {
-                    val listState = rememberLazyListState()
-                    LaunchedEffect(log.size) { if (log.isNotEmpty()) listState.scrollToItem(log.lastIndex) }
-                    SelectionContainer {
-                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)) {
-                            items(log) { line ->
-                                Text(
-                                    line.text,
-                                    style = CodeTextStyle,
-                                    color = if (line.isError) colors.error else MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                        }
-                    }
-                }
+                0 -> BuildOutputView(
+                    log = log,
+                    textColor = MaterialTheme.colorScheme.onSurface,
+                    errorColor = colors.error,
+                    selectionColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                )
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     items(problems) { diagnostic ->
                         Row(
