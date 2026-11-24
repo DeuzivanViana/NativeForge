@@ -23,11 +23,15 @@ import io.nativeforge.core.remote.PtyCommand
 import io.nativeforge.core.remote.PtyFactory
 import io.nativeforge.core.remote.RemoteBackend
 import io.nativeforge.core.remote.RemoteTheme
+import io.nativeforge.core.remote.screen.ProgramStream
+import io.nativeforge.core.remote.screen.StreamSink
 import io.nativeforge.core.toolchain.ShellSetup
+import io.nativeforge.feature.runner.LaunchResult
+import io.nativeforge.feature.runner.ProgramLauncher
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
-import java.util.concurrent.ConcurrentHashMap
 
 /** The remote server's view of the app: the same repository, packages, builds and settings as the screens use. */
 class AndroidRemoteBackend(private val context: Context, private val container: AppContainer) : RemoteBackend {
@@ -98,6 +102,24 @@ class AndroidRemoteBackend(private val context: Context, private val container: 
 
     override fun runOnDevice(project: Project, artifact: BuildArtifact): String? =
         ProgramRunner.run(context, container, project, artifact)
+
+    override fun streamProgram(project: Project, artifact: BuildArtifact, width: Int, height: Int, sink: StreamSink): ProgramStream {
+        val staged = ProgramRunner.stageIfOutside(context, artifact)
+            ?: throw IllegalStateException("Could not copy ${artifact.file.name} to NativeForge's storage to run it")
+        val spec = ProgramRunner.launchSpec(context, container, project, staged)
+        val stream = AndroidProgramStream.open(context, container.logger, width, height, sink) { ProgramRunner.consumeStartError(context) }
+        val result = try {
+            ProgramLauncher.launch(context, spec, stream.run)
+        } catch (e: Exception) {
+            stream.stop()
+            throw IllegalStateException("Android did not start the program: ${e.message}", e)
+        }
+        if (result is LaunchResult.Unsupported) {
+            stream.stop()
+            throw IllegalStateException(result.reason)
+        }
+        return stream
+    }
 
     override fun shellCommand(): PtyCommand {
         val setup = ShellSetup(container.layout)

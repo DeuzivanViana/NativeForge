@@ -37,6 +37,10 @@ default) or from its notification.
 | File requests reach private app files (keys, tokens, other apps' data) | File API paths are relative to one project folder; absolute paths, `..`, NUL and anything whose canonical path (links followed) leaves the project are refused (`ProjectFiles`) |
 | Malformed or huge requests | Request head ≤ 16 KB, body ≤ 32 MB, no chunked bodies, duplicate `Host`/`Content-Length` refused, WebSocket messages ≤ 8 MB with masking enforced, at most 48 connections |
 
+Streamed graphical programs use the same paired WebSocket (`/ws/screen`); the
+off-screen display is private to the app, and the program's process takes
+input only from a local socket that refuses other apps' user ids.
+
 A paired browser can do everything the app can, including opening a terminal,
 so it is as trusted as the phone's own screen. Pair only your own computers.
 To work away from home, use a VPN such as Tailscale or WireGuard on both

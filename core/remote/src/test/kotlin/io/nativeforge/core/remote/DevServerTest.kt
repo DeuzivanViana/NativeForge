@@ -13,7 +13,8 @@ class DevServerTest {
         val dirName = System.getenv("NF_DEV_SERVER") ?: return
         val dir = File(dirName).apply { mkdirs() }
         val access = AccessControl(File(dir, "browsers.json"))
-        val server = RemoteServer(FakeBackend(dir), access, PrintLogger)
+        val backend = FakeBackend(dir).apply { devVideo = System.getenv("NF_DEV_VIDEO")?.let(::File) }
+        val server = RemoteServer(backend, access, PrintLogger)
         server.start(TlsIdentity.loadOrCreate(File(dir, "tls.p12")).serverSocket(8443, InetAddress.getLoopbackAddress()))
         File(dir, "code.txt").writeText(access.newPairingCode().code)
         val until = System.currentTimeMillis() + (System.getenv("NF_DEV_MINUTES")?.toLong() ?: 20) * 60_000

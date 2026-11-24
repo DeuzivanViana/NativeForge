@@ -28,12 +28,17 @@ object ProgramLauncher {
         RuntimeKind.CONSOLE -> null // Console programs run in the terminal feature.
     }
 
-    fun launch(context: Context, spec: LaunchSpec): LaunchResult {
+    /**
+     * Starts [spec]. With [remote] the program draws on the IDE's off-screen display for
+     * the remote web IDE (see [RemoteHost]) instead of the phone's screen.
+     */
+    fun launch(context: Context, spec: LaunchSpec, remote: RemoteRun? = null): LaunchResult {
         val host = hostFor(spec.runtime)
             ?: return LaunchResult.Unsupported(unsupportedReason(spec.runtime))
         stopRunningProgram(context)
         val intent = LaunchSpecs.putInto(Intent(context, host), spec)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+        remote?.let { RemoteHost.putInto(intent, it) }
         context.startActivity(intent)
         return LaunchResult.Started
     }

@@ -39,27 +39,30 @@ object ProgramRunner {
                 )
                 null
             }
-            else -> {
-                val errorFile = errorFile(context).apply { delete() }
-                val spec = LaunchSpec(
-                    runtime = project.config.runtime,
-                    program = artifact.file.path,
-                    preloadLibraries = artifact.runtimeLibraries.map(File::getPath),
-                    arguments = project.config.runArguments,
-                    workingDirectory = project.root.path,
-                    environment = mapOf(
-                        "HOME" to environment.getValue("HOME"),
-                        "TMPDIR" to environment.getValue("TMPDIR"),
-                        RunErrors.ENV to errorFile.path,
-                    ),
-                    // Preview the export's display options when running from the IDE.
-                    orientation = project.config.export.orientation,
-                    immersive = project.config.export.immersive,
-                    keepScreenOn = project.config.export.keepScreenOn,
-                )
-                (ProgramLauncher.launch(context, spec) as? LaunchResult.Unsupported)?.reason
-            }
+            else -> (ProgramLauncher.launch(context, launchSpec(context, container, project, artifact)) as? LaunchResult.Unsupported)?.reason
         }
+    }
+
+    /** What a runner host needs to start a graphical program (an already staged [artifact]); clears the last start error. */
+    fun launchSpec(context: Context, container: AppContainer, project: Project, artifact: BuildArtifact): LaunchSpec {
+        val environment = container.toolchain.environment()
+        val errorFile = errorFile(context).apply { delete() }
+        return LaunchSpec(
+            runtime = project.config.runtime,
+            program = artifact.file.path,
+            preloadLibraries = artifact.runtimeLibraries.map(File::getPath),
+            arguments = project.config.runArguments,
+            workingDirectory = project.root.path,
+            environment = mapOf(
+                "HOME" to environment.getValue("HOME"),
+                "TMPDIR" to environment.getValue("TMPDIR"),
+                RunErrors.ENV to errorFile.path,
+            ),
+            // Preview the export's display options when running from the IDE.
+            orientation = project.config.export.orientation,
+            immersive = project.config.export.immersive,
+            keepScreenOn = project.config.export.keepScreenOn,
+        )
     }
 
     /** The reason the last graphical program could not start, if it reported one; clears it. */
