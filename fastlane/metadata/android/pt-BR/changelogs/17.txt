@@ -1,0 +1,4 @@
+• Os botões não quebram mais o texto em telas estreitas
+• Pacotes de repositórios só são instalados com checksum SHA-256 e por HTTPS
+• Git pull e push conferem o remoto que realmente usam, inclusive endereços reescritos
+• Mais tudo da 0.9.0: projetos em qualquer pasta, LVGL e novos exemplos

@@ -246,9 +246,11 @@ class PackageManager(
         http.download(pkg.downloadUrl, archive)
         emit(InstallEvent.Downloading(pkg, archive.length(), archive.length()))
 
-        pkg.sha256?.let { expected ->
-            val actual = Checksums.sha256(archive)
-            check(actual.equals(expected, ignoreCase = true)) { "Checksum mismatch for ${pkg.name}" }
+        // Every source gives a SHA-256 (fetched over HTTPS or from the APK); nothing unchecked is installed.
+        val expected = pkg.sha256?.takeIf { it.isNotBlank() }
+        if (expected == null || !Checksums.sha256(archive).equals(expected, ignoreCase = true)) {
+            archive.delete()
+            error(if (expected == null) "${pkg.name} has no SHA-256 in its index" else "Checksum mismatch for ${pkg.name}")
         }
 
         emit(InstallEvent.Extracting(pkg))

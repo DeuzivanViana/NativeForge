@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -172,7 +173,7 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
                             if (settings.iconPath == null) "Default NativeForge icon" else "Custom: ${settings.iconPath}",
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             CompactButton("Choose image") { pickIcon.launch("image/*") }
                             if (settings.iconPath != null) CompactButton("Use default", outlined = true, onClick = viewModel::clearIcon)
                         }
@@ -308,7 +309,7 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
                         style = MaterialTheme.typography.labelSmall,
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     CompactButton("New key") { creatingKey = true }
                     CompactButton("Import keystore", outlined = true) { pickKeystore.launch(arrayOf("*/*")) }
                 }
@@ -333,7 +334,7 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (!isBundle) CompactButton("Install") { installApk(context, status.apk) }
                         CompactButton("Save to…", outlined = !isBundle) { saveSource = status.apk; saveCopy.launch(status.apk.name) }
                         CompactButton("Share", outlined = true) { shareApk(context, status.apk) }
@@ -421,11 +422,11 @@ private const val MAX_KEYSTORE_BYTES = 1 shl 20
 private fun CompactButton(text: String, outlined: Boolean = false, onClick: () -> Unit) {
     if (outlined) {
         OutlinedButton(onClick = onClick, shape = MaterialTheme.shapes.small, contentPadding = CompactButtonPadding, modifier = Modifier.height(32.dp)) {
-            Text(text, style = MaterialTheme.typography.labelLarge)
+            Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
         }
     } else {
         Button(onClick = onClick, shape = MaterialTheme.shapes.small, contentPadding = CompactButtonPadding, modifier = Modifier.height(32.dp)) {
-            Text(text, style = MaterialTheme.typography.labelLarge)
+            Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
         }
     }
 }

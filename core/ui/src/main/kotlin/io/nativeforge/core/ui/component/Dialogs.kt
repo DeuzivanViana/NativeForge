@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -73,10 +74,11 @@ fun NfDialog(
                 Column(Modifier.weight(1f, fill = false)) { content() }
                 if (actions != null) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Row(
+                    // Buttons that do not fit on one line move to the next one instead of squeezing their labels.
+                    FlowRow(
                         Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) { actions() }
                 }
             }
@@ -99,7 +101,7 @@ fun DialogPrimaryButton(text: String, onClick: () -> Unit, enabled: Boolean = tr
         shape = MaterialTheme.shapes.small,
         contentPadding = CompactButtonPadding,
         modifier = Modifier.height(32.dp),
-    ) { Text(text, style = MaterialTheme.typography.labelLarge) }
+    ) { Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) }
 }
 
 /** Secondary footer button for [NfDialog]. */
@@ -110,7 +112,7 @@ fun DialogSecondaryButton(text: String, onClick: () -> Unit) {
         shape = MaterialTheme.shapes.small,
         contentPadding = CompactButtonPadding,
         modifier = Modifier.height(32.dp),
-    ) { Text(text, style = MaterialTheme.typography.labelLarge) }
+    ) { Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false) }
 }
 
 /** Yes/no question in the compact dialog style. */

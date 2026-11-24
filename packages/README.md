@@ -18,8 +18,8 @@ searched in order: bundled, build-time, user repositories, then Termux.
 Put `index.json` and the archives on any static HTTPS host (GitHub Pages works)
 and add the index URL in Settings. A relative `downloadUrl` such as
 `aarch64/foo-1.0.tar.xz` is resolved against the index URL, so the folder can be
-moved without editing the index. Archives are rejected when their SHA-256 does
-not match `sha256`.
+moved without editing the index. Every entry needs a `sha256`: entries without
+one are ignored, and archives are rejected when their SHA-256 does not match.
 
 ## Rebuilding the bundled libraries
 
@@ -73,8 +73,9 @@ when updating `SDL2_VERSION`.
 }
 ```
 
-* `downloadUrl` may be `https://…`, `asset:<path>` (a file inside the IDE APK), or a
-  path relative to the index URL.
+* `downloadUrl` may be `https://…` or a path relative to the index URL; `asset:<path>`
+  (a file inside the IDE APK) is only accepted in the bundled index. Plain `http://`
+  entries are ignored.
 * `architecture` uses Debian names: `aarch64`, `arm`, `x86_64`, `i686` (or `all`).
 * `target: "isolated"` installs into `files/android-libs/<name>/`, which is also
   added to `CMAKE_PREFIX_PATH`, so ship `lib/cmake/<Name>/<Name>Config.cmake`
