@@ -32,7 +32,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -59,6 +58,7 @@ import io.nativeforge.app.storage.DeviceFolders
 import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.ui.component.CompactTopBar
 import io.nativeforge.core.ui.component.DialogPrimaryButton
+import io.nativeforge.core.ui.component.ProgressBar
 import io.nativeforge.core.ui.component.NfConfirmDialog
 import io.nativeforge.core.ui.component.EmptyState
 import io.nativeforge.core.ui.component.SectionHeader
@@ -280,11 +280,7 @@ private fun ToolchainBanner(status: ToolchainStatus, onInstall: () -> Unit) {
                 )
                 is ToolchainStatus.Installing -> {
                     Text(status.message, style = MaterialTheme.typography.bodySmall)
-                    if (status.progress != null) {
-                        LinearProgressIndicator(progress = { status.progress }, modifier = Modifier.fillMaxWidth())
-                    } else {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
+                    ProgressBar(status.progress, Modifier.fillMaxWidth())
                 }
                 is ToolchainStatus.Failed -> Text(status.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 ToolchainStatus.Ready -> Unit

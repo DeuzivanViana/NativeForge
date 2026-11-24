@@ -51,6 +51,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -59,7 +60,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -120,6 +123,11 @@ fun WorkspaceScreen(
     var menuOpen by remember { mutableStateOf(false) }
     var newFileDialog by rememberSaveable { mutableStateOf(false) }
     var findOpen by rememberSaveable { mutableStateOf(false) }
+    // Output panel height in dp; drag its header to resize, drag it (almost) shut to close it.
+    var panelHeight by rememberSaveable { mutableFloatStateOf(PANEL_DEFAULT_HEIGHT_DP) }
+    var panelRestoreHeight by rememberSaveable { mutableFloatStateOf(PANEL_DEFAULT_HEIGHT_DP) }
+    val density = LocalDensity.current
+    val maxPanelHeight = LocalConfiguration.current.screenHeightDp * 0.7f
     var librariesOpen by rememberSaveable { mutableStateOf(false) }
     var buildSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var dockedExplorer by rememberSaveable { mutableStateOf(true) }
@@ -361,11 +369,23 @@ fun WorkspaceScreen(
                 }
                 if (state.panelVisible) {
                     BuildPanel(
-                        log = state.log,
+                        log = viewModel.log,
                         diagnostics = state.diagnostics,
                         onDiagnosticClick = viewModel::openDiagnostic,
-                        onClose = viewModel::togglePanel,
-                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                        onClose = viewModel::hidePanel,
+                        onResize = { deltaPx ->
+                            panelHeight = (panelHeight - deltaPx / density.density).coerceIn(0f, maxPanelHeight)
+                        },
+                        onResizeEnd = {
+                            if (panelHeight < PANEL_CLOSE_HEIGHT_DP) {
+                                // Dragged (almost) shut: close it, and reopen at the last good height.
+                                panelHeight = panelRestoreHeight
+                                viewModel.hidePanel()
+                            } else {
+                                panelRestoreHeight = panelHeight
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(panelHeight.coerceAtMost(maxPanelHeight).dp),
                     )
                 }
                 StatusBar(
@@ -631,3 +651,8 @@ private fun languageOf(path: String?): String {
         else -> "Plain Text"
     }
 }
+
+private const val PANEL_DEFAULT_HEIGHT_DP = 200f
+
+/** Releasing a drag with the output panel shorter than this closes it. */
+private const val PANEL_CLOSE_HEIGHT_DP = 56f

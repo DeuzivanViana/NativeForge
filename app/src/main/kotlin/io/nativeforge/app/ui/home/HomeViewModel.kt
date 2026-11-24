@@ -232,8 +232,12 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    private var installJob: Job? = null
+
     fun installToolchain() {
-        viewModelScope.launch {
+        // A second tap while installing would start a parallel install into the same prefix.
+        if (installJob?.isActive == true) return
+        installJob = viewModelScope.launch {
             var total = 0
             var installed = 0
             container.packageManager.install(ClangToolchain.REQUIRED_PACKAGES + ShellSetup.ESSENTIAL_PACKAGES).collect { event ->

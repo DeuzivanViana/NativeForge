@@ -19,12 +19,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /** What the status bar shows about clangd. */
 sealed interface IntelStatus {
@@ -44,6 +47,9 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
     private var request: BuildRequest? = null
     private var options = CodeIntelOptions()
     private var restarts = 0
+
+    /** Bumped by every start and stop, so a clangd that finishes starting after a stop is shut down. */
+    private val generation = AtomicInteger()
     private val pendingSync = ConcurrentHashMap<String, Job>()
     private val texts = ConcurrentHashMap<String, String>()
 
@@ -62,15 +68,24 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
             return
         }
         _status.value = IntelStatus.Starting
+        val myGeneration = generation.incrementAndGet()
         scope.launch(Dispatchers.IO) {
             val started = runCatching { ClangdSession.start(request, options) }
             started.onSuccess { s ->
+                // Stopped (or restarted) while clangd was starting, or the screen went away.
+                if (generation.get() != myGeneration || !isActive) {
+                    stopInBackground(s)
+                    return@launch
+                }
                 s.onDiagnostics = { file, list -> _diagnostics.update { it + (file.path to list) } }
                 session = s
                 _status.value = IntelStatus.Ready
                 // Re-open documents the editor already showed.
                 texts.forEach { (path, text) -> runCatching { s.sync(File(path), text) } }
-            }.onFailure { _status.value = IntelStatus.Unavailable(it.message?.lineSequence()?.firstOrNull() ?: "clangd failed") }
+            }.onFailure {
+                if (generation.get() != myGeneration) return@launch
+                _status.value = IntelStatus.Unavailable(it.message?.lineSequence()?.firstOrNull() ?: "clangd failed")
+            }
         }
     }
 
@@ -81,10 +96,22 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
     }
 
     fun stop() {
+        generation.incrementAndGet()
+        pendingSync.values.forEach { it.cancel() }
+        pendingSync.clear()
         val current = session
         session = null
         _status.value = IntelStatus.Off
-        if (current != null) scope.launch(Dispatchers.IO) { current.stop() }
+        if (current != null) stopInBackground(current)
+    }
+
+    /**
+     * Shuts clangd down off the main thread. Not on [scope]: [stop] also runs from
+     * `ViewModel.onCleared`, when the view model scope is already cancelled and a launch there
+     * would never run, leaving a clangd process alive for every project that was opened.
+     */
+    private fun stopInBackground(session: ClangdSession) {
+        thread(name = "clangd-stop", isDaemon = true) { runCatching { session.stop() } }
     }
 
     /** The editor text of [path] changed: tell clangd after a short pause (diagnostics follow). */
@@ -92,10 +119,13 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
         if (!ClangdSession.supports(File(path))) return
         texts[path] = text
         pendingSync.remove(path)?.cancel()
-        pendingSync[path] = scope.launch(Dispatchers.IO) {
+        val job = scope.launch(Dispatchers.IO) {
             delay(SYNC_DELAY_MS)
             withSession { it.sync(File(path), text) }
         }
+        pendingSync[path] = job
+        // Finished jobs would otherwise keep the last text of every edited file alive.
+        job.invokeOnCompletion { pendingSync.remove(path, job) }
     }
 
     fun opened(path: String, text: String) {
