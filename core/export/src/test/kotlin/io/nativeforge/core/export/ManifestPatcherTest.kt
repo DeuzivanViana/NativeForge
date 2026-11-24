@@ -53,4 +53,57 @@ class ManifestPatcherTest {
         assertEquals("io.nativeforge.runtime.template.LauncherActivity", activity["name"], "class names stay untouched")
         assertEquals(0, activity["screenOrientation"])
     }
+
+    @Test
+    fun `adds uses-permission elements after manifest (utf8 pool)`() = verifyPermissions(utf8 = true)
+
+    @Test
+    fun `adds uses-permission elements after manifest (utf16 pool)`() = verifyPermissions(utf8 = false)
+
+    private fun verifyPermissions(utf8: Boolean) {
+        val template = AxmlTestBuilder(utf8)
+            .element("manifest", Attr("package", 0, 0x03, "io.nativeforge.runtime.template"))
+            .element("uses-permission", Attr("name", 0x01010003, 0x03, "android.permission.VIBRATE"))
+            .element("application", Attr("label", 0x01010001, 0x03, "NativeForge App"))
+            .element("activity", Attr("name", 0x01010003, 0x03, "io.nativeforge.runtime.template.LauncherActivity"))
+            .build()
+        val permissions = listOf("android.permission.CAMERA", "android.permission.VIBRATE", "android.permission.INTERNET", "android.permission.CAMERA")
+        val patched = ManifestPatcher().patch(template, patch.copy(permissions = permissions))
+        val elements = AxmlTestReader.read(patched)
+
+        assertEquals(
+            listOf("manifest", "uses-permission", "uses-permission", "uses-permission", "application", "activity"),
+            elements.map { it.first },
+        )
+        assertEquals(
+            listOf("android.permission.CAMERA", "android.permission.INTERNET", "android.permission.VIBRATE"),
+            elements.filter { it.first == "uses-permission" }.map { it.second["name"] },
+            "new permissions come first, the declared one is not repeated",
+        )
+        assertEquals("io.nativeforge.runtime.template.LauncherActivity", elements.last().second["name"])
+        assertEquals("com.example.mygame", elements.first().second["package"])
+        assertEquals(balancedEndElements(patched), 0)
+    }
+
+    @Test
+    fun `no permissions leaves the element tree alone`() {
+        val original = template(utf8 = true)
+        val patched = ManifestPatcher().patch(original, ManifestPatch())
+        assertEquals(AxmlTestReader.read(original), AxmlTestReader.read(patched))
+    }
+
+    /** Start minus end element chunks; 0 when every element is closed. */
+    private fun balancedEndElements(bytes: ByteArray): Int {
+        val buffer = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        var position = 8
+        var depth = 0
+        while (position < bytes.size) {
+            when (buffer.getShort(position).toInt() and 0xFFFF) {
+                0x0102 -> depth++
+                0x0103 -> depth--
+            }
+            position += buffer.getInt(position + 4)
+        }
+        return depth
+    }
 }

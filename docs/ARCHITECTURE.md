@@ -108,7 +108,10 @@ There is no aapt2 or Gradle on the phone, so export works on binary files:
    as `assets/runtime/template.apk`.
 2. `ManifestPatcher` edits the template's compiled `AndroidManifest.xml` (AXML):
    package id, label, version, orientation, and every string prefixed with the
-   template package (permissions, provider authorities).
+   template package (permissions, provider authorities). It also inserts the
+   `<uses-permission>` elements picked on the export screen
+   (`ExportSettings.permissions`); the template declares none, and its
+   `LauncherActivity` asks for the dangerous ones before starting the program.
 3. `ApkExporter` drops the template's signature and other ABIs, adds the
    program as `lib/<abi>/libnf_program.so` with its runtime libraries, and
    writes `assets/nativeforge/launch.json` (a `LaunchSpec`).

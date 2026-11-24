@@ -149,5 +149,6 @@ internal object Chunk {
     const val XML = 0x0003
     const val XML_START_NAMESPACE = 0x0100
     const val XML_START_ELEMENT = 0x0102
+    const val XML_END_ELEMENT = 0x0103
     const val XML_RESOURCE_MAP = 0x0180
 }

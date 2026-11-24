@@ -17,6 +17,8 @@ data class ManifestPatch(
      * and provider authorities, so two exported apps never clash on install.
      */
     val oldPackageName: String? = null,
+    /** Permission names to declare as `<uses-permission>`; ones already declared are skipped. */
+    val permissions: List<String> = emptyList(),
 )
 
 /**
@@ -37,11 +39,76 @@ class ManifestPatcher {
             patchElement(element.bytes, pool, resourceIds, patch)
         }
 
-        val patchedChunks = chunks.mapIndexed { index, chunk -> if (index == poolIndex) pool.encode() else chunk.bytes }
+        val patchedChunks = chunks.mapIndexed { index, chunk -> if (index == poolIndex) pool.encode() else chunk.bytes }.toMutableList()
+        val permissionChunks = permissionChunks(chunks, pool, resourceIds, patch.permissions)
+        if (permissionChunks.isNotEmpty()) {
+            // The pool may have grown, so it is encoded again after the new strings were added.
+            patchedChunks[poolIndex] = pool.encode()
+            val manifestStart = chunks.indexOfFirst { it.type == Chunk.XML_START_ELEMENT && elementName(it.bytes, pool) == "manifest" }
+            require(manifestStart >= 0) { "Binary XML has no <manifest> element" }
+            patchedChunks.addAll(manifestStart + 1, permissionChunks)
+        }
         val body = ByteArrayOutputStream().apply { patchedChunks.forEach(::write) }.toByteArray()
         val header = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
             .putShort(Chunk.XML.toShort()).putShort(8).putInt(8 + body.size).array()
         return header + body
+    }
+
+    /**
+     * Builds a start and an end chunk for each permission in [permissions] that the manifest
+     * does not declare yet. They go right after `<manifest>`, as its first children.
+     */
+    private fun permissionChunks(chunks: List<RawChunk>, pool: StringPool, resourceIds: IntArray, permissions: List<String>): List<ByteArray> {
+        val declared = chunks.filter { it.type == Chunk.XML_START_ELEMENT && elementName(it.bytes, pool) == USES_PERMISSION }
+            .mapNotNull { stringAttribute(it.bytes, pool, resourceIds, ATTR_NAME) }
+            .toSet()
+        val missing = permissions.distinct().filter { it !in declared }
+        if (missing.isEmpty()) return emptyList()
+
+        // android:name must use the pool entry the resource map ties to the attribute id.
+        val nameIndex = resourceIds.indexOf(ATTR_NAME)
+        require(nameIndex >= 0) { "Binary manifest has no android:name attribute to reuse" }
+        val namespace = pool.indexOf(ANDROID_NAMESPACE)
+        val element = pool.indexOf(USES_PERMISSION)
+        return missing.flatMap { permission ->
+            val value = pool.indexOf(permission)
+            val start = ByteBuffer.allocate(START_ELEMENT_SIZE).order(ByteOrder.LITTLE_ENDIAN)
+                .putShort(Chunk.XML_START_ELEMENT.toShort()).putShort(16).putInt(START_ELEMENT_SIZE)
+                .putInt(0).putInt(-1) // line number, comment
+                .putInt(-1).putInt(element) // namespace, name
+                .putShort(20).putShort(20).putShort(1) // attribute start, size, count
+                .putShort(0).putShort(0).putShort(0) // id, class and style attribute indices
+                .putInt(namespace).putInt(nameIndex).putInt(value)
+                .putShort(8).put(0).put(TYPE_STRING.toByte()).putInt(value)
+                .array()
+            val end = ByteBuffer.allocate(END_ELEMENT_SIZE).order(ByteOrder.LITTLE_ENDIAN)
+                .putShort(Chunk.XML_END_ELEMENT.toShort()).putShort(16).putInt(END_ELEMENT_SIZE)
+                .putInt(0).putInt(-1).putInt(-1).putInt(element)
+                .array()
+            listOf(start, end)
+        }
+    }
+
+    private fun elementName(bytes: ByteArray, pool: StringPool): String? {
+        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        val headerSize = buffer.getShort(2).toInt() and 0xFFFF
+        return pool[buffer.getInt(headerSize + 4)]
+    }
+
+    private fun stringAttribute(bytes: ByteArray, pool: StringPool, resourceIds: IntArray, resourceId: Int): String? {
+        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        val headerSize = buffer.getShort(2).toInt() and 0xFFFF
+        val attributeStart = buffer.getShort(headerSize + 8).toInt() and 0xFFFF
+        val attributeSize = buffer.getShort(headerSize + 10).toInt() and 0xFFFF
+        val attributeCount = buffer.getShort(headerSize + 12).toInt() and 0xFFFF
+        return (0 until attributeCount).firstNotNullOfOrNull { i ->
+            val attribute = Attribute(buffer, headerSize + attributeStart + i * attributeSize)
+            if (resourceIds.getOrElse(attribute.nameIndex) { 0 } == resourceId && attribute.dataType == TYPE_STRING) {
+                pool[attribute.rawValue]
+            } else {
+                null
+            }
+        }
     }
 
     private fun patchElement(bytes: ByteArray, pool: StringPool, resourceIds: IntArray, patch: ManifestPatch) {
@@ -144,6 +211,11 @@ class ManifestPatcher {
         const val ATTR_SCREEN_ORIENTATION = 0x0101001e
         const val ATTR_VERSION_CODE = 0x0101021b
         const val ATTR_VERSION_NAME = 0x0101021c
+
+        private const val ANDROID_NAMESPACE = "http://schemas.android.com/apk/res/android"
+        private const val USES_PERMISSION = "uses-permission"
+        private const val START_ELEMENT_SIZE = 16 + 20 + 20
+        private const val END_ELEMENT_SIZE = 16 + 8
 
         private val LABELLED_ELEMENTS = setOf("application", "activity", "activity-alias")
         private val COMPONENT_ELEMENTS = setOf("application", "activity", "activity-alias", "service", "receiver", "provider")
