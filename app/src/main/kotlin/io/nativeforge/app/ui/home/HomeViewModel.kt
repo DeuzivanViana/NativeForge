@@ -137,7 +137,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 is Outcome.Success -> {
                     _state.update { it.copy(clone = null) }
                     refresh()
-                    onCloned(imported.value.name)
+                    onCloned(imported.value.key)
                 }
                 is Outcome.Failure -> _state.update { it.copy(clone = CloneState("", error = imported.error.message)) }
             }
@@ -153,21 +153,72 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         if (cloneJob?.isActive != true) _state.update { it.copy(clone = null) }
     }
 
-    fun createProject(name: String, template: ProjectTemplate, options: ProjectOptions, onCreated: (String) -> Unit) {
+    /**
+     * Creates a project from [template] in the workspace, or in `<parent>/<name>` on the
+     * device when [parent] is set. [onCreated] receives the project's key.
+     */
+    fun createProject(name: String, template: ProjectTemplate, options: ProjectOptions, parent: File?, onCreated: (String) -> Unit) {
         viewModelScope.launch {
-            when (val result = container.projectRepository.create(name.trim(), template, options)) {
+            when (val result = container.projectRepository.create(name.trim(), template, options, parent)) {
                 is Outcome.Success -> {
                     refresh()
-                    onCreated(result.value.name)
+                    onCreated(result.value.key)
                 }
                 is Outcome.Failure -> _state.update { it.copy(message = result.error.message) }
             }
         }
     }
 
+    /** Opens a folder of the device as a project, in place. [onOpened] receives the project's key. */
+    fun openFolder(directory: File, onOpened: (String) -> Unit) {
+        viewModelScope.launch {
+            when (val result = container.projectRepository.openFolder(directory)) {
+                is Outcome.Success -> {
+                    refresh()
+                    onOpened(result.value.key)
+                }
+                is Outcome.Failure -> _state.update { it.copy(message = result.error.message) }
+            }
+        }
+    }
+
+    /**
+     * Copies a folder that cannot be opened in place (a cloud drive, or no file access) into
+     * the workspace as a new project called [name].
+     */
+    fun importCopy(copyInto: (File) -> Int, name: String, onOpened: (String) -> Unit) {
+        viewModelScope.launch {
+            val target = when (val dir = container.projectRepository.directoryFor(name)) {
+                is Outcome.Success -> dir.value
+                is Outcome.Failure -> {
+                    _state.update { it.copy(message = dir.error.message) }
+                    return@launch
+                }
+            }
+            _state.update { it.copy(message = "Copying $name…") }
+            val copied = withContext(Dispatchers.IO) {
+                runCatching { copyInto(target) }.onFailure { io.nativeforge.core.common.SafeFiles.deleteTree(target) }
+            }
+            copied.exceptionOrNull()?.let { error ->
+                _state.update { it.copy(message = "Could not copy the folder: ${error.message}") }
+                return@launch
+            }
+            when (val imported = container.projectRepository.importDirectory(target)) {
+                is Outcome.Success -> {
+                    refresh()
+                    _state.update { it.copy(message = "Copied ${copied.getOrDefault(0)} files into NativeForge") }
+                    onOpened(imported.value.key)
+                }
+                is Outcome.Failure -> _state.update { it.copy(message = imported.error.message) }
+            }
+        }
+    }
+
+    /** Deletes a workspace project, or forgets an opened folder (its files stay on the device). */
     fun deleteProject(project: Project) {
         viewModelScope.launch {
-            container.projectRepository.delete(project)
+            val result = if (project.isExternal) container.projectRepository.forget(project) else container.projectRepository.delete(project)
+            (result as? Outcome.Failure)?.let { failure -> _state.update { it.copy(message = failure.error.message) } }
             refresh()
         }
     }
@@ -188,6 +239,8 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
     }
+
+    fun showMessage(text: String) = _state.update { it.copy(message = text) }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
 }

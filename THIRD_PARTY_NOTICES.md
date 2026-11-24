@@ -23,6 +23,8 @@
 | `android_native_app_glue` from the Android NDK r27c | Bundled Android library | Apache-2.0 |
 | [SDL_image](https://github.com/libsdl-org/SDL_image) 3.4.8, [SDL_ttf](https://github.com/libsdl-org/SDL_ttf) 3.2.2, [SDL_mixer](https://github.com/libsdl-org/SDL_mixer) 3.2.4 (with stb_image, stb_vorbis, dr_libs inside) | Bundled Android libraries | Zlib (bundled decoders: public domain / MIT) |
 | [Box2D](https://box2d.org/) 2.4.1 | Bundled Android library | MIT |
+| [LVGL](https://lvgl.io/) 9.6.0 with its widgets demo, and the libraries inside it that the build enables: LodePNG (Zlib), TJpgDec (TJpgDec license, permissive), AnimatedGIF (Apache-2.0), QR Code generator (MIT), code128 (BSD-2-Clause), Tiny TTF from stb_truetype (MIT or Unlicense); fonts Montserrat and Font Awesome symbols | Bundled Android library | MIT; fonts SIL OFL 1.1 |
+| `lv_nativeforge` (`packages/lvgl/`), LVGL setup for Android shipped in the `lvgl` package | Bundled Android library | Zlib |
 | [Box3D](https://github.com/erincatto/box3d) 0.1.0 | Bundled Android library | MIT |
 | [JGit](https://www.eclipse.org/jgit/) 5.13.5 | Git client | EDL-1.0 (BSD-3-Clause) |
 | [JavaEWAH](https://github.com/lemire/javaewah) (JGit dependency) | Git bitmaps | Apache-2.0 |
@@ -41,5 +43,5 @@ Grammar and theme JSON files were taken from the `tm-grammars` 1.32.22 and
 `tm-themes` 1.12.12 npm packages.
 
 The Android libraries in `app/src/main/assets/packages/` are built from the
-Ubuntu source packages of each project (Box3D from its v0.1.0 git tag) by `packages/build-android-libs.sh`.
+Ubuntu source packages of each project (Box3D and LVGL from their git tags, commits checked) by `packages/build-android-libs.sh`.
 Each archive ships the project's license file under `share/licenses/`.

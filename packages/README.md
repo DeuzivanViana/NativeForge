@@ -90,6 +90,7 @@ when updating `SDL2_VERSION`.
 | sdl3, sdl3-image, sdl3-ttf, sdl3-mixer | shared | satellites depend on sdl3 and are preloaded after it |
 | sdl2, sdl2-image, sdl2-ttf, sdl2-mixer | shared | SDL 2.32 for older code; JNI glue relocated to `org.libsdl.sdl2` |
 | imgui | static | Dear ImGui core and backends for SDL2/SDL3, SDL renderer, OpenGL ES 3, Vulkan, Android |
+| lvgl | static | LVGL 9.6 on the SDL2 driver (depends on sdl2), widgets demo, `lv_nativeforge.h` for a full screen, density-scaled display with touch and keyboard; configuration in `packages/lvgl/lv_conf.h` |
 | vulkan | headers + stub | Vulkan headers from the NDK and a `libvulkan.so` link stub |
 | raylib, raygui | static / header | raylib links with `-Wl,--wrap=fopen`; `libraylib.a` also carries a `__real_fopen` fallback |
 | sfml | shared | graphics, window, audio, network, system |

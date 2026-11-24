@@ -14,8 +14,8 @@ android {
 
     defaultConfig {
         applicationId = "io.github.deuzivanviana.nativeforge"
-        versionCode = 14
-        versionName = "0.7.2"
+        versionCode = 16
+        versionName = "0.9.0"
 
         // URL of the Android-targeted library index (see packages/README.md).
         // Override with -Pnativeforge.packageIndexUrl=... ; empty disables that source.

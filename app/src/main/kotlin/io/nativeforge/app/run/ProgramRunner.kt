@@ -18,7 +18,9 @@ import java.io.File
 object ProgramRunner {
 
     /** @return an error message, or null when the program was started. */
-    fun run(context: Context, container: AppContainer, project: Project, artifact: BuildArtifact): String? {
+    fun run(context: Context, container: AppContainer, project: Project, builtArtifact: BuildArtifact): String? {
+        val artifact = stageIfOutside(context, builtArtifact)
+            ?: return "Could not copy ${builtArtifact.file.name} to NativeForge's storage to run it"
         val environment = container.toolchain.environment()
         return when (project.config.runtime) {
             RuntimeKind.CONSOLE -> {
@@ -79,6 +81,24 @@ object ProgramRunner {
     }.getOrElse { listOf("Could not read the log: ${it.message}") }
 
     private fun errorFile(context: Context) = File(context.filesDir, "run/last-error.txt")
+
+    /**
+     * Android only runs programs and loads libraries from the app's own storage: shared
+     * storage and SD cards are mounted noexec. A program a Make or Ninja build wrote into a
+     * project folder there is copied to `files/run/staged/` first (same file name, so a
+     * library's soname still matches). Returns the artifact to run, or null if the copy failed.
+     */
+    private fun stageIfOutside(context: Context, artifact: BuildArtifact): BuildArtifact? {
+        val dataDir = context.applicationInfo.dataDir.let { File(it).canonicalPath } + File.separator
+        if (artifact.file.canonicalPath.startsWith(dataDir)) return artifact
+        return runCatching {
+            val staged = File(context.filesDir, "run/staged/${artifact.file.name}")
+            staged.parentFile?.mkdirs()
+            artifact.file.copyTo(staged, overwrite = true)
+            staged.setExecutable(true, false)
+            artifact.copy(file = staged)
+        }.getOrNull()
+    }
 
     /** Opens an interactive shell with the toolchain on PATH. */
     fun openShell(context: Context, container: AppContainer) {

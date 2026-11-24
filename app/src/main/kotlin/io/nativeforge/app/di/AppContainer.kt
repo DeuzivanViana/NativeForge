@@ -44,8 +44,12 @@ class AppContainer(context: Context) {
     val layout = ToolchainLayout(appContext.filesDir).also { it.ensureDirectories() }
     val toolchain: Toolchain = ClangToolchain(layout, abi)
 
-    val projectRepository: ProjectRepository =
-        FileSystemProjectRepository(File(appContext.filesDir, "projects").also { it.mkdirs() })
+    val projectRepository: ProjectRepository = FileSystemProjectRepository(
+        workspaceRoot = File(appContext.filesDir, "projects").also { it.mkdirs() },
+        // Folders opened from shared storage or an SD card, and where they build.
+        linkedProjectsFile = File(appContext.filesDir, "linked-projects.json"),
+        externalBuildRoot = File(appContext.filesDir, "external-builds"),
+    )
 
     private val http = AssetAwareHttpClient(
         appContext.assets,

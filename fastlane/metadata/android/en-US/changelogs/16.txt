@@ -1,0 +1,3 @@
+• Open projects from any folder of the phone or SD card and build them where they are, or create new projects there ("Files and media" permission, asked only then). Cloud drive folders can be imported as a copy
+• LVGL 9.6: a library for touch apps with buttons, lists, tabs, charts and an on-screen keyboard, with a template in C and C++
+• New examples: LVGL widgets demo, to-do list and calculator, OpenGL ES cube, touch synthesizer, raylib + EnTT particles, Lua console and JSON address book

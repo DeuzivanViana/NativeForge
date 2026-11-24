@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SportsEsports
@@ -93,6 +94,19 @@ fun ProjectCard(summary: ProjectSummary, onOpen: () -> Unit, onDelete: () -> Uni
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (summary.project.isExternal) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.FolderOpen, contentDescription = "Folder on the phone", tint = colors.onSurfaceVariant, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            summary.project.root.path.removePrefix("/storage/emulated/0/"),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = colors.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.StartEllipsis,
+                        )
+                    }
+                }
                 Text(
                     detailLine(summary),
                     style = MaterialTheme.typography.labelSmall,
@@ -110,7 +124,13 @@ fun ProjectCard(summary: ProjectSummary, onOpen: () -> Unit, onDelete: () -> Uni
                         modifier = Modifier.height(36.dp),
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete", style = MaterialTheme.typography.bodyMedium, color = colors.error) },
+                        text = {
+                            if (summary.project.isExternal) {
+                                Text("Remove from list", style = MaterialTheme.typography.bodyMedium)
+                            } else {
+                                Text("Delete", style = MaterialTheme.typography.bodyMedium, color = colors.error)
+                            }
+                        },
                         onClick = { menuOpen = false; onDelete() },
                         modifier = Modifier.height(36.dp),
                     )
