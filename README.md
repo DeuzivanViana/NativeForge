@@ -3,11 +3,11 @@
 An Android IDE for C and C++ that compiles **on the device**: write code with
 clangd completion and live errors, build it with clang and CMake, Make or Ninja
 (or the built-in build), run console programs in a real terminal or graphical
-programs full screen (OpenGL ES, Vulkan, raylib, SFML, SDL2, SDL3, Dear ImGui), and export any program
+programs full screen (OpenGL ES, Vulkan, raylib, SFML, SDL2, SDL3, Dear ImGui, LVGL), and export any program
 as a standalone APK with its own name, package id and version. It works with a
 touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 
-> Status: **0.8.0**. See [docs/ROADMAP.md](docs/ROADMAP.md) for what works today
+> Status: **0.9.0**. See [docs/ROADMAP.md](docs/ROADMAP.md) for what works today
 > and what comes next, and [docs/FDROID.md](docs/FDROID.md) for the F-Droid status.
 
 <p align="center"><img src="fastlane/metadata/android/en-US/images/icon.png" width="96" alt="NativeForge icon"></p>
@@ -36,15 +36,16 @@ touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 | Formatter | clang-format with a project `.clang-format` or a chosen style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU), optional format on save | `core/codeintel` |
 | Keyboard and mouse | VS Code shortcuts (command palette, quick open, build, go to line, move lines, comment...), Ctrl+wheel zoom | `app/.../workspace/commands` |
 | Asset viewer | Images (PNG, JPEG, WebP, GIF, BMP, TGA), sounds, 3D models (OBJ, STL, PLY, glTF/GLB) and fonts | `core/assets`, `feature/assets` |
+| Projects | Projects in NativeForge's storage, or in any folder of the phone or SD card, opened and built where they are (Open folder; the files stay visible to other apps); folders from cloud drives can be imported as a copy | `core/project`, `app/.../storage` |
 | Explorer | Collapsible tree with file icons, new file/folder, rename, delete; Changes tab with git status, diffs, commit, pull and push | `app/.../workspace` |
 | Git | Clone over HTTPS (no submodules, hooks or symlinks), status, diff, commit, discard, pull/push with an in-memory token | `core/vcs` (JGit) |
 | Settings | App theme (11 palettes), editor theme, font size, tab width, wrap, line numbers, terminal font, auto save, explorer swipe, git author | `app/.../settings` |
 | Toolchain | clang/lld/cmake/ninja/make from the Termux repository, installed into the app | `core/toolchain`, `core/packages` |
 | Builds | Four independent build systems: built-in (incremental, single folder), CMake (Ninja or Unix Makefiles generator), Make and Ninja. Imported projects are detected automatically; the program file is found or set in Build settings | `core/build` |
-| Packages | 23 bundled Android libraries (SDL3 and SDL2 + image/ttf/mixer, Dear ImGui, raylib + raygui, SFML, Box2D, Box3D, Lua, GLM, EnTT, JSON, stb, miniaudio, GLES, Vulkan), your own HTTPS package repositories (Settings), plus Termux libraries for console programs; any number per project | `core/packages`, `packages/` |
+| Packages | 24 bundled Android libraries (SDL3 and SDL2 + image/ttf/mixer, Dear ImGui, LVGL, raylib + raygui, SFML, Box2D, Box3D, Lua, GLM, EnTT, JSON, stb, miniaudio, GLES, Vulkan), your own HTTPS package repositories (Settings), plus Termux libraries for console programs; any number per project | `core/packages`, `packages/` |
 | Terminal | Termux terminal emulator with a PTY, extra keys bar | `feature/terminal` |
 | Graphics | NativeActivity host + native shim (raylib, SFML, OpenGL ES) and SDLActivity hosts for SDL3 and SDL2 | `feature/runner` |
-| Templates | Console, raylib, SDL3, SDL2, Dear ImGui, SFML, OpenGL ES and Vulkan, each in C or C++ where the library allows, with the built-in build, CMake or a Makefile; example projects: 2D physics (raylib + Box2D) and 3D physics (raylib + Box3D) | `core/project` |
+| Templates | Console, raylib, SDL3, SDL2, Dear ImGui, LVGL, SFML, OpenGL ES and Vulkan, each in C or C++ where the library allows, with the built-in build, CMake or a Makefile; example projects: 2D physics (raylib + Box2D), 3D physics (raylib + Box3D), LVGL widgets demo, to-do list and calculator, OpenGL ES cube (SDL3 + GLM), touch synthesizer (SDL3 audio), particles (raylib + EnTT), Lua console and JSON address book | `core/project` |
 | Export | APK or Android App Bundle (AAB) for Google Play from a prebuilt runtime template (binary or proto manifest patched on the device), libraries and the project's `assets/`, custom icon, orientation, full screen, keep screen on, release or debug; signed with apksig using the device key or your own keystore (create, or import JKS/PKCS#12/BKS, back up) | `core/export`, `app/.../signing`, `runtime-template` |
 
 ## Building
@@ -129,7 +130,9 @@ The app does not include a compiler. When you tap Install on the home screen,
 it explains what will be downloaded and asks first; then it downloads clang,
 lld, CMake, Ninja and Make from the [Termux](https://termux.dev) package
 repository into its own storage. Git clone, pull and push talk to the server
-you give. There are no ads, analytics or trackers.
+you give. Android's "Files and media" permission is asked only when you open
+or create a project in a folder outside the app, and NativeForge only reads
+the folders you open. There are no ads, analytics or trackers.
 
 ## Contributing
 

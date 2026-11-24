@@ -16,7 +16,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Contacts
+import androidx.compose.material.icons.filled.Piano
+import androidx.compose.material.icons.filled._3dRotation
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Category
@@ -57,12 +66,19 @@ import io.nativeforge.core.ui.component.NfTextField
 import io.nativeforge.core.ui.component.SegmentedChoice
 import io.nativeforge.core.ui.component.Tag
 
-/** "New project": name, template (grouped by category) and the options the template supports. */
+/**
+ * "New project": name, location, template (grouped by category) and the options the template
+ * supports. [location] is a folder of the device chosen through [onChooseLocation], or null for
+ * NativeForge's own storage.
+ */
 @Composable
 fun NewProjectDialog(
     existingNames: Set<String>,
+    location: java.io.File?,
+    onChooseLocation: () -> Unit,
+    onResetLocation: () -> Unit,
     onDismiss: () -> Unit,
-    onCreate: (String, ProjectTemplate, ProjectOptions) -> Unit,
+    onCreate: (String, ProjectTemplate, ProjectOptions, java.io.File?) -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var templateId by rememberSaveable { mutableStateOf(ProjectTemplates.all.first().id) }
@@ -82,7 +98,8 @@ fun NewProjectDialog(
     val trimmed = name.trim()
     val nameError = when {
         trimmed.isEmpty() -> null
-        trimmed in existingNames -> "A project with this name already exists"
+        location == null && trimmed in existingNames -> "A project with this name already exists"
+        location != null && java.io.File(location, trimmed).exists() -> "This folder already has a '$trimmed' folder"
         else -> ProjectNameValidator.validate(trimmed)
     }
     val files = remember(template, options) { template.generate(trimmed.ifEmpty { "project" }, options).files.keys.sorted() }
@@ -96,7 +113,7 @@ fun NewProjectDialog(
             DialogSecondaryButton("Cancel", onDismiss)
             DialogPrimaryButton(
                 "Create",
-                onClick = { onCreate(trimmed, template, options) },
+                onClick = { onCreate(trimmed, template, options, location) },
                 enabled = trimmed.isNotEmpty() && nameError == null,
             )
         },
@@ -111,8 +128,31 @@ fun NewProjectDialog(
                 label = "Project name",
                 placeholder = "my_game",
                 error = nameError,
-                supportingText = "Letters, digits, '-' and '_'. Saved in projects/${trimmed.ifEmpty { "…" }}",
+                supportingText = "Letters, digits, '-' and '_'. Saved in " +
+                    (location?.path?.let { "$it/" } ?: "NativeForge's projects/") + trimmed.ifEmpty { "…" },
             )
+
+            Column {
+                FieldLabel("Location")
+                SegmentedChoice(
+                    options = listOf(false, true),
+                    selected = location != null,
+                    onSelect = { onDevice -> if (onDevice) onChooseLocation() else onResetLocation() },
+                    label = { if (it) "Folder on the phone" else "NativeForge" },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (location == null) {
+                    Hint("Private to the app: removed when NativeForge is uninstalled.")
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Hint(
+                            "Other apps (file managers, Termux, git) see it, and it stays after uninstalling.",
+                            Modifier.weight(1f),
+                        )
+                        DialogSecondaryButton("Change", onChooseLocation)
+                    }
+                }
+            }
 
             TemplateCategory.entries.forEach { category ->
                 val templates = ProjectTemplates.all.filter { it.category == category }
@@ -154,7 +194,9 @@ fun NewProjectDialog(
                     enabled = { it in template.languages },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (template.languages.size == 1) Hint("${template.displayName} is C++ only.")
+                if (template.languages.size == 1) {
+                    Hint("${template.displayName} is ${if (template.languages.first() == Language.C) "C" else "C++"} only.")
+                }
             }
             Column {
                 FieldLabel("Standard")
@@ -296,8 +338,8 @@ private fun DetailLine(label: String, value: String) {
 }
 
 @Composable
-private fun Hint(text: String) {
-    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+private fun Hint(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = modifier.padding(top = 4.dp))
 }
 
 private fun runsIn(runtime: RuntimeKind): String = when (runtime) {
@@ -317,5 +359,14 @@ private fun templateIcon(template: ProjectTemplate): ImageVector = when (templat
     "opengles" -> Icons.Filled.Gradient
     "raylib-physics" -> Icons.Filled.Category
     "raylib-3d-physics" -> Icons.Filled.ViewInAr
+    "lvgl" -> Icons.Filled.Widgets
+    "lvgl-widgets-demo" -> Icons.Filled.Apps
+    "lvgl-tasks" -> Icons.Filled.Checklist
+    "lvgl-calculator" -> Icons.Filled.Calculate
+    "gles-cube" -> Icons.Filled._3dRotation
+    "sdl3-synth" -> Icons.Filled.Piano
+    "ecs-particles" -> Icons.Filled.AutoAwesome
+    "lua-console" -> Icons.Filled.Code
+    "json-contacts" -> Icons.Filled.Contacts
     else -> Icons.Filled.Terminal
 }

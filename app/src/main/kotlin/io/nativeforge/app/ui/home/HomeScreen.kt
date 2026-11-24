@@ -1,5 +1,8 @@
 package io.nativeforge.app.ui.home
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +23,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
@@ -50,6 +54,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.nativeforge.app.di.appContainer
 import io.nativeforge.app.run.ProgramRunner
+import io.nativeforge.app.storage.DeviceFolders
 import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.ui.component.CompactTopBar
 import io.nativeforge.core.ui.component.DialogPrimaryButton
@@ -57,6 +62,7 @@ import io.nativeforge.core.ui.component.NfConfirmDialog
 import io.nativeforge.core.ui.component.EmptyState
 import io.nativeforge.core.ui.component.SectionHeader
 import io.nativeforge.core.ui.component.ToolbarIconButton
+import java.io.File
 
 @Composable
 fun HomeScreen(
@@ -73,6 +79,32 @@ fun HomeScreen(
     var showClone by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<Project?>(null) }
 
+    // Folders of the device: the system picker, the "Files and media" permission and the
+    // copy fallback for folders that cannot be built in place.
+    var pickPurpose by rememberSaveable { mutableStateOf(FolderPurpose.OPEN_PROJECT) }
+    var accessPurpose by remember { mutableStateOf<FolderPurpose?>(null) }
+    var pendingCopy by remember { mutableStateOf<Uri?>(null) }
+    var newProjectParent by rememberSaveable { mutableStateOf<String?>(null) }
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val path = DeviceFolders.pathOf(context, uri)?.takeIf { DeviceFolders.hasStorageAccess(context) }
+        when (pickPurpose) {
+            FolderPurpose.OPEN_PROJECT -> if (path != null) viewModel.openFolder(path, onOpenProject) else pendingCopy = uri
+            FolderPurpose.NEW_PROJECT_LOCATION -> if (path != null) {
+                newProjectParent = path.path
+            } else {
+                viewModel.showMessage("Choose a folder on the phone's storage or SD card, and allow access to files")
+            }
+        }
+    }
+    val permissionRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        folderPicker.launch(null)
+    }
+    val pickFolder: (FolderPurpose) -> Unit = { purpose ->
+        pickPurpose = purpose
+        if (DeviceFolders.hasStorageAccess(context)) folderPicker.launch(null) else accessPurpose = purpose
+    }
+
     LaunchedEffect(state.message) {
         state.message?.let {
             snackbar.showSnackbar(it)
@@ -87,6 +119,7 @@ fun HomeScreen(
                 subtitle = "C/C++ on Android",
                 actions = {
                     ToolbarIconButton(Icons.Filled.Add, "New project", { showNewProject = true }, tint = MaterialTheme.colorScheme.primary)
+                    ToolbarIconButton(Icons.Filled.FolderOpen, "Open folder", { pickFolder(FolderPurpose.OPEN_PROJECT) })
                     ToolbarIconButton(Icons.Filled.Download, "Clone repository", { showClone = true })
                     ToolbarIconButton(Icons.Filled.Terminal, "Terminal", { ProgramRunner.openShell(context, container) })
                     ToolbarIconButton(Icons.Filled.Inventory2, "Packages", onOpenPackages)
@@ -100,13 +133,19 @@ fun HomeScreen(
                 EmptyState(
                     icon = Icons.Filled.Code,
                     title = "No projects yet",
-                    message = "Create a console, raylib, SDL3, SFML or OpenGL ES project, or clone one from a git repository.",
+                    message = "Create a console, LVGL, raylib, SDL or OpenGL ES project, open a folder from your phone, " +
+                        "or clone a git repository.",
                     action = {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FilledTonalButton(onClick = { showNewProject = true }, shape = MaterialTheme.shapes.small) {
                                 Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text("New project")
+                            }
+                            OutlinedButton(onClick = { pickFolder(FolderPurpose.OPEN_PROJECT) }, shape = MaterialTheme.shapes.small) {
+                                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Open folder")
                             }
                             OutlinedButton(onClick = { showClone = true }, shape = MaterialTheme.shapes.small) {
                                 Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -118,6 +157,7 @@ fun HomeScreen(
                 )
             } else {
                 SectionHeader("Recent projects · ${state.projects.size}") {
+                    ToolbarIconButton(Icons.Filled.FolderOpen, "Open folder", { pickFolder(FolderPurpose.OPEN_PROJECT) })
                     ToolbarIconButton(Icons.Filled.Download, "Clone repository", { showClone = true })
                     ToolbarIconButton(Icons.Filled.Add, "New project", { showNewProject = true })
                 }
@@ -129,7 +169,7 @@ fun HomeScreen(
                     items(state.projects, key = { it.project.root.path }) { summary ->
                         ProjectCard(
                             summary = summary,
-                            onOpen = { onOpenProject(summary.project.name) },
+                            onOpen = { onOpenProject(summary.project.key) },
                             onDelete = { pendingDelete = summary.project },
                         )
                     }
@@ -139,14 +179,42 @@ fun HomeScreen(
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
 
+    val workspaceNames = state.projects.filterNot { it.project.isExternal }.map { it.project.name }.toSet()
     if (showNewProject) {
         NewProjectDialog(
-            existingNames = state.projects.map { it.project.name }.toSet(),
+            existingNames = workspaceNames,
+            location = newProjectParent?.let(::File),
+            onChooseLocation = { pickFolder(FolderPurpose.NEW_PROJECT_LOCATION) },
+            onResetLocation = { newProjectParent = null },
             onDismiss = { showNewProject = false },
-            onCreate = { name, template, options ->
+            onCreate = { name, template, options, parent ->
                 showNewProject = false
-                viewModel.createProject(name, template, options, onOpenProject)
+                viewModel.createProject(name, template, options, parent, onOpenProject)
             },
+        )
+    }
+
+    accessPurpose?.let { purpose ->
+        StorageAccessDialog(
+            purpose = purpose,
+            onAllow = { accessPurpose = null; permissionRequest.launch(DeviceFolders.PERMISSIONS) },
+            onCopyInstead = { accessPurpose = null; folderPicker.launch(null) },
+            onDismiss = { accessPurpose = null },
+        )
+    }
+
+    pendingCopy?.let { uri ->
+        val folderName = remember(uri) { DeviceFolders.nameOf(context, uri) ?: "Imported" }
+        ImportCopyDialog(
+            folderName = folderName,
+            onPhoneStorage = DeviceFolders.pathOf(context, uri) != null,
+            onImport = {
+                pendingCopy = null
+                val name = projectNameForCopy(folderName, workspaceNames)
+                viewModel.importCopy({ target -> DeviceFolders.copyTree(context, uri, target) }, name, onOpenProject)
+            },
+            onOpenSettings = { pendingCopy = null; context.startActivity(DeviceFolders.appSettingsIntent(context)) },
+            onDismiss = { pendingCopy = null },
         )
     }
 
@@ -167,10 +235,14 @@ fun HomeScreen(
 
     pendingDelete?.let { project ->
         NfConfirmDialog(
-            title = "Delete ${project.name}?",
-            message = "The project folder and all its files are removed. This cannot be undone.",
-            confirmLabel = "Delete",
-            destructive = true,
+            title = if (project.isExternal) "Remove ${project.name} from the list?" else "Delete ${project.name}?",
+            message = if (project.isExternal) {
+                "The folder ${project.root.path} and its files stay on your phone; only NativeForge's build files are removed. Open it again at any time."
+            } else {
+                "The project folder and all its files are removed. This cannot be undone."
+            },
+            confirmLabel = if (project.isExternal) "Remove" else "Delete",
+            destructive = !project.isExternal,
             onConfirm = { viewModel.deleteProject(project); pendingDelete = null },
             onDismiss = { pendingDelete = null },
         )

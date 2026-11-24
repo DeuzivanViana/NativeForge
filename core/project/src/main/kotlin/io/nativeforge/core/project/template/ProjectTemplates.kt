@@ -84,6 +84,22 @@ object ProjectTemplates {
             sources = { mapOf("src/main.cpp" to TemplateSources.IMGUI) },
         ),
         SimpleTemplate(
+            id = "lvgl",
+            displayName = "LVGL app",
+            description = "Touch app with buttons, lists, sliders and a keyboard.",
+            details = "LVGL 9.6 draws real app screens: buttons, switches, sliders, lists, tabs, charts, " +
+                "message boxes and an on-screen keyboard, with themes and animations. Runs in the SDL2 host; " +
+                "lv_nativeforge.h sets up the full screen display and touch. Sizes are in dp, like Android layouts.",
+            category = TemplateCategory.GRAPHICS,
+            runtime = RuntimeKind.SDL2,
+            languages = C_AND_CPP,
+            packages = listOf("sdl2", "lvgl"),
+            sources = { language ->
+                if (language == Language.C) mapOf("src/main.c" to TemplateResources.read("lvgl/main.c"))
+                else mapOf("src/main.cpp" to TemplateResources.read("lvgl/main.cpp"))
+            },
+        ),
+        SimpleTemplate(
             id = "sfml",
             displayName = "SFML app",
             description = "Graphics, window and audio with SFML 3.",
@@ -153,6 +169,112 @@ object ProjectTemplates {
             languages = listOf(Language.CPP),
             packages = listOf("raylib", "raygui", "box3d"),
             sources = { mapOf("src/main.cpp" to TemplateSources.RAYLIB_3D_PHYSICS) },
+        ),
+        SimpleTemplate(
+            id = "lvgl-widgets-demo",
+            displayName = "LVGL widgets demo",
+            description = "LVGL's showcase: forms, charts and a shop page.",
+            details = "Runs lv_demo_widgets(), LVGL's own demo with a profile form, an analytics dashboard " +
+                "and a shop page in tabs. A quick way to see what LVGL apps look like on your phone.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.SDL2,
+            languages = listOf(Language.C),
+            packages = listOf("sdl2", "lvgl"),
+            sources = { mapOf("src/main.c" to TemplateResources.read("lvgl-widgets-demo/main.c")) },
+        ),
+        SimpleTemplate(
+            id = "lvgl-tasks",
+            displayName = "To-do list app",
+            description = "LVGL: tabs, check boxes, keyboard, chart; saves its data.",
+            details = "A complete small app in C with LVGL: add tasks with the on-screen keyboard, tick them off, " +
+                "delete them, and follow your progress on an arc and a bar chart. Tasks are saved in the app's " +
+                "private folder and loaded at the next start.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.SDL2,
+            languages = listOf(Language.C),
+            packages = listOf("sdl2", "lvgl"),
+            sources = { mapOf("src/main.c" to TemplateResources.read("lvgl-tasks/main.c")) },
+        ),
+        SimpleTemplate(
+            id = "lvgl-calculator",
+            displayName = "Calculator app",
+            description = "LVGL in C++: button matrix and large display.",
+            details = "A calculator written in C++ with LVGL: the keys are one lv_buttonmatrix, the logic is a " +
+                "plain C++ class with no LVGL code, which keeps it easy to test. Dark theme, orange accents.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.SDL2,
+            languages = listOf(Language.CPP),
+            packages = listOf("sdl2", "lvgl"),
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("lvgl-calculator/main.cpp")) },
+        ),
+        SimpleTemplate(
+            id = "gles-cube",
+            displayName = "3D cube with shaders",
+            description = "OpenGL ES 3 + GLM math on an SDL3 window.",
+            details = "A lit, spinning cube drawn with your own GLSL shaders, vertex buffers and GLM matrices " +
+                "(glm::perspective, glm::lookAt, glm::rotate). Drag to spin it. The base for learning 3D graphics " +
+                "without an engine.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.SDL3,
+            languages = listOf(Language.CPP),
+            packages = listOf("sdl3", "opengles", "glm"),
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("gles-cube/main.cpp")) },
+        ),
+        SimpleTemplate(
+            id = "sdl3-synth",
+            displayName = "Touch synthesizer",
+            description = "SDL3 audio: play notes with up to 10 fingers.",
+            details = "Generates sound in real time with an SDL3 audio stream: each finger plays a note of a " +
+                "pentatonic scale, brighter towards the top of the screen. Shows multi-touch, audio callbacks " +
+                "and SDL's built-in debug text. No sound files needed.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.SDL3,
+            languages = listOf(Language.C),
+            packages = listOf("sdl3"),
+            sources = { mapOf("src/main.c" to TemplateResources.read("sdl3-synth/main.c")) },
+        ),
+        SimpleTemplate(
+            id = "ecs-particles",
+            displayName = "Particles with EnTT",
+            description = "raylib + EnTT entity-component-system.",
+            details = "Thousands of particles stored as EnTT entities with position, velocity, lifetime and colour " +
+                "components, updated by small systems and drawn by raylib. Touch and drag to spray more. " +
+                "Shows how games organise data with an ECS.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.NATIVE_ACTIVITY,
+            languages = listOf(Language.CPP),
+            packages = listOf("raylib", "entt"),
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("ecs-particles/main.cpp")) },
+        ),
+        SimpleTemplate(
+            id = "lua-console",
+            displayName = "Lua scripting console",
+            description = "Embed Lua 5.4 in C; interactive prompt.",
+            details = "A C program that hosts the Lua interpreter: it exposes C functions to Lua, calls a Lua " +
+                "function from C, runs scripts/startup.lua (edit it without rebuilding) and opens a Lua prompt " +
+                "in the terminal.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.CONSOLE,
+            languages = listOf(Language.C),
+            packages = listOf("lua"),
+            sources = {
+                mapOf(
+                    "src/main.c" to TemplateResources.read("lua-console/main.c"),
+                    "scripts/startup.lua" to TemplateResources.read("lua-console/startup.lua"),
+                )
+            },
+        ),
+        SimpleTemplate(
+            id = "json-contacts",
+            displayName = "Contact book (JSON)",
+            description = "Console app that saves its data as JSON.",
+            details = "A terminal menu to list, add, search and delete contacts, stored in contacts.json with " +
+                "JSON for Modern C++ (nlohmann/json). Structs convert to and from JSON with one macro.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.CONSOLE,
+            languages = listOf(Language.CPP),
+            packages = listOf("nlohmann-json"),
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("json-contacts/main.cpp")) },
         ),
     )
 

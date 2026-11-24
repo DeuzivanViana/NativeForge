@@ -116,7 +116,7 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         CompactTopBar(
             title = "Export APK",
-            subtitle = projectName,
+            subtitle = java.io.File(projectName).name,
             navigation = { ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onBack) },
         )
         val settings = state.settings ?: return@Column
@@ -350,7 +350,7 @@ fun ExportScreen(projectName: String, onBack: () -> Unit) {
         }
     }
 
-    if (creatingKey) CreateKeyDialog(viewModel, state.settings?.appName.orEmpty().ifBlank { projectName }) { creatingKey = false }
+    if (creatingKey) CreateKeyDialog(viewModel, state.settings?.appName.orEmpty().ifBlank { java.io.File(projectName).name }) { creatingKey = false }
     state.pendingImport?.let { pending -> ImportKeyDialog(viewModel, pending, onDismiss = viewModel::cancelImport) }
     state.passwordPrompt?.let { key ->
         KeyPasswordDialog(

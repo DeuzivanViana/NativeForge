@@ -109,6 +109,8 @@ fun WorkspaceScreen(
         factory = viewModelFactory { initializer { WorkspaceViewModel(container, projectName) } },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // projectName is the project's key: a folder name, or a path for folders opened from the device.
+    val displayName = state.project?.name ?: File(projectName).name
     val settings by container.settings.settings.collectAsStateWithLifecycle()
     val editorState by viewModel.editor.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -239,7 +241,7 @@ fun WorkspaceScreen(
                     drawerShape = MaterialTheme.shapes.extraSmall,
                 ) {
                     ExplorerPanel(
-                        projectName = projectName,
+                        projectName = displayName,
                         state = state,
                         viewModel = viewModel,
                         onFileOpened = { scope.launch { drawerState.close() } },
@@ -254,7 +256,7 @@ fun WorkspaceScreen(
         if (wide && dockedExplorer) {
             Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.width(260.dp).fillMaxHeight()) {
                 ExplorerPanel(
-                    projectName = projectName,
+                    projectName = displayName,
                     state = state,
                     viewModel = viewModel,
                     onFileOpened = {},
@@ -267,7 +269,7 @@ fun WorkspaceScreen(
         Box(Modifier.weight(1f).fillMaxHeight().background(MaterialTheme.colorScheme.background)) {
             Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
                 CompactTopBar(
-                    title = projectName,
+                    title = displayName,
                     subtitle = state.activeFile?.let { File(it).name + if (it in state.dirtyFiles) " •" else "" },
                     navigation = {
                         ToolbarIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", leave)

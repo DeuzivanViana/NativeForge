@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the Android-targeted graphics libraries bundled with the IDE
-# (SDL3, raylib, SFML, native_app_glue, EGL/GLES headers) with the NDK, packages each one as a
+# (SDL3, raylib, SFML, LVGL, native_app_glue, EGL/GLES headers) with the NDK, packages each one as a
 # NativeForge "isolated" package and writes the index the IDE reads.
 #
 # Output: app/src/main/assets/packages/{index.json,<arch>/<name>-<version>.tar.xz}
@@ -56,6 +56,8 @@ SDL2_IMAGE_VERSION=2.8.12
 SDL2_TTF_VERSION=2.24.0
 SDL2_MIXER_VERSION=2.8.2
 IMGUI_VERSION=1.92.2b
+LVGL_VERSION=9.6.0
+LVGL_COMMIT=80ca777e37a2b176770726a02e07a6fb79ef0b39
 # Packages built by ONLY=... runs (names as in the index); empty means everything.
 ONLY=${ONLY:-}
 wanted() { [ -z "$ONLY" ] || [[ " $ONLY " == *" $1 "* ]]; }
@@ -97,6 +99,19 @@ fetch_new_sources() {
     download "$RAW/libsdl-org/SDL_mixer/release-$SDL2_MIXER_VERSION/src/codecs/minimp3/$f" \
       "SDL2_mixer-$SDL2_MIXER_VERSION/src/codecs/minimp3/$f"
   done
+  fetch_lvgl
+}
+
+# LVGL is not in the Ubuntu archive: shallow clone of the release tag, checked against its commit.
+fetch_lvgl() {
+  local L=$SRC/lvgl-$LVGL_VERSION
+  [ -d "$L" ] || git -c advice.detachedHead=false clone -q --depth 1 --branch "v$LVGL_VERSION" \
+    https://github.com/lvgl/lvgl "$L"
+  [ "$(git -C "$L" rev-parse HEAD)" = "$LVGL_COMMIT" ] ||
+    { echo "LVGL tag v$LVGL_VERSION is not commit $LVGL_COMMIT" >&2; exit 1; }
+  # Upstream bug: finger positions are divided by the zoom twice (hor_res is already the
+  # zoomed-out size), so touches land in the wrong place when lv_sdl_window_set_zoom() is used.
+  sed -i 's|event->tfinger\.\([xy]\) / zoom)|event->tfinger.\1)|' "$L/src/drivers/sdl/lv_sdl_mouse.c"
 }
 
 fetch_sources() {
@@ -341,6 +356,40 @@ build_imgui() { # abi
   cp "$I"/backends/imgui_impl_{sdl2,sdl3,sdlrenderer2,sdlrenderer3,opengl3,opengl3_loader,vulkan,android}.h "$S/include/"
 }
 
+# LVGL as a static library: the core, its SDL2 display/input driver, the widgets demo and
+# lv_nativeforge (packages/lvgl/), configured by packages/lvgl/lv_conf.h, which is installed
+# with the headers so programs see the same settings. Compiled through a generated
+# build.ninja (about 500 files per ABI).
+build_lvgl() { # abi sdl2-include-dir
+  local abi=$1 sdl2_include=$2 B=$WORK/build/$1/lvgl S=$WORK/stage/$1/lvgl L=$SRC/lvgl-$LVGL_VERSION
+  local P=$REPO/packages/lvgl
+  [ -f "$S/lib/liblvgl.a" ] && return
+  rm -rf "$B" "$S"; mkdir -p "$B" "$S/include/lvgl/include" "$S/lib"
+  {
+    echo "rule cc"
+    echo "  command = $LLVM/clang --target=$(triple $abi)$API -fPIC -O2 -ffunction-sections -fdata-sections" \
+      "-I$P -I$L -I$sdl2_include -DLV_LVGL_H_INCLUDE_SIMPLE -include $P/android_compat.h -c \$in -o \$out"
+    (cd "$L" && find src demos/widgets -name '*.c' && echo demos/lv_demos.c) | LC_ALL=C sort | while read -r c; do
+      echo "build obj/${c%.c}.o: cc $L/$c"
+    done
+    echo "build obj/lv_nativeforge.o: cc $P/lv_nativeforge.c"
+  } > "$B/build.ninja"
+  ninja -C "$B" -j"$JOBS" >"$B.log" 2>&1 || { grep -m5 -A8 "FAILED:" "$B.log"; exit 1; }
+  (cd "$B" && find obj -name '*.o' | LC_ALL=C sort | xargs "$LLVM/llvm-ar" rcsD "$S/lib/liblvgl.a")
+  "$LLVM/llvm-strip" --strip-debug "$S/lib/liblvgl.a"
+  # Headers in LVGL's own layout under include/lvgl/, so both "lvgl.h" and "lvgl/lvgl.h"
+  # (and "lvgl/demos/lv_demos.h") work as in LVGL's desktop simulator projects.
+  cp -r "$L/include/lvgl" "$S/include/lvgl/include/"
+  cp "$L/lvgl.h" "$S/include/lvgl/"
+  (cd "$L" && find demos -name '*.h' | while read -r h; do mkdir -p "$S/include/lvgl/$(dirname "$h")"; cp "$h" "$S/include/lvgl/$h"; done)
+  printf '#include "lvgl/lvgl.h"\n' > "$S/include/lvgl.h"
+  cp "$P/lv_conf.h" "$P/lv_nativeforge.h" "$S/include/"
+  mkdir -p "$S/share/licenses/lvgl"
+  cp "$L/LICENCE.txt" "$S/share/licenses/lvgl/LICENCE.txt"
+  cp "$L/COPYRIGHTS.md" "$S/share/licenses/lvgl/COPYRIGHTS.md"
+  cp "$REPO/LICENSE.runtime" "$S/share/licenses/lvgl/lv_nativeforge-LICENSE"
+}
+
 # Vulkan headers and the NDK's libvulkan.so link stub (the library itself is part of Android).
 stage_vulkan() { # abi
   local S=$WORK/stage/$1/vulkan sys=$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr
@@ -427,7 +476,7 @@ licenses() { # abi
 package() {
   [ -z "$ONLY" ] && rm -rf "$OUT"; mkdir -p "$OUT"
   ONLY="$ONLY" SDL2_VERSION=$SDL2_VERSION SDL2_IMAGE_VERSION=$SDL2_IMAGE_VERSION SDL2_TTF_VERSION=$SDL2_TTF_VERSION \
-  SDL2_MIXER_VERSION=$SDL2_MIXER_VERSION IMGUI_VERSION=$IMGUI_VERSION \
+  SDL2_MIXER_VERSION=$SDL2_MIXER_VERSION IMGUI_VERSION=$IMGUI_VERSION LVGL_VERSION=$LVGL_VERSION \
   SDL3_IMAGE_VERSION=$SDL3_IMAGE_VERSION SDL3_TTF_VERSION=$SDL3_TTF_VERSION SDL3_MIXER_VERSION=$SDL3_MIXER_VERSION \
   BOX2D_VERSION=$BOX2D_VERSION BOX3D_VERSION=$BOX3D_VERSION LUA_VERSION=$LUA_VERSION GLM_VERSION=$GLM_VERSION JSON_VERSION=$JSON_VERSION \
   RAYGUI_VERSION=$RAYGUI_VERSION ENTT_VERSION=$ENTT_VERSION MINIAUDIO_VERSION=$MINIAUDIO_VERSION \
@@ -482,6 +531,9 @@ specs = {
                   build=dict(linkLibraries=["imgui"], compileFlags=["-DIMGUI_IMPL_OPENGL_ES3"])),
     "vulkan": dict(version="ndk-r27c", description="Vulkan 1.3 headers and loader stub (the driver comes with Android)",
                    build=dict(linkLibraries=["vulkan", "android", "log", "m"])),
+    "lvgl": dict(version=v["LVGL_VERSION"], depends=["sdl2"],
+                 description="LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
+                 build=dict(linkLibraries=["lvgl", "m"])),
 }
 only = v.get("ONLY", "").split()
 if only:
@@ -545,6 +597,17 @@ if [ -z "${PACKAGE_ONLY:-}" ]; then
         SDL3_STAGE=$WORK/stage/$abi/sdl3-headers build_imgui "$abi"
       else
         build_imgui "$abi"
+      fi
+    fi
+    if wanted lvgl; then
+      # LVGL's SDL driver needs SDL2's headers; an ONLY run reads them from the bundled archive.
+      if [ -d "$WORK/stage/$abi/sdl2/include/SDL2" ]; then
+        build_lvgl "$abi" "$WORK/stage/$abi/sdl2/include/SDL2"
+      else
+        mkdir -p "$WORK/stage/$abi/sdl2-headers"
+        tar -xJf "$OUT/$(python3 -c "print({'arm64-v8a':'aarch64','armeabi-v7a':'arm','x86_64':'x86_64'}['$abi'])")/sdl2-$SDL2_VERSION.tar.xz" \
+          -C "$WORK/stage/$abi/sdl2-headers" include
+        build_lvgl "$abi" "$WORK/stage/$abi/sdl2-headers/include/SDL2"
       fi
     fi
   done

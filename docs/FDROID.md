@@ -29,8 +29,10 @@ repository, and how to submit. Policy references are from the
    `packages/build-android-libs.sh`, then deletes the script's work directory
    (`build/android-libs`) so the scanner only sees the new archives. The
    script only uses pinned upstream tarballs
-   (Ubuntu archive), single files from upstream git tags and the Box3D tag,
-   all checked against `packages/sources.sha256`. `libs-from-source.yml`
+   (Ubuntu archive), single files from upstream git tags and the Box3D and
+   LVGL git tags (each checked against its commit), all checked against
+   `packages/sources.sha256`. The LVGL clone needs `git`, which the recipe
+   already installs. `libs-from-source.yml`
    runs the same rebuild on GitHub. Reviewers may still ask to turn the
    sources into `srclibs` or git submodules.
 3. **Termux terminal from JitPack.** `terminal-view` and `terminal-emulator`
@@ -46,6 +48,12 @@ repository, and how to submit. Policy references are from the
    downloads and builds (Android 10+ forbids exec from app data for newer
    targets). F-Droid accepts this (Termux does the same), but say why in the
    merge request.
+   The same target gives the classic storage model: with the "Files and
+   media" permission (`READ/WRITE_EXTERNAL_STORAGE`, asked only when the user
+   opens or creates a project in a folder outside the app) the compiler,
+   CMake, Make and git work on projects in shared storage and on SD cards
+   through ordinary paths. All-files access (`MANAGE_EXTERNAL_STORAGE`) is
+   not used.
 6. **Signing.** F-Droid signs its build with its own key, so an F-Droid install
    cannot update a GitHub or debug install, and the other way round. Users
    have to uninstall first. Reproducible builds would let F-Droid ship the

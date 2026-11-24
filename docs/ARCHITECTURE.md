@@ -39,6 +39,24 @@ Termux makes. The IDE is distributed outside Google Play for that reason.
 Exported apps are not affected: they target API 35 because they only load
 libraries bundled in their own APK (see `NativeForgeConfig`).
 
+### Projects outside the workspace
+
+Workspace projects are folders of `files/workspace/` and are named by their
+folder. A project can also live in any folder of shared storage or an SD card:
+the same target SDK gives the classic storage model, so with
+`READ/WRITE_EXTERNAL_STORAGE` the toolchain, clangd and JGit use ordinary
+paths. The folder is chosen with `ACTION_OPEN_DOCUMENT_TREE`;
+`DeviceFolders.pathOf` maps an `externalstorage` tree URI to its path, and
+other providers (cloud drives) are copied into the workspace instead.
+`FileSystemProjectRepository` keeps the linked paths in
+`files/linked-projects.json`, and such projects are keyed by their canonical
+path (`Project.key`), which the navigation routes carry. Shared storage is
+mounted noexec, so `Project.buildDirectory` points to
+`files/external-builds/<name>-<hash>/`, and `ProgramRunner` copies programs
+that Make or Ninja wrote into the project folder to `files/run/staged/`
+before running them. Removing such a project from the list deletes only its
+build folder.
+
 ### Toolchain from Termux packages
 
 clang, lld, cmake, ninja, make and pkgconf are installed from the Termux APT

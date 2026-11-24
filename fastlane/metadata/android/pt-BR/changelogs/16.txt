@@ -1,0 +1,3 @@
+• Abra projetos de qualquer pasta do celular ou do cartão SD e compile-os onde estão, ou crie projetos novos lá (permissão "Arquivos e mídia", pedida só nessa hora). Pastas de nuvem podem ser importadas como cópia
+• LVGL 9.6: biblioteca de apps de toque com botões, listas, abas, gráficos e teclado na tela, com modelo em C e C++
+• Novos exemplos: widgets LVGL, lista de tarefas e calculadora, cubo OpenGL ES, sintetizador de toque, partículas com raylib + EnTT, console Lua e agenda em JSON

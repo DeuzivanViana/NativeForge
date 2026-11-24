@@ -1,5 +1,33 @@
 # Roadmap
 
+
+## 0.9.0 — projects in any folder, LVGL, more examples
+
+* Projects outside NativeForge's storage. "Open folder" on the home screen uses
+  the system folder picker; a folder on the phone's storage or an SD card is
+  opened and built where it is, through its path, so the compiler, CMake,
+  Make, clangd and git work as with workspace projects. New projects can be
+  created in such a folder too. This needs the "Files and media" permission
+  (`READ/WRITE_EXTERNAL_STORAGE`, legacy storage on target SDK 28; no
+  all-files access), asked only when the user opens a folder. Folders from
+  other providers (cloud drives) or without the permission can be imported as
+  a copy. Linked folders are remembered in `files/linked-projects.json`;
+  removing one from the list keeps its files.
+* Shared storage is mounted noexec, so external projects build into
+  `files/external-builds/<name>-<hash>/`, and programs that Make or Ninja wrote
+  into the project folder are copied to `files/run/staged/` before they run.
+* LVGL 9.6.0 (MIT) as a static library on the SDL2 driver, built from the
+  pinned git tag (commit checked) with the widgets demo, PNG/JPEG/BMP/GIF
+  decoders, Tiny TTF, QR codes and barcodes. `lv_nativeforge.h` sets up a
+  full screen display scaled to the screen density, touch, keyboard and the
+  app's data folder. Qt was considered and left out: its Android port needs
+  Java glue, moc and rcc on the device and a very large build.
+* Templates: LVGL app (C and C++), and examples for the LVGL widgets demo,
+  a to-do list (tabs, chart, saved tasks), a calculator, an OpenGL ES 3 cube
+  with GLM on SDL3, a touch synthesizer with SDL3 audio, raylib particles with
+  EnTT, a Lua console embedded in C and a JSON address book with
+  nlohmann/json. Template sources live as resource files.
+
 ## 0.8.0 — search in project
 
 * Search in project (Ctrl+Shift+F, the command palette, the menu or the
@@ -13,6 +41,7 @@
   `$1` and `${name}` insert groups.
 * `ProjectSearch` (core/project) holds the search and replace logic, covered
   by `ProjectSearchTest`.
+
 
 ## 0.7.2 — release automation, F-Droid preparation
 

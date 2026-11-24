@@ -1536,6 +1536,84 @@
           "m"
         ]
       }
+    },
+    {
+      "name": "lvgl",
+      "version": "9.6.0",
+      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/aarch64/lvgl-9.6.0.tar.xz",
+      "sha256": "d5676d1b9dada2a2b7758c54f0effd173f7586edd9f4a3eac046165994c50b3a",
+      "sizeBytes": 1056176,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lvgl",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lvgl",
+      "version": "9.6.0",
+      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
+      "architecture": "arm",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/arm/lvgl-9.6.0.tar.xz",
+      "sha256": "0d5eb5b705d68860c14c2cf37dcfc57aa15422ded58d92500efae49e1990fbbe",
+      "sizeBytes": 1068664,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lvgl",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lvgl",
+      "version": "9.6.0",
+      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/x86_64/lvgl-9.6.0.tar.xz",
+      "sha256": "ba0f3bf42839d844aec7196c99ea17e19a88898a74fa11e8c629cfefbec4bca4",
+      "sizeBytes": 1093984,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lvgl",
+          "m"
+        ]
+      }
     }
   ]
 }
