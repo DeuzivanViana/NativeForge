@@ -58,7 +58,7 @@ data class ExportRequest(
  * Produces a standalone APK, or an Android App Bundle, from the runtime template:
  * 1. patches the manifest (package id, label, version...), binary XML for APKs and
  *    protocol buffer XML for bundles,
- * 2. replaces native libraries with the user's program and its dependencies, per ABI,
+ * 2. replaces native libraries with the user's program and the dependencies it loads, per ABI,
  * 3. embeds a [LaunchSpec] telling the runtime what to start,
  * 4. signs the result (APK signature schemes, or a JAR signature for bundles).
  */
@@ -83,10 +83,11 @@ class ApkExporter(
         }
 
         return outcomeOf(errorFactory = { NfError.Io("Export failed: ${it.message}", it) }) {
+            val trimmed = trimLibraries(request)
             request.outputApk.parentFile?.mkdirs()
             val unsigned = File(request.outputApk.path + ".unsigned")
             try {
-                if (bundle) assembleBundle(request, unsigned) else assemble(request, unsigned)
+                if (bundle) assembleBundle(trimmed, unsigned) else assemble(trimmed, unsigned)
                 signingEngine.sign(
                     unsigned, request.outputApk, request.signingKey, MIN_SDK,
                     if (bundle) SignatureScheme.JAR else SignatureScheme.APK,
@@ -97,6 +98,11 @@ class ApkExporter(
             request.outputApk
         }
     }
+
+    /** Keeps only the libraries each program loads (see [RuntimeLibraries]). */
+    private fun trimLibraries(request: ExportRequest): ExportRequest = request.copy(
+        binaries = request.binaries.map { it.copy(runtimeLibraries = RuntimeLibraries.required(it.program, it.runtimeLibraries)) },
+    )
 
     internal fun assemble(request: ExportRequest, destination: File) {
         val abiDirs = request.binaries.map { "lib/${it.abi.androidName}/" }
@@ -263,12 +269,8 @@ class ApkExporter(
         /** File name of the launcher icon foreground in the runtime template (`res/drawable-nodpi`). */
         const val ICON_FOREGROUND = "nf_app_icon.png"
 
-        /**
-         * Project assets land in `assets/assets/` so a program opens them with the same
-         * relative path ("assets/player.png") in the IDE (working directory = project root)
-         * and in the exported app (raylib, SDL and SFML read relative paths from APK assets).
-         */
-        const val BUNDLED_ASSETS_DIR = "assets"
+        /** Project assets land in `assets/assets/` (see [LaunchSpec.BUNDLED_ASSETS_DIR]). */
+        const val BUNDLED_ASSETS_DIR = LaunchSpec.BUNDLED_ASSETS_DIR
 
         /** Manifest of the base module inside an app bundle (protocol buffer XML). */
         const val BUNDLE_MANIFEST = "base/manifest/AndroidManifest.xml"
