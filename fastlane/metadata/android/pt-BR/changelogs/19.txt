@@ -1,0 +1,5 @@
+• Terminal completo: bash com histórico, autocompletar e cores, além de coreutils, grep, sed, nano, less, curl e mais
+• Novo comando pkg no terminal: pkg install, search, upgrade e remove de pacotes Termux
+• nano, less, clear e outros programas de tela cheia funcionam (terminfo e readline encontrados)
+• curl e git confiam em certificados HTTPS
+• Quem já usa o app: rode pkg setup no terminal para instalar o bash

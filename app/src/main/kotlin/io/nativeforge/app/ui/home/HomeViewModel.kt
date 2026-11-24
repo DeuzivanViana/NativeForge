@@ -9,6 +9,7 @@ import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.project.template.ProjectOptions
 import io.nativeforge.core.project.template.ProjectTemplate
 import io.nativeforge.core.toolchain.ClangToolchain
+import io.nativeforge.core.toolchain.ShellSetup
 import io.nativeforge.core.project.model.ProjectConfig
 import io.nativeforge.core.project.model.SourceFiles
 import io.nativeforge.core.vcs.GitCredentials
@@ -235,7 +236,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         viewModelScope.launch {
             var total = 0
             var installed = 0
-            container.packageManager.install(ClangToolchain.REQUIRED_PACKAGES).collect { event ->
+            container.packageManager.install(ClangToolchain.REQUIRED_PACKAGES + ShellSetup.ESSENTIAL_PACKAGES).collect { event ->
                 // Several archives download at once, so progress counts installed packages.
                 val progress = if (total > 0) installed.toFloat() / total else null
                 val status = when (event) {

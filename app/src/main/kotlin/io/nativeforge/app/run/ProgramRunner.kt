@@ -7,6 +7,7 @@ import io.nativeforge.core.build.model.BuildArtifact
 import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.project.model.RuntimeKind
 import io.nativeforge.core.project.runtime.LaunchSpec
+import io.nativeforge.core.toolchain.ShellSetup
 import io.nativeforge.feature.runner.LaunchResult
 import io.nativeforge.feature.runner.ProgramLauncher
 import io.nativeforge.feature.runner.RunErrors
@@ -100,16 +101,23 @@ object ProgramRunner {
         }.getOrNull()
     }
 
-    /** Opens an interactive shell with the toolchain on PATH. */
+    /**
+     * Opens an interactive shell with the toolchain on PATH: Termux's bash when installed
+     * (with its relocated profile and the `pkg` command), otherwise Android's sh.
+     */
     fun openShell(context: Context, container: AppContainer) {
-        val bash = File(container.layout.binDir, "bash")
+        val setup = ShellSetup(container.layout)
+        runCatching { setup.prepare() }
+        val shell = setup.shell()
         startConsole(
             context,
             ConsoleRequest(
                 title = "Terminal",
                 workingDirectory = container.layout.homeDir.path,
-                shell = if (bash.canExecute()) bash.path else ConsoleRequest.DEFAULT_SHELL,
-                environment = container.toolchain.environment(),
+                shell = shell.executable,
+                arguments = shell.arguments,
+                environment = container.toolchain.environment() + shell.environment +
+                    (ShellSetup.APK_ENV to context.applicationInfo.sourceDir),
                 fontSizeSp = container.settings.settings.value.terminalFontSizeSp,
             ),
         )

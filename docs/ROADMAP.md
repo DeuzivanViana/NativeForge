@@ -1,5 +1,29 @@
 # Roadmap
 
+## 0.11.0 — a full terminal: bash and `pkg`
+
+* The terminal starts Termux's bash when it is installed, with a generated
+  `--rcfile` that sources the relocated `$PREFIX/etc/profile` (and so
+  `bash.bashrc`, `profile.d`) and `~/.bashrc`: history, completion, the
+  coloured prompt and command-not-found suggestions work as in Termux.
+* The toolchain install also brings bash, coreutils, grep, sed, findutils,
+  gawk, diffutils, less, nano, ncurses-utils, procps, tar, gzip, xz, bzip2,
+  zip/unzip, curl, ca-certificates and which (`ShellSetup.ESSENTIAL_PACKAGES`).
+  Without bash, Android's sh prints a hint to run `pkg setup`.
+* `pkg` in the terminal (`install`, `reinstall`, `uninstall`, `update`,
+  `upgrade`, `search`, `show`, `list-installed`, `list-all`, `setup`; `apt`
+  is an alias): a front end to the app's package manager, run with
+  `app_process` from the app's APK (`PackageCli`, `app/cli/PkgMain`), so the
+  same SHA-256-checked installs, relocation and toolchain patches apply. It
+  replaces termux-tools' `pkg`, which needs apt and dpkg.
+* Termux libraries find their files: `TERMINFO` (nano, less, clear, htop),
+  `INPUTRC` (readline keys), `SSL_CERT_FILE`/`CURL_CA_BUNDLE` (curl, git,
+  CMake downloads) and `GIT_EXEC_PATH` (git over HTTPS) point at the prefix.
+* The terminal keeps Android's `ANDROID_*` and class path variables, which
+  `app_process` (and so `pkg` and Termux's `am`) needs.
+* The installed-packages file is read again when it changed on disk, so the
+  Packages screen sees what `pkg` installed.
+
 ## 0.10.0 — examples that fit every screen, C++ everywhere, faster builds
 
 * Examples are laid out from the screen size (a unit of 1/360 of the short

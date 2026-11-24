@@ -85,9 +85,17 @@ class ConsoleActivity : ComponentActivity() {
         File(request.workingDirectory).mkdirs()
         // argv[0] is part of the argument array passed to the PTY helper.
         val argv = (listOf(File(executable).name) + request.arguments).toTypedArray()
-        val environment = (DEFAULT_ENVIRONMENT + request.environment).map { (k, v) -> "$k=$v" }.toTypedArray()
+        val environment = (systemEnvironment() + DEFAULT_ENVIRONMENT + request.environment).map { (k, v) -> "$k=$v" }.toTypedArray()
         return TerminalSession(executable, request.workingDirectory, argv, environment, TRANSCRIPT_ROWS, SessionClient())
     }
+
+    /**
+     * The session gets only the variables passed here, so keep the ones Android's own tools
+     * need: `app_process` (used by `pkg` and Termux's `am`) fails without the class paths
+     * and ANDROID_* roots, and TLS needs ANDROID_ROOT to find the system certificates.
+     */
+    private fun systemEnvironment(): Map<String, String> =
+        System.getenv().filterKeys { it.startsWith("ANDROID_") || it in SYSTEM_VARIABLES }
 
     private fun sendExtraKey(key: ExtraKey) {
         when (key) {
@@ -162,6 +170,7 @@ class ConsoleActivity : ComponentActivity() {
         const val DEFAULT_FONT_SP = 12f
         const val MIN_FONT_PX = 12
         const val MAX_FONT_PX = 96
+        val SYSTEM_VARIABLES = setOf("BOOTCLASSPATH", "DEX2OATBOOTCLASSPATH", "SYSTEMSERVERCLASSPATH", "EXTERNAL_STORAGE", "ASEC_MOUNTPOINT")
         val DEFAULT_ENVIRONMENT = mapOf("TERM" to "xterm-256color", "COLORTERM" to "truecolor", "LANG" to "en_US.UTF-8")
     }
 }

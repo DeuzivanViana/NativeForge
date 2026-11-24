@@ -62,6 +62,14 @@ class ClangToolchain(
         "LANG" to "en_US.UTF-8",
         "TERM" to "xterm-256color",
         "PKG_CONFIG_PATH" to File(layout.libDir, "pkgconfig").path,
+        // Termux packages have Termux's prefix compiled in; point them at ours.
+        "TERMINFO" to File(layout.prefix, "share/terminfo").path,
+        "INPUTRC" to File(layout.prefix, "etc/inputrc").path,
+        "SSL_CERT_FILE" to File(layout.prefix, "etc/tls/cert.pem").path,
+        "CURL_CA_BUNDLE" to File(layout.prefix, "etc/tls/cert.pem").path,
+        "GIT_EXEC_PATH" to File(layout.prefix, "libexec/git-core").path,
+        "GIT_TEMPLATE_DIR" to File(layout.prefix, "share/git-core/templates").path,
+        "TERMUX_PREFIX" to layout.prefix.path,
         // Colored diagnostics are parsed from plain text; keep them off for tools.
         "CLICOLOR_FORCE" to "0",
     )

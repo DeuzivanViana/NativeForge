@@ -1,31 +1,34 @@
 package io.nativeforge.app.di
 
-import android.content.res.AssetManager
 import io.nativeforge.core.packages.net.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 
 /**
  * Serves `asset:<path>` URLs from the APK's assets and delegates everything else.
  * The bundled package index (`asset:packages/index.json`) and its archives use it,
  * so SDL3, raylib and SFML install without a network connection.
+ *
+ * [openAsset] opens an asset by path: `AssetManager::open` in the app, or a reader of the
+ * APK file itself in the terminal's `pkg` command, which has no Android context.
  */
 class AssetAwareHttpClient(
-    private val assets: AssetManager,
+    private val openAsset: (String) -> InputStream,
     private val delegate: HttpClient,
 ) : HttpClient {
 
     override suspend fun getBytes(url: String): ByteArray {
         val path = assetPath(url) ?: return delegate.getBytes(url)
-        return withContext(Dispatchers.IO) { assets.open(path).use { it.readBytes() } }
+        return withContext(Dispatchers.IO) { openAsset(path).use { it.readBytes() } }
     }
 
     override suspend fun download(url: String, destination: File, onProgress: (Long, Long?) -> Unit) {
         val path = assetPath(url) ?: return delegate.download(url, destination, onProgress)
         withContext(Dispatchers.IO) {
             destination.parentFile?.mkdirs()
-            val copied = assets.open(path).use { input -> destination.outputStream().use { input.copyTo(it) } }
+            val copied = openAsset(path).use { input -> destination.outputStream().use { input.copyTo(it) } }
             onProgress(copied, copied)
         }
     }
