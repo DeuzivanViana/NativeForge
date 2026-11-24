@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UnfoldLess
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -71,6 +72,7 @@ fun ExplorerPanel(
     viewModel: WorkspaceViewModel,
     onFileOpened: () -> Unit,
     modifier: Modifier = Modifier,
+    onSearch: () -> Unit = {},
 ) {
     var tab by rememberSaveable { mutableStateOf(ExplorerTab.FILES) }
     var prompt by remember { mutableStateOf<NamePrompt?>(null) }
@@ -91,6 +93,7 @@ fun ExplorerPanel(
             TabLabel(if (count > 0) "Changes ($count)" else "Changes", tab == ExplorerTab.CHANGES) { tab = ExplorerTab.CHANGES }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        SearchEntry(onSearch)
         when (tab) {
             ExplorerTab.FILES -> FileTree(
                 nodes = state.files,
@@ -343,5 +346,30 @@ fun DiffDialog(diff: DiffView, onOpen: () -> Unit, onDiscard: () -> Unit, onDism
             onConfirm = { confirmDiscard = false; onDiscard() },
             onDismiss = { confirmDiscard = false },
         )
+    }
+}
+
+/** A search-field look-alike that opens "Search in project" (no room for another icon in the header). */
+@Composable
+private fun SearchEntry(onClick: () -> Unit) {
+    androidx.compose.material3.Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        shape = MaterialTheme.shapes.extraSmall,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp).height(30.dp).clickable(onClick = onClick),
+    ) {
+        Row(Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.Icon(
+                Icons.Filled.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                "Search in project",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
     }
 }

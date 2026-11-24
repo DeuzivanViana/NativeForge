@@ -127,6 +127,7 @@ fun WorkspaceScreen(
     var paletteOpen by remember { mutableStateOf(false) }
     var quickOpen by remember { mutableStateOf(false) }
     var goToLineOpen by remember { mutableStateOf(false) }
+    var projectSearchOpen by rememberSaveable { mutableStateOf(false) }
     var renameFrom by remember { mutableStateOf<String?>(null) }
     var toggleExplorerRequest by remember { mutableStateOf(0) }
     val focusedEditor = if (state.splitOpen && state.splitFocused) viewModel.splitEditor else viewModel.editor
@@ -169,6 +170,7 @@ fun WorkspaceScreen(
             WorkspaceCommand.CANCEL_BUILD -> if (state.buildStatus == BuildStatus.RUNNING) viewModel.cancelBuild()
             WorkspaceCommand.FIND -> { replaceMode = false; findOpen = true }
             WorkspaceCommand.REPLACE -> { replaceMode = true; findOpen = true }
+            WorkspaceCommand.SEARCH_IN_PROJECT -> projectSearchOpen = true
             WorkspaceCommand.FIND_NEXT -> editor.findNext()
             WorkspaceCommand.FIND_PREVIOUS -> editor.findPrevious()
             WorkspaceCommand.GO_TO_LINE -> goToLineOpen = true
@@ -204,7 +206,7 @@ fun WorkspaceScreen(
             WorkspaceCommand.SETTINGS -> onOpenSettings()
         }
     }
-    val dialogOpen = paletteOpen || quickOpen || goToLineOpen || renameFrom != null || newFileDialog ||
+    val dialogOpen = paletteOpen || quickOpen || goToLineOpen || projectSearchOpen || renameFrom != null || newFileDialog ||
         librariesOpen || buildSettingsOpen || state.assetFile != null || state.diff != null || state.hoverText != null
     DisposableEffect(Unit) { onDispose { KeyboardShortcuts.handler = null } }
     KeyboardShortcuts.handler = handler@{ event ->
@@ -244,6 +246,7 @@ fun WorkspaceScreen(
                         viewModel = viewModel,
                         onFileOpened = { scope.launch { drawerState.close() } },
                         modifier = Modifier.statusBarsPadding(),
+                        onSearch = { projectSearchOpen = true; scope.launch { drawerState.close() } },
                     )
                 }
             }
@@ -258,6 +261,7 @@ fun WorkspaceScreen(
                     viewModel = viewModel,
                     onFileOpened = {},
                     modifier = Modifier.statusBarsPadding().navigationBarsPadding(),
+                    onSearch = { projectSearchOpen = true },
                 )
             }
             VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -291,6 +295,7 @@ fun WorkspaceScreen(
                                 item("Command palette (Ctrl+Shift+P)") { paletteOpen = true }
                                 item("Go to file (Ctrl+P)") { quickOpen = true }
                                 item("Find and replace") { replaceMode = true; findOpen = true }
+                                item("Search in project (Ctrl+Shift+F)") { projectSearchOpen = true }
                                 item("Format document") { viewModel.formatDocument() }
                                 item("Go to definition") { viewModel.goToDefinition() }
                                 item("Rename symbol") { renameFrom = viewModel.focusedEditor.wordAtCaret() }
@@ -383,6 +388,18 @@ fun WorkspaceScreen(
 
     renameFrom?.let { current ->
         RenameDialog(current, onRename = { name -> renameFrom = null; viewModel.rename(name) }, onDismiss = { renameFrom = null })
+    }
+
+    if (projectSearchOpen) {
+        val searchState by viewModel.search.collectAsStateWithLifecycle()
+        ProjectSearchDialog(
+            state = searchState,
+            onSearch = viewModel::searchInProject,
+            onReplacementChange = viewModel::setSearchReplacement,
+            onReplaceAll = viewModel::replaceInProject,
+            onOpen = { file, match -> projectSearchOpen = false; viewModel.openSearchMatch(file, match) },
+            onDismiss = { projectSearchOpen = false },
+        )
     }
 
     if (goToLineOpen) {
