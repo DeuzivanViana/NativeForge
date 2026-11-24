@@ -25,6 +25,8 @@ export class ScreenView {
     this.frames = 0;
     this.bytes = 0;
     this.pendingMove = null;
+    this.fixed = false; // the program chose its window size, so the panel's size doesn't change it
+    this.sentSize = '';
 
     this.canvas = h('canvas', { class: 'screen-canvas', tabIndex: 0, title: 'Click to send keyboard and mouse to the program' });
     this.message = h('div', { class: 'screen-message' }, 'Connecting…');
@@ -42,6 +44,13 @@ export class ScreenView {
     this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true });
     this.bindInput();
     this.statsTimer = setInterval(() => this.updateStats(), 1000);
+    // The program's display follows this panel's size (in device pixels, like the first run).
+    this.resizeTimer = null;
+    this.resizeObserver = new ResizeObserver(() => {
+      clearTimeout(this.resizeTimer);
+      this.resizeTimer = setTimeout(() => this.sendPanelSize(), 250);
+    });
+    this.resizeObserver.observe(this.stage);
     if (!canDecode()) {
       this.showMessage('This browser cannot decode the video. Use a recent Chrome, Edge, Firefox (130 or newer) or Safari (16.4 or newer).');
       return;
@@ -65,9 +74,14 @@ export class ScreenView {
   onText(text) {
     let m;
     try { m = JSON.parse(text); } catch { return; }
-    if (m.t === 'hello' || m.t === 'config') {
+    if (m.t === 'hello' || m.t === 'config' || m.t === 'size') {
+      if (typeof m.fixed === 'boolean') this.fixed = m.fixed;
+      const resized = m.width && m.height && (m.width !== this.width || m.height !== this.height);
       if (m.width && m.height) this.resize(m.width, m.height);
       if (m.codec && m.codec !== this.codec) this.configure(m.codec);
+      // A new size comes from a new encoder: start again from its next key frame.
+      else if (resized && m.t !== 'hello') this.resetDecoder();
+      if (m.t === 'hello') { this.sentSize = ''; this.sendPanelSize(); }
     } else if (m.t === 'end') {
       this.end(m.reason);
     }
@@ -134,9 +148,22 @@ export class ScreenView {
     if (this.message.style.display !== 'none') this.message.style.display = 'none';
   }
 
+  sendPanelSize() {
+    if (this.ended || this.disposed || this.ws?.readyState !== WebSocket.OPEN) return;
+    const rect = this.stage.getBoundingClientRect();
+    if (rect.width < 16 || rect.height < 16) return; // hidden
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(rect.width * dpr), hgt = Math.round(rect.height * dpr);
+    const key = `${w}x${hgt}`;
+    if (key === this.sentSize) return;
+    this.sentSize = key;
+    this.send({ t: 'resize', w, h: hgt });
+  }
+
   updateStats() {
     if (this.ended) return;
-    this.stats.textContent = this.frames ? `${this.width}×${this.height} · ${this.frames} fps · ${Math.round(this.bytes * 8 / 1000)} kbit/s` : '';
+    const size = `${this.width}×${this.height}${this.fixed ? ' (set by the program)' : ''}`;
+    this.stats.textContent = this.frames ? `${size} · ${this.frames} fps · ${Math.round(this.bytes * 8 / 1000)} kbit/s` : '';
     this.frames = 0;
     this.bytes = 0;
   }
@@ -263,6 +290,8 @@ export class ScreenView {
   dispose() {
     this.disposed = true;
     clearInterval(this.statsTimer);
+    clearTimeout(this.resizeTimer);
+    this.resizeObserver.disconnect();
     this.releaseKeys();
     try { this.ws?.close(1000); } catch { /* closed */ }
     try { this.decoder?.close(); } catch { /* closed */ }

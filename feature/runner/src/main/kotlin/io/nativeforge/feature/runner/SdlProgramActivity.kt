@@ -45,6 +45,15 @@ class SdlProgramActivity : SDLActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) = super.onWindowFocusChanged(hasFocus || remote != null)
 
+    /**
+     * SDL passes the size SDL_CreateWindow got (Android otherwise ignores it). A streamed run
+     * sizes the display from it instead of turning the phone.
+     */
+    override fun setOrientationBis(w: Int, h: Int, resizable: Boolean, hint: String?) {
+        val host = remote ?: return super.setOrientationBis(w, h, resizable, hint)
+        SdlHosts.requestWindow(host, w, h, resizable)
+    }
+
     override fun getLibraries(): Array<String> = arrayOf("SDL3")
 
     override fun loadLibraries() = SdlHosts.loadLibraries(spec)
@@ -103,6 +112,12 @@ internal object SdlHosts {
             activity.onWindowFocusChanged(true)
             resume()
         }
+    }
+
+    /** A window without a usable size (SDL passes 1 or less) follows the browser. */
+    fun requestWindow(host: RemoteHost, width: Int, height: Int, resizable: Boolean) {
+        if (width <= 1 || height <= 1) host.requestWindow(0, 0, true, wait = false)
+        else host.requestWindow(width, height, resizable, wait = false)
     }
 
     /** SDL keeps native state in statics; end the process so the next run starts clean. */

@@ -82,7 +82,9 @@ label.lbl { display: block; color: var(--muted); font-size: 12px; margin: 10px 0
 .node .twisty { width: 14px; display: inline-flex; color: var(--muted); }
 .node .label { overflow: hidden; text-overflow: ellipsis; }
 .node .dot { width: 6px; height: 6px; border-radius: 3px; margin-left: auto; flex: none; }
-.node.drop { outline: 1px dashed var(--accent); outline-offset: -1px; }
+.node.drop { outline: 1px dashed var(--accent); outline-offset: -1px; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.tree.drop { box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.drop-hint { padding: 4px 10px; font-size: 12px; color: var(--accent); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .splitter-v { width: 4px; margin-left: -2px; margin-right: -2px; cursor: col-resize; z-index: 2; flex: none; }
 .splitter-h { height: 4px; margin-top: -2px; margin-bottom: -2px; cursor: row-resize; z-index: 2; flex: none; }
 .splitter-v:hover, .splitter-h:hover, .dragging { background: var(--accent); }

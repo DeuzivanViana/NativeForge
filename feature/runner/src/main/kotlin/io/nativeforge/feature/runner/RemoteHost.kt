@@ -5,6 +5,9 @@ import android.app.Presentation
 import android.content.Intent
 import android.graphics.Color
 import android.hardware.display.DisplayManager
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
@@ -28,20 +31,55 @@ data class RemoteRun(val displayId: Int, val inputSocket: String, val blackScree
  * may place on its own private virtual display, whose picture the IDE encodes. The
  * presentation is made from the application context, so it does not stop with the
  * activity when the screen turns off.
+ *
+ * The display changes size when the browser's panel does, or when the program asks for a
+ * window size ([requestWindow]); the presentation stays and its window follows.
  */
 internal class RemoteHost private constructor(private val activity: Activity, private val run: RemoteRun, display: android.view.Display) {
-    val presentation = Presentation(activity.applicationContext, display, android.R.style.Theme_Black_NoTitleBar_Fullscreen).apply {
+    val presentation: Presentation = object : Presentation(activity.applicationContext, display, android.R.style.Theme_Black_NoTitleBar_Fullscreen) {
+        // Presentation cancels itself when its display's size changes; this one resizes instead.
+        // Nothing else cancels it (it is not cancelable), and close() dismisses it.
+        override fun cancel() = Unit
+    }.apply {
         setCancelable(false)
     }
-    private val input = RemoteInputBridge(activity, presentation.window!!, run.inputSocket)
+    private val main = Handler(Looper.getMainLooper())
+    private val sizeLock = Object()
+    private var displaySize: Pair<Int, Int>? = null
+    private val input = RemoteInputBridge(activity, presentation.window!!, run.inputSocket) { width, height ->
+        synchronized(sizeLock) {
+            displaySize = width to height
+            sizeLock.notifyAll()
+        }
+    }
     private var shown = false
+    private var connected = false
+    private var deferredContent: View? = null
 
     /** Shows the presentation (with [content], if given) and starts taking input. */
     fun show(content: View? = null) {
         if (shown) return
         shown = true
+        deferredContent = null
         content?.let(presentation::setContentView)
         presentation.show()
+        connect()
+    }
+
+    /**
+     * Shows the presentation once the program's window request has resized the display
+     * (or after [WAIT_MILLIS]), so its surface starts out at the program's size: raylib
+     * reads the size once, when the surface arrives.
+     */
+    fun showAfterWindowRequest(content: View) {
+        deferredContent = content
+        connect()
+        main.postDelayed({ if (!shown) show(content) }, WAIT_MILLIS)
+    }
+
+    private fun connect() {
+        if (connected) return
+        connected = true
         input.start()
     }
 
@@ -84,6 +122,29 @@ internal class RemoteHost private constructor(private val activity: Activity, pr
         activity.window.attributes = attributes
     }
 
+    /**
+     * Tells the IDE the window size the program asked for. With [wait] (on the program's
+     * thread, never the main one), returns once the display has its new size, or after
+     * [WAIT_MILLIS]; a presentation held back by [showAfterWindowRequest] is shown then.
+     */
+    fun requestWindow(width: Int, height: Int, resizable: Boolean, wait: Boolean) {
+        synchronized(sizeLock) { displaySize = null }
+        input.requestWindow(width, height, resizable)
+        if (!wait) return
+        val deadline = SystemClock.uptimeMillis() + WAIT_MILLIS
+        synchronized(sizeLock) {
+            while (displaySize == null) {
+                val left = deadline - SystemClock.uptimeMillis()
+                if (left <= 0) {
+                    Log.w(TAG, "The display did not take the program's size in time")
+                    break
+                }
+                sizeLock.wait(left)
+            }
+        }
+        main.post { deferredContent?.let(::show) }
+    }
+
     fun close() {
         input.close()
         runCatching { presentation.dismiss() }
@@ -95,6 +156,10 @@ internal class RemoteHost private constructor(private val activity: Activity, pr
         private const val EXTRA_SOCKET = "io.nativeforge.runner.REMOTE_INPUT_SOCKET"
         private const val EXTRA_BLACK = "io.nativeforge.runner.REMOTE_BLACK_SCREEN"
         private const val AWAKE_MILLIS = 10_000L
+        private const val WAIT_MILLIS = 2_500L
+
+        /** Whether [intent] starts a run that shows in the browser. */
+        fun isStreamed(intent: Intent?): Boolean = intent?.getStringExtra(EXTRA_SOCKET) != null
 
         fun putInto(intent: Intent, run: RemoteRun): Intent =
             intent.putExtra(EXTRA_DISPLAY, run.displayId).putExtra(EXTRA_SOCKET, run.inputSocket).putExtra(EXTRA_BLACK, run.blackScreen)

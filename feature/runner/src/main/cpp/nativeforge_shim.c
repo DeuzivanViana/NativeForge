@@ -5,6 +5,10 @@
 // loads this shim instead; the shim opens the real program named by the
 // NATIVEFORGE_PROGRAM environment variable (set from Java right before
 // NativeActivity.onCreate) and forwards the entry point to it.
+//
+// When the program is streamed to the remote web IDE (NATIVEFORGE_REMOTE_WINDOW), the
+// shim also tells Java the window size a raylib program asks for in InitWindow, so the
+// off-screen display can take that size before raylib sets up its framebuffer.
 
 #include <android/log.h>
 #include <jni.h>
@@ -14,6 +18,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "plt_hook.h"
 
 #define LOG_TAG "NativeForgeShim"
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -37,6 +43,61 @@ static void report(const char* format, ...) {
 }
 
 typedef void (*OnCreateFunction)(ANativeActivity*, void*, size_t);
+
+static JavaVM* window_vm;
+static jobject window_activity;
+static jmethodID window_method;
+static void (*real_init_window)(int, int, const char*);
+
+// Calls NativeProgramActivity.onProgramWindow, which returns once the display has the
+// new size (or after a short timeout).
+static void report_window(int width, int height, jboolean resizable) {
+    if (window_vm == NULL) return;
+    JNIEnv* env = NULL;
+    int attached = 0;
+    if ((*window_vm)->GetEnv(window_vm, (void**)&env, JNI_VERSION_1_6) != JNI_OK) {
+        if ((*window_vm)->AttachCurrentThread(window_vm, &env, NULL) != JNI_OK) return;
+        attached = 1;
+    }
+    (*env)->CallVoidMethod(env, window_activity, window_method, width, height, resizable);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+    if (attached) (*window_vm)->DetachCurrentThread(window_vm);
+}
+
+// raylib on Android ignores the size it is given and never resizes, so the display
+// takes that size and keeps it.
+static void hooked_init_window(int width, int height, const char* title) {
+    report_window(width, height, JNI_FALSE);
+    real_init_window(width, height, title);
+}
+
+static void watch_window_requests(ANativeActivity* activity, void* program) {
+    if (getenv("NATIVEFORGE_REMOTE_WINDOW") == NULL) return;
+    // Only raylib's InitWindow: a program's own function of that name may take other arguments.
+    if (dlsym(program, "rlglInit") == NULL || dlsym(program, "InitWindow") == NULL) return;
+    JNIEnv* env = activity->env;
+    jclass type = (*env)->GetObjectClass(env, activity->clazz);
+    jmethodID method = (*env)->GetMethodID(env, type, "onProgramWindow", "(IIZ)V");
+    (*env)->DeleteLocalRef(env, type);
+    if (method == NULL) {
+        (*env)->ExceptionClear(env);
+        return;
+    }
+    window_vm = activity->vm;
+    window_activity = (*env)->NewGlobalRef(env, activity->clazz);
+    window_method = method;
+    struct nf_plt_hook hooks[] = {{"InitWindow", (void*)hooked_init_window, (void**)&real_init_window}};
+    if (nf_plt_hook_all(hooks, 1) == 0) {
+        LOGE("InitWindow is not called through the PLT; the stream keeps its size");
+        return;
+    }
+    // The activity then shows the program's window only once the display has that size.
+    jclass activity_type = (*env)->GetObjectClass(env, activity->clazz);
+    jmethodID expect = (*env)->GetMethodID(env, activity_type, "expectWindowRequest", "()V");
+    (*env)->DeleteLocalRef(env, activity_type);
+    if (expect != NULL) (*env)->CallVoidMethod(env, activity->clazz, expect);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+}
 
 __attribute__((visibility("default")))
 void ANativeActivity_onCreate(ANativeActivity* activity, void* saved_state, size_t saved_state_size) {
@@ -65,6 +126,7 @@ void ANativeActivity_onCreate(ANativeActivity* activity, void* saved_state, size
         ANativeActivity_finish(activity);
         return;
     }
+    watch_window_requests(activity, handle);
     on_create(activity, saved_state, saved_state_size);
 }
 

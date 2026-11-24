@@ -689,7 +689,7 @@ class RemoteServer(
         } else if (!target.onPhone) {
             val (width, height) = StreamSize.fit(target.width, target.height, project.config.export.orientation)
             try {
-                screen.start("▶ ${project.name}") { sink -> backend.streamProgram(project, artifact, width, height, sink) }
+                screen.start("▶ ${project.name}", project.config.export.orientation) { sink -> backend.streamProgram(project, artifact, width, height, sink) }
             } catch (e: Exception) {
                 logger.warn(TAG, "Could not stream ${project.name}", e)
                 broadcast(Json.obj("t" to "run.device", "ok" to false, "message" to "Could not show the program here: ${e.message}"))
