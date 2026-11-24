@@ -20,6 +20,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,10 +41,13 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import io.nativeforge.app.di.AppContainer
 import androidx.compose.ui.Alignment
@@ -63,7 +67,10 @@ import io.nativeforge.core.ui.component.CompactTopBar
 import io.nativeforge.core.ui.component.ToolbarIconButton
 import io.nativeforge.core.ui.theme.AppTheme
 import io.nativeforge.feature.editor.EditorTheme
+import io.nativeforge.feature.editor.EditorThemeColors
 import io.nativeforge.feature.editor.EditorThemePreviews
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -89,11 +96,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) {
             FormSection("Appearance") {
                 FieldLabel("App theme")
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppTheme.entries.forEach { theme ->
-                        AppThemeCard(theme, selected = theme == settings.appTheme, onClick = { repository.setAppTheme(theme) })
-                    }
-                }
+                AppThemeGrid(selected = settings.appTheme, onSelect = repository::setAppTheme)
                 Hint("Choosing an app theme also picks the matching editor theme.")
                 FieldLabel("Editor theme")
                 EditorThemeList(selected = settings.editor.theme) { theme ->
@@ -189,6 +192,20 @@ fun SettingsScreen(onBack: () -> Unit) {
     }
 }
 
+/** App themes as a wrapping grid, dark ones first, so every theme is visible without sideways scrolling. */
+@Composable
+private fun AppThemeGrid(selected: AppTheme, onSelect: (AppTheme) -> Unit) {
+    val (dark, light) = remember { AppTheme.entries.partition { it.palette.isDark } }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("Dark" to dark, "Light" to light).forEach { (group, themes) ->
+            Hint(group)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                themes.forEach { theme -> AppThemeCard(theme, selected = theme == selected, onClick = { onSelect(theme) }) }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AppThemeCard(theme: AppTheme, selected: Boolean, onClick: () -> Unit) {
     val palette = theme.palette
@@ -224,35 +241,61 @@ private fun AppThemeCard(theme: AppTheme, selected: Boolean, onClick: () -> Unit
 
 @Composable
 private fun EditorThemeList(selected: EditorTheme, onSelect: (EditorTheme) -> Unit) {
-    val context = LocalContext.current
+    // Collapsed to the current theme by default: the full list is long.
+    var expanded by rememberSaveable { mutableStateOf(false) }
     Column {
-        EditorTheme.entries.forEach { theme ->
-            val colors = remember(theme) { EditorThemePreviews.colors(context, theme) }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.small)
-                    .clickable { onSelect(theme) }
-                    .background(if (theme == selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                    .heightIn(min = 36.dp)
-                    .padding(horizontal = 6.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // Code sample rendered with the theme's own colors.
-                Row(
-                    Modifier.width(132.dp).clip(RoundedCornerShape(4.dp)).background(Color(colors.background)).padding(horizontal = 6.dp, vertical = 3.dp),
-                ) {
-                    val style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-                    Text("int ", style = style, color = Color(colors.keyword))
-                    Text("x = ", style = style, color = Color(colors.foreground))
-                    Text("\"hi\"", style = style, color = Color(colors.string))
-                    Text(" //", style = style, color = Color(colors.comment))
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(theme.displayName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                if (theme == selected) Icon(Icons.Filled.Check, contentDescription = "Selected", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+        if (expanded) {
+            val (dark, light) = remember { EditorTheme.entries.partition { it.isDark } }
+            listOf("Dark" to dark, "Light" to light).forEach { (group, themes) ->
+                Hint(group)
+                themes.forEach { theme -> EditorThemeRow(theme, theme == selected, onClick = { onSelect(theme) }) }
             }
+        } else {
+            EditorThemeRow(selected, selected = true, onClick = { expanded = true })
         }
+        TextButton(onClick = { expanded = !expanded }) {
+            Text(if (expanded) "Show fewer" else "Show all ${EditorTheme.entries.size} editor themes")
+        }
+    }
+}
+
+@Composable
+private fun EditorThemeRow(theme: EditorTheme, selected: Boolean, onClick: () -> Unit) {
+    val context = LocalContext.current
+    // Theme files are 10-70 KB of JSON each: parse them off the main thread so expanding the list doesn't stutter.
+    val colors by produceState(EditorThemePreviews.cached(theme), theme) {
+        if (value == null) value = withContext(Dispatchers.IO) { EditorThemePreviews.colors(context, theme) }
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+            .heightIn(min = 36.dp)
+            .padding(horizontal = 6.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Code sample rendered with the theme's own colors.
+        val preview = colors
+        Row(
+            Modifier
+                .width(132.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(preview?.let { Color(it.background) } ?: MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(horizontal = 6.dp, vertical = 3.dp),
+        ) {
+            val style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+            // Transparent text until the colors load keeps the row's height stable.
+            fun color(argb: (EditorThemeColors) -> Int) = preview?.let { Color(argb(it)) } ?: Color.Transparent
+            Text("int ", style = style, color = color { it.keyword })
+            Text("x = ", style = style, color = color { it.foreground })
+            Text("\"hi\"", style = style, color = color { it.string })
+            Text(" //", style = style, color = color { it.comment })
+        }
+        Spacer(Modifier.width(12.dp))
+        Text(theme.displayName, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        if (selected) Icon(Icons.Filled.Check, contentDescription = "Selected", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
     }
 }
 

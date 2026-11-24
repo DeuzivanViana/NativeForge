@@ -31,7 +31,7 @@ touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 
 | Area | What it does | Where |
 | --- | --- | --- |
-| Editor | Sora Editor with TextMate grammars for C, C++ and CMake, tabs, split editor, 15 editor themes, undo/redo, find and replace, shortcut and symbol bars | `feature/editor` |
+| Editor | Sora Editor with TextMate grammars for C, C++ and CMake, tabs, split editor, 33 editor themes, undo/redo, find and replace, shortcut and symbol bars | `feature/editor` |
 | Code intelligence | clangd: completion, live errors and warnings, go to definition, rename, symbol information; optional clang-tidy | `core/lsp`, `core/codeintel`, `app/.../intel` |
 | Formatter | clang-format with a project `.clang-format` or a chosen style (LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU), optional format on save | `core/codeintel` |
 | Keyboard and mouse | VS Code shortcuts (command palette, quick open, build, go to line, move lines, comment...), Ctrl+wheel zoom | `app/.../workspace/commands` |

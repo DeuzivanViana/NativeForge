@@ -2,7 +2,7 @@
 
 <p><b>Editor</b></p>
 <ul>
-<li>Realce de sintaxe para C, C++ e CMake, abas, editor dividido e 15 temas de editor</li>
+<li>Realce de sintaxe para C, C++ e CMake, abas, editor dividido e 33 temas de editor, com 32 temas do app combinando (30 escuros)</li>
 <li>Inteligência de código com clangd: autocompletar, erros e avisos ao vivo, ir para a definição, renomear símbolo e informações do símbolo</li>
 <li>clang-format com os estilos LLVM, Google, Chromium, Mozilla, WebKit, Microsoft ou GNU, ou o .clang-format do projeto; formatar ao salvar e verificações do clang-tidy opcionais</li>
 <li>Teclado físico e mouse com os atalhos do VS Code: paleta de comandos (Ctrl+Shift+P), abrir arquivo rápido (Ctrl+P), compilar (Ctrl+Shift+B), ir para a linha, mover linhas, comentar e zoom com Ctrl+roda</li>
