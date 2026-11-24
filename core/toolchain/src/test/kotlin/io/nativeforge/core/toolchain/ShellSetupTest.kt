@@ -55,6 +55,20 @@ class ShellSetupTest {
     }
 
     @Test
+    fun `start-up scripts that name Termux's home are rewritten to ours`() {
+        val script = File(layout.prefix, "etc/profile.d/init-termux-properties.sh")
+        script.parentFile.mkdirs()
+        script.writeText(
+            "if [ ! -e /data/data/com.termux/files/home/.termux/termux.properties ]; then\n" +
+                "  mkdir -p /data/data/com.termux/files/home/.termux\nfi\n",
+        )
+        setup.prepare()
+        val text = script.readText()
+        assertFalse("com.termux" in text, text)
+        assertTrue("mkdir -p ${layout.homeDir.path}/.termux" in text, text)
+    }
+
+    @Test
     fun `prepare is idempotent`() {
         setup.prepare()
         val stamp = setup.bashrc.lastModified()

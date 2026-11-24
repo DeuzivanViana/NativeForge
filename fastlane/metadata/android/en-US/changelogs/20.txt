@@ -1,0 +1,2 @@
+• Terminal: fixed the "mkdir: cannot create directory /data/data/com.termux" error when it opens
+• Termux scripts that point at Termux's home folder now use NativeForge's home

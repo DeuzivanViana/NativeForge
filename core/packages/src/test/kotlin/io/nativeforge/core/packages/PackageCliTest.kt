@@ -33,7 +33,7 @@ class PackageCliTest {
     private fun archive(name: String): File {
         val bytes = ByteArrayOutputStream()
         TarArchiveOutputStream(GzipCompressorOutputStream(bytes)).use { tar ->
-            val data = "#!${ToolchainLayout.TERMUX_PREFIX}/bin/sh\necho $name\n".toByteArray()
+            val data = "#!${ToolchainLayout.TERMUX_PREFIX}/bin/sh\nmkdir -p ${ToolchainLayout.TERMUX_FILES}/home/.$name\n".toByteArray()
             tar.putArchiveEntry(TarArchiveEntry("bin/$name").apply { size = data.size.toLong(); mode = 0b111_101_101 })
             tar.write(data)
             tar.closeArchiveEntry()
@@ -90,6 +90,7 @@ class PackageCliTest {
         assertTrue("Installing 2 package(s): readline bash" in text, text)
         val script = File(layout.binDir, "bash").readText()
         assertTrue(script.startsWith("#!${layout.prefix.path}/bin/sh"), script)
+        assertTrue("mkdir -p ${layout.homeDir.path}/.bash" in script, script)
         assertEquals(1, changes)
 
         assertEquals(0, run("install", "bash"))

@@ -293,7 +293,8 @@ class PackageManager(
             }
         }
         if (pkg.target == InstallTarget.PREFIX) {
-            PrefixRelocator(ToolchainLayout.TERMUX_PREFIX, layout.prefix.path).relocate(root, files)
+            // Scripts name Termux's home too (`.../files/home/.termux`), so map the whole files dir.
+            PrefixRelocator(ToolchainLayout.TERMUX_FILES, layout.filesDir.path).relocate(root, files)
         }
         database.put(InstalledPackage(pkg, root.path, files, System.currentTimeMillis()))
         archive.delete()
