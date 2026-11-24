@@ -22,7 +22,15 @@ import io.nativeforge.core.export.signing.KeystoreException
 import io.nativeforge.core.export.signing.Keystores
 import io.nativeforge.core.export.ExportRequest
 import io.nativeforge.core.export.ExportValidator
+import io.nativeforge.core.build.diagnostics.Severity
+import io.nativeforge.core.common.process.OutputStream
+import io.nativeforge.core.export.web.WebExportRequest
+import io.nativeforge.core.export.web.WebExporter
+import io.nativeforge.core.packages.model.InstallEvent
+import io.nativeforge.core.project.model.BuildSystemKind
 import io.nativeforge.core.project.model.BuildType
+import io.nativeforge.core.project.model.RuntimeKind
+import io.nativeforge.core.toolchain.WasiToolchain
 import io.nativeforge.core.project.model.ExportSettings
 import io.nativeforge.core.project.model.Project
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +74,15 @@ data class ExportUiState(
     val keyMessage: String? = null,
     /** ABI the program is built for (this device's). */
     val abi: String = "",
+    /** Web (WebAssembly) export: [ExportStatus.Done] holds the zip. */
+    val webStatus: ExportStatus = ExportStatus.Idle,
+    /** The exported page (`index.html`), for the in-app preview. */
+    val webPage: File? = null,
+    /** Set while asking to download the WASI sysroot; the download size when the package list knows it. */
+    val webDownloadPrompt: WebDownloadPrompt? = null,
 )
+
+class WebDownloadPrompt(val sizeBytes: Long?)
 
 /** A picked keystore file waiting for its password and alias. */
 class PendingImport(val bytes: ByteArray, val fileName: String, val aliases: List<KeystoreAlias>? = null)
@@ -224,6 +240,113 @@ class ExportViewModel(private val container: AppContainer, projectName: String) 
                 )
             }
         }
+    }
+
+    private var webJob: Job? = null
+
+    /**
+     * Builds the project for `wasm32-wasip1` with every source in its source folder, then
+     * packages it as a web page and a zip. The WASI sysroot is downloaded first, after
+     * the user agreed ([downloadAccepted]), when it is not installed yet.
+     */
+    fun exportWeb(downloadAccepted: Boolean = false) {
+        val project = _state.value.project ?: return
+        val settings = _state.value.settings ?: return
+        if (webJob?.isActive == true) return
+        if (project.config.runtime != RuntimeKind.CONSOLE) {
+            return _state.update { it.copy(webStatus = ExportStatus.Failed(WEB_CONSOLE_ONLY)) }
+        }
+        val wasi = container.wasiToolchain
+        if (!container.toolchain.cCompiler.exists()) {
+            return _state.update { it.copy(webStatus = ExportStatus.Failed("Install the compiler toolchain first (Home screen).")) }
+        }
+        val packages = buildList {
+            if (!java.io.File(wasi.sysroot, "lib/${WasiToolchain.TARGET}/libc.a").isFile) add(WasiToolchain.PACKAGE)
+            if (!wasi.linker.exists()) add("lld")
+        }
+        if (packages.isNotEmpty() && !downloadAccepted) {
+            val size = container.packageManager.catalog.value.firstOrNull { it.name == WasiToolchain.PACKAGE }?.sizeBytes
+            return _state.update { it.copy(webDownloadPrompt = WebDownloadPrompt(size)) }
+        }
+        _state.update { it.copy(webDownloadPrompt = null, webPage = null) }
+        webJob = viewModelScope.launch {
+            if (packages.isNotEmpty() && !installWebPackages(packages)) return@launch
+            saveJob?.cancel()
+            val current = save() ?: project
+            // A separate build folder, so web and Android objects never overwrite each other.
+            val webProject = current.copy(
+                buildRoot = File(current.buildDirectory, WebExporter.OUTPUT_FOLDER),
+                config = current.config.copy(buildSystem = BuildSystemKind.SINGLE),
+            )
+            _state.update { it.copy(webStatus = ExportStatus.Working("Compiling to WebAssembly…")) }
+            val request = BuildRequest(
+                project = webProject,
+                toolchain = wasi,
+                buildType = if (settings.releaseBuild) BuildType.RELEASE else BuildType.DEBUG,
+                dependencies = wasi.webDependencies(container.packageManager.nativeDependencies(current.config.packages)),
+            )
+            var finished: BuildEvent.Finished? = null
+            val errors = mutableListOf<String>()
+            val stderr = ArrayDeque<String>()
+            container.buildService.build(request).collect { event ->
+                when (event) {
+                    is BuildEvent.Finished -> finished = event
+                    is BuildEvent.DiagnosticReported -> if (event.diagnostic.severity == Severity.ERROR && errors.size < 5) {
+                        val d = event.diagnostic
+                        errors += listOfNotNull(d.file?.let { File(it).name }, d.line?.toString()).joinToString(":").let { if (it.isEmpty()) d.message else "$it: ${d.message}" }
+                    }
+                    is BuildEvent.Output -> if (event.stream == OutputStream.STDERR) {
+                        stderr.addLast(event.line)
+                        if (stderr.size > 8) stderr.removeFirst()
+                    }
+                    else -> Unit
+                }
+            }
+            val artifact = finished?.result?.takeIf { it.success }?.artifact
+            if (artifact == null) {
+                val details = errors.ifEmpty { stderr.toList() }.joinToString("\n")
+                _state.update { it.copy(webStatus = ExportStatus.Failed("The WebAssembly build failed.\n$details".trim())) }
+                return@launch
+            }
+
+            _state.update { it.copy(webStatus = ExportStatus.Working("Packaging the web page…")) }
+            val name = WebExporter.fileName(current.name)
+            val result = withContext(Dispatchers.IO) {
+                container.webExporter.export(
+                    WebExportRequest(
+                        wasm = artifact.file,
+                        title = settings.appName,
+                        programName = name,
+                        arguments = current.config.runArguments,
+                        assetsDirectory = File(current.root, ApkExporter.BUNDLED_ASSETS_DIR).takeIf { settings.bundleAssets && it.isDirectory },
+                        outputDirectory = File(container.exportsDirectory, "${WebExporter.OUTPUT_FOLDER}/$name"),
+                        outputZip = File(container.exportsDirectory, "$name-web.zip"),
+                    ),
+                )
+            }
+            _state.update {
+                when (result) {
+                    is Outcome.Success -> it.copy(webStatus = ExportStatus.Done(result.value.zip), webPage = result.value.page)
+                    is Outcome.Failure -> it.copy(webStatus = ExportStatus.Failed(result.error.message))
+                }
+            }
+        }
+    }
+
+    fun dismissWebDownload() = _state.update { it.copy(webDownloadPrompt = null) }
+
+    private suspend fun installWebPackages(names: List<String>): Boolean {
+        var ok = false
+        _state.update { it.copy(webStatus = ExportStatus.Working("Downloading the WebAssembly libraries…")) }
+        container.packageManager.install(names).collect { event ->
+            when (event) {
+                is InstallEvent.Extracting -> _state.update { it.copy(webStatus = ExportStatus.Working("Installing ${event.pkg.name}…")) }
+                is InstallEvent.Failed -> _state.update { it.copy(webStatus = ExportStatus.Failed(event.error.message)) }
+                InstallEvent.Completed -> ok = true
+                else -> Unit
+            }
+        }
+        return ok
     }
 
     fun dismissPasswordPrompt() = _state.update { it.copy(passwordPrompt = null) }

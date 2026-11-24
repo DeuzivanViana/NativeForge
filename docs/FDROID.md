@@ -15,6 +15,7 @@ repository, and how to submit. Policy references are from the
 | Only free dependencies: AndroidX, Compose, Kotlin, Sora Editor, JGit, apksig, Bouncy Castle, Commons Compress (Maven Central / Google) and the Termux terminal from JitPack, which F-Droid allows | `gradle/libs.versions.toml` |
 | No ads, analytics, crash reporting or Google Play Services | |
 | Opt-in toolchain download: the Install button explains that the programs come from the Termux repository and bypass F-Droid's checks, and nothing is downloaded until the user agrees (policy item 5) | `app/.../home/HomeScreen.kt` (`ToolchainConsentDialog`) |
+| The web export's WASI libraries (Termux's `wasi-libc`, data only, no executables) are downloaded the same way, after their own dialog | `app/.../export/WebExportSection.kt` (`WebDownloadDialog`) |
 | The runtime template APK used by Export is built from source in the same Gradle build | `runtime-template/` |
 | The native shim is built from source with the NDK (`externalNativeBuild`) | `feature/runner/` |
 
