@@ -1,5 +1,19 @@
 # Roadmap
 
+## 0.8.0 — search in project
+
+* Search in project (Ctrl+Shift+F, the command palette, the menu or the
+  search field in the explorer) looks through every text file of the project,
+  including unsaved changes, with match case, whole word and regex options.
+  `build/`, `.git` and other tool folders, links, binaries and files over
+  4 MB are skipped; results stop at 5000 matches.
+* Tapping a result opens the file and selects the match. Replace all edits
+  files shown in an editor there (one undo step, left unsaved), files with
+  unsaved changes in memory, and rewrites the others on disk. In regex mode
+  `$1` and `${name}` insert groups.
+* `ProjectSearch` (core/project) holds the search and replace logic, covered
+  by `ProjectSearchTest`.
+
 ## 0.7.2 — release automation, F-Droid preparation
 
 * Application ID `io.github.deuzivanviana.nativeforge`, based on the source

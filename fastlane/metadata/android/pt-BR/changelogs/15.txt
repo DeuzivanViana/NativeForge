@@ -1,0 +1,2 @@
+• Buscar no projeto (Ctrl+Shift+F, ou o campo de busca no explorador): encontra texto em todos os arquivos, com opções de diferenciar maiúsculas, palavra inteira e expressão regular
+• Toque num resultado para abrir o arquivo no trecho encontrado; Substituir tudo troca todas as ocorrências, e nos arquivos abertos no editor dá para desfazer

@@ -20,6 +20,10 @@ import io.nativeforge.core.common.process.OutputStream
 import io.nativeforge.core.packages.model.InstallEvent
 import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.project.model.ProjectConfig
+import io.nativeforge.core.project.search.ProjectSearch
+import io.nativeforge.core.project.search.SearchMatch
+import io.nativeforge.core.project.search.SearchQuery
+import io.nativeforge.core.project.search.SearchResult
 import io.nativeforge.core.vcs.FileChange
 import io.nativeforge.core.vcs.GitCredentials
 import io.nativeforge.core.vcs.GitException
@@ -29,6 +33,8 @@ import io.nativeforge.feature.editor.CodeEditorController
 import io.nativeforge.feature.editor.EditorDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +48,16 @@ data class FileNode(val file: File, val depth: Int, val isDirectory: Boolean, va
 
 /** A file's changes shown in the diff viewer. */
 data class DiffView(val path: String, val change: FileChange?, val text: String)
+
+/** "Search in project": the last query, its results and the replacement text. */
+data class ProjectSearchState(
+    val query: SearchQuery = SearchQuery(""),
+    val replacement: String = "",
+    val running: Boolean = false,
+    val result: SearchResult = SearchResult.EMPTY,
+    /** Invalid regular expression, or null. */
+    val error: String? = null,
+)
 
 data class LogLine(val text: String, val isError: Boolean)
 
@@ -99,6 +115,9 @@ class WorkspaceViewModel(
     private val _state = MutableStateFlow(WorkspaceUiState())
     val state: StateFlow<WorkspaceUiState> = _state.asStateFlow()
     private var buildJob: Job? = null
+    private val _search = MutableStateFlow(ProjectSearchState())
+    val search: StateFlow<ProjectSearchState> = _search.asStateFlow()
+    private var searchJob: Job? = null
     private var lastArtifact: BuildArtifact? = null
 
     init {
@@ -776,6 +795,117 @@ class WorkspaceViewModel(
 
     fun togglePanel() = _state.update { it.copy(panelVisible = !it.panelVisible) }
 
+    // ---- Search in project ----
+
+    /** Searches every text file of the project (unsaved editor text included), after a short pause for typing. */
+    fun searchInProject(query: SearchQuery) {
+        searchJob?.cancel()
+        _search.update { it.copy(query = query, error = null) }
+        val root = _state.value.project?.root ?: return
+        if (query.text.isEmpty()) {
+            _search.update { it.copy(running = false, result = SearchResult.EMPTY) }
+            return
+        }
+        ProjectSearch.compile(query).exceptionOrNull()?.let { error ->
+            val reason = error.message?.lineSequence()?.firstOrNull().orEmpty()
+            _search.update { it.copy(running = false, result = SearchResult.EMPTY, error = "Invalid regular expression: $reason") }
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MS)
+            _search.update { it.copy(running = true) }
+            val unsaved = documents.filterKeys { it in _state.value.dirtyFiles }.mapValues { it.value.text() }
+            val result = withContext(Dispatchers.IO) {
+                val context = coroutineContext
+                ProjectSearch.search(root, query, textOf = { unsaved[it.path] }, checkCancelled = { context.ensureActive() })
+            }
+            _search.update { it.copy(running = false, result = result) }
+        }
+    }
+
+    fun setSearchReplacement(text: String) = _search.update { it.copy(replacement = text) }
+
+    /** Opens a search result in the focused editor and selects the match. */
+    fun openSearchMatch(file: File, match: SearchMatch) {
+        val controller = focusedEditor
+        val length = match.end - match.start
+        if (controller.document?.path == file.path) {
+            controller.select(match.line, match.column, length)
+            controller.focus()
+            return
+        }
+        openFile(file, inSplit = controller === splitEditor)
+        viewModelScope.launch {
+            delay(150)
+            focusedEditor.select(match.line, match.column, length)
+            focusedEditor.focus()
+        }
+    }
+
+    /**
+     * Replaces every match of the current search in the files of the result. Files shown in
+     * an editor are edited there (one undo step, left unsaved); other files with unsaved
+     * changes are edited in memory; the rest are rewritten on disk.
+     */
+    fun replaceInProject() {
+        val search = _search.value
+        val files = search.result.files.map { it.file }
+        if (files.isEmpty() || search.running) return
+        searchJob?.cancel()
+        viewModelScope.launch {
+            var total = 0
+            var changed = 0
+            var failed = 0
+            for (file in files) {
+                val path = file.path
+                val controller = when (path) {
+                    editor.document?.path -> editor
+                    splitEditor.document?.path -> splitEditor
+                    else -> null
+                }
+                val document = documents[path]
+                val count = when {
+                    controller != null && document != null -> {
+                        val replacements = ProjectSearch.replacements(document.text(), search.query, search.replacement)
+                        if (replacements.isNotEmpty()) controller.applyReplacements(replacements)
+                        replacements.size
+                    }
+                    document != null && path in _state.value.dirtyFiles -> {
+                        val (text, count) = ProjectSearch.replace(document.text(), search.query, search.replacement)
+                        if (count > 0) {
+                            documents[path] = EditorDocument(path, text)
+                            intel.textChanged(path, text)
+                        }
+                        count
+                    }
+                    else -> {
+                        val outcome = withContext(Dispatchers.IO) {
+                            runCatching {
+                                val (text, count) = ProjectSearch.replace(file.readText(), search.query, search.replacement)
+                                if (count > 0) file.writeText(text)
+                                text to count
+                            }
+                        }
+                        val written = outcome.getOrNull()
+                        if (written == null) {
+                            failed++
+                            0
+                        } else {
+                            val (text, count) = written
+                            if (count > 0 && documents.remove(path) != null) intel.textChanged(path, text)
+                            count
+                        }
+                    }
+                }
+                if (count > 0) { total += count; changed++ }
+            }
+            val summary = "Replaced $total occurrence" + (if (total == 1) "" else "s") + " in $changed file" + (if (changed == 1) "" else "s")
+            showMessage(if (failed > 0) "$summary ($failed could not be written)" else summary)
+            if (_state.value.git != null) refreshGit()
+            searchInProject(search.query)
+        }
+    }
+
     fun showMessage(message: String) = _state.update { it.copy(message = message) }
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
@@ -831,6 +961,7 @@ class WorkspaceViewModel(
         const val MAX_LOG_LINES = 2000
         const val MAX_TREE_NODES = 5000
         const val MAX_EDITABLE_BYTES = 4L * 1024 * 1024
+        const val SEARCH_DEBOUNCE_MS = 250L
         val HIDDEN_NAMES = setOf(".git", ".cache", ".gradle", ".idea", ".vscode", ".DS_Store")
     }
 }
