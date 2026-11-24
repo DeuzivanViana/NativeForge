@@ -5,12 +5,17 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
 
-/** Records installed packages in a JSON file. Not thread-safe; callers serialize access. */
+/**
+ * Records installed packages in a JSON file. Not thread-safe; callers serialize access.
+ * The file is read again when it changed on disk: `pkg` in the terminal runs in another
+ * process and writes the same file.
+ */
 class InstalledPackageDatabase(private val file: File) {
 
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
     private val serializer = ListSerializer(InstalledPackage.serializer())
     private var cache: MutableMap<String, InstalledPackage>? = null
+    private var cacheStamp: Pair<Long, Long>? = null
 
     fun all(): List<InstalledPackage> = load().values.sortedBy { it.info.name }
 
@@ -28,13 +33,16 @@ class InstalledPackageDatabase(private val file: File) {
         persist()
     }
 
-    private fun load(): MutableMap<String, InstalledPackage> = cache ?: run {
+    private fun stamp(): Pair<Long, Long> = file.lastModified() to file.length()
+
+    private fun load(): MutableMap<String, InstalledPackage> = cache?.takeIf { cacheStamp == stamp() } ?: run {
         val loaded = if (file.isFile) {
             json.decodeFromString(serializer, file.readText()).associateByTo(LinkedHashMap()) { it.info.name }
         } else {
             LinkedHashMap()
         }
         cache = loaded
+        cacheStamp = stamp()
         loaded
     }
 
@@ -46,5 +54,6 @@ class InstalledPackageDatabase(private val file: File) {
             file.writeText(temp.readText())
             temp.delete()
         }
+        cacheStamp = stamp()
     }
 }

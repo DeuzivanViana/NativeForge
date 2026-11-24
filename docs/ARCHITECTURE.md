@@ -85,6 +85,18 @@ JSON index (`JsonIndexSource`, format in `packages/README.md`). They install int
 `files/android-libs/<name>` and contribute include/lib flags and CMake prefixes
 through `NativeDependency`.
 
+### Terminal
+
+`ProgramRunner.openShell` asks `core/toolchain`'s `ShellSetup` what to start:
+Termux's bash with a generated `--rcfile` (sourcing the relocated
+`$PREFIX/etc/profile` and `~/.bashrc`), or `/system/bin/sh` until bash is
+installed. `ShellSetup.prepare()` also writes `$PREFIX/bin/pkg` (and `apt`), a
+script that runs `app_process` with the app's APK (`$NATIVEFORGE_APK`) and
+`io.nativeforge.app.cli.PkgMain`: the app's package manager without a Context,
+with the command logic in `core/packages`' `PackageCli`. Termux's compiled-in
+paths are redirected through the environment (`TERMINFO`, `INPUTRC`,
+`SSL_CERT_FILE`, `GIT_EXEC_PATH`, in `ClangToolchain.environment()`).
+
 ### Runtime hosts
 
 | Runtime | Program artifact | Host |

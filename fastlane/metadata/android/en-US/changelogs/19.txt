@@ -1,0 +1,5 @@
+• Full terminal: bash with history, completion and colours, plus coreutils, grep, sed, nano, less, curl and more
+• New pkg command in the terminal: pkg install, search, upgrade and remove Termux packages
+• nano, less, clear and other full-screen programs work (terminfo and readline found)
+• curl and git trust HTTPS certificates
+• Existing users: run pkg setup in the terminal to get bash

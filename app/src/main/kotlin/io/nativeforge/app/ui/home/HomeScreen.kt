@@ -246,8 +246,8 @@ private fun ToolchainConsentDialog(onAccept: () -> Unit, onDecline: () -> Unit) 
         },
     ) {
         Text(
-            "NativeForge will download clang, clangd, clang-format, CMake, Ninja, Make and their libraries " +
-                "(about 150 MB) from the Termux package repository (packages-cf.termux.dev) and run them on this device.\n\n" +
+            "NativeForge will download clang, clangd, clang-format, CMake, Ninja, Make, their libraries and a terminal " +
+                "with bash, coreutils, nano and curl (about 170 MB) from the Termux package repository (packages-cf.termux.dev) and run them on this device.\n\n" +
                 "These programs are free software, but they are not built or checked by F-Droid or by the store you " +
                 "installed NativeForge from. Downloading them bypasses those checks. Libraries you add to a project later " +
                 "are downloaded the same way.\n\nYou can keep using the editor without them; building and running needs them.",
@@ -274,7 +274,7 @@ private fun ToolchainBanner(status: ToolchainStatus, onInstall: () -> Unit) {
             }
             when (status) {
                 is ToolchainStatus.Missing -> Text(
-                    "Clang, CMake, Ninja and Make are downloaded once (about 150 MB) and run fully on your device.",
+                    "Clang, CMake, Ninja, Make and bash are downloaded once (about 170 MB) and run fully on your device.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

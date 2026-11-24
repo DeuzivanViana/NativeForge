@@ -52,7 +52,7 @@ class AppContainer(context: Context) {
     )
 
     private val http = AssetAwareHttpClient(
-        appContext.assets,
+        appContext.assets::open,
         UrlConnectionHttpClient(userAgent = "NativeForge/${BuildConfig.VERSION_NAME}"),
     )
 
