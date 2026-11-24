@@ -65,7 +65,8 @@ Requirements: JDK 17, Android SDK 35, NDK `27.2.12479018` (CMake 3.22.1 for libs
 
 * A fresh cloud container has no Android SDK, and Maven Central may answer 429,
   so Gradle may not run there. Don't spend time on full APK builds: CI
-  (`.github/workflows/android.yml`) runs `test` + `assembleDebug` on every PR.
+  (`.github/workflows/android.yml`) runs `test` + `assembleRelease` on every PR and push,
+  signs the APK with the release key (`.github/scripts/sign-apk.sh`) and uploads it.
 * Gradle has configuration cache, build cache and parallel on (`gradle.properties`).
 * Tests use `kotlin.test` + JUnit 4 + `kotlinx-coroutines-test`, next to the
   sources in `src/test/kotlin`. Fakes: `core/build/src/test/.../FakeToolchain.kt`.
