@@ -1,5 +1,16 @@
 # Roadmap
 
+## 0.9.1 — layout and security fixes
+
+* Buttons in the home screen, dialogs and Export move to the next line when the
+  screen is narrow, instead of breaking their labels letter by letter.
+* Package repositories: an archive is installed only when its index gives a
+  SHA-256, and only from HTTPS (or the APK, for the bundled index); entries
+  without a checksum or over plain HTTP are ignored.
+* Git pull and push check every address of the remote they use, as JGit will
+  use it: the current branch's remote, push URLs and `url.*.insteadOf`
+  rewrites. Projects opened from shared storage bring their own `.git/config`.
+* GitHub Actions: the build workflows run with a read-only token.
 
 ## 0.9.0 — projects in any folder, LVGL, more examples
 

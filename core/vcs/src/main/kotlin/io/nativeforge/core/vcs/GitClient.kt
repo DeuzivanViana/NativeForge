@@ -6,11 +6,13 @@ import org.eclipse.jgit.api.errors.GitAPIException
 import org.eclipse.jgit.api.errors.TransportException
 import org.eclipse.jgit.diff.DiffFormatter
 import org.eclipse.jgit.lib.BatchingProgressMonitor
+import org.eclipse.jgit.lib.BranchConfig
 import org.eclipse.jgit.lib.ConfigConstants
 import org.eclipse.jgit.lib.Constants
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
 import org.eclipse.jgit.transport.CredentialsProvider
+import org.eclipse.jgit.transport.RemoteConfig
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 import org.eclipse.jgit.treewalk.AbstractTreeIterator
 import org.eclipse.jgit.treewalk.CanonicalTreeParser
@@ -154,7 +156,7 @@ class GitClient(private val homeDir: File) {
 
     fun pull(dir: File, credentials: GitCredentials? = null, onProgress: (GitProgress) -> Unit = {}): String =
         withGit(dir, "Pull failed") { git ->
-            requireHttpsRemote(git.repository)
+            requireHttpsRemote(git.repository, pullRemote(git.repository))
             val result = git.pull()
                 .setTimeout(TIMEOUT_SECONDS)
                 .setCredentialsProvider(credentials.provider())
@@ -170,7 +172,7 @@ class GitClient(private val homeDir: File) {
 
     fun push(dir: File, credentials: GitCredentials?, onProgress: (GitProgress) -> Unit = {}): String =
         withGit(dir, "Push failed") { git ->
-            requireHttpsRemote(git.repository)
+            requireHttpsRemote(git.repository, Constants.DEFAULT_REMOTE_NAME)
             val results = git.push()
                 .setTimeout(TIMEOUT_SECONDS)
                 .setCredentialsProvider(credentials.provider())
@@ -190,10 +192,22 @@ class GitClient(private val homeDir: File) {
         git.repository.config.getString(ConfigConstants.CONFIG_REMOTE_SECTION, Constants.DEFAULT_REMOTE_NAME, "url")
     }
 
-    private fun requireHttpsRemote(repository: Repository) {
-        val url = repository.config.getString(ConfigConstants.CONFIG_REMOTE_SECTION, Constants.DEFAULT_REMOTE_NAME, "url")
-            ?: throw GitException("This repository has no remote named origin")
-        GitUrls.validate(url)?.let { throw GitException("The origin remote is not supported: $it") }
+    /** The remote `git pull` fetches from: the current branch's, or origin. */
+    private fun pullRemote(repository: Repository): String =
+        repository.branch?.let { BranchConfig(repository.config, it).remote } ?: Constants.DEFAULT_REMOTE_NAME
+
+    /**
+     * Pull and push only talk to HTTPS servers. Every address of the remote is checked as JGit
+     * will use it (after `url.*.insteadOf` rewriting, push URLs included), because a project
+     * opened from shared storage brings its own `.git/config`.
+     */
+    private fun requireHttpsRemote(repository: Repository, remoteName: String) {
+        val remote = RemoteConfig(repository.config, remoteName)
+        val addresses = remote.urIs + remote.pushURIs
+        if (addresses.isEmpty()) throw GitException("This repository has no remote named $remoteName")
+        addresses.forEach { uri ->
+            GitUrls.validate(uri.toString())?.let { throw GitException("The $remoteName remote is not supported: $it") }
+        }
     }
 
     private fun headTree(repository: Repository): AbstractTreeIterator {

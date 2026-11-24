@@ -7,7 +7,7 @@ programs full screen (OpenGL ES, Vulkan, raylib, SFML, SDL2, SDL3, Dear ImGui, L
 as a standalone APK with its own name, package id and version. It works with a
 touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 
-> Status: **0.9.0**. See [docs/ROADMAP.md](docs/ROADMAP.md) for what works today
+> Status: **0.9.1**. See [docs/ROADMAP.md](docs/ROADMAP.md) for what works today
 > and what comes next, and [docs/FDROID.md](docs/FDROID.md) for the F-Droid status.
 
 <p align="center"><img src="fastlane/metadata/android/en-US/images/icon.png" width="96" alt="NativeForge icon"></p>

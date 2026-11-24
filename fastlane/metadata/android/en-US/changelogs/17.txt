@@ -1,0 +1,4 @@
+• Buttons no longer break their labels on narrow screens
+• Packages from repositories are installed only with a SHA-256 checksum and over HTTPS
+• Git pull and push check the remote they really use, including rewritten addresses
+• Plus everything in 0.9.0: projects in any folder, LVGL and new examples

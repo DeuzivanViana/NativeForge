@@ -30,7 +30,21 @@ class JsonIndexSource(
         return index.packages
             .filter { it.architecture == abi.debianArch || it.architecture == "all" }
             .map { it.copy(sourceId = id, downloadUrl = resolve(it.downloadUrl)) }
+            .filter(::isVerifiable)
     }
+
+    /**
+     * Archives are trusted only through the index's SHA-256, so an entry without one is
+     * dropped, and so is one served over a scheme other than HTTPS or the index's own
+     * (`asset:` for the bundled index): plain HTTP could be altered on the network.
+     */
+    private fun isVerifiable(info: PackageInfo): Boolean {
+        val scheme = schemeOf(info.downloadUrl) ?: return false
+        return !info.sha256.isNullOrBlank() && (scheme == "https" || scheme == schemeOf(indexUrl))
+    }
+
+    private fun schemeOf(url: String): String? =
+        Regex("^([a-zA-Z][a-zA-Z0-9+.-]*):").find(url)?.groupValues?.get(1)?.lowercase()
 
     /** Archives may be named relative to the index ("aarch64/sdl2-2.32.tar.xz"). */
     private fun resolve(url: String): String {

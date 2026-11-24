@@ -105,6 +105,34 @@ class GitClientTest {
     }
 
     @Test
+    fun `pull and push refuse remotes that are not https once git rewrites them`() {
+        val dir = upstream()
+        val local = File(root, "elsewhere").also { it.mkdirs() }.toURI().toString()
+        Git.open(dir).use { git ->
+            val config = git.repository.config
+            config.setString("remote", "origin", "url", "https://example.org/user/game.git")
+            config.save()
+        }
+        // An address rewritten to a local path by url.*.insteadOf.
+        Git.open(dir).use { git ->
+            git.repository.config.apply { setString("url", local, "insteadOf", "https://example.org/"); save() }
+        }
+        assertTrue(assertFailsWith<GitException> { client.pull(dir) }.message!!.contains("not supported"))
+        assertTrue(assertFailsWith<GitException> { client.push(dir, null) }.message!!.contains("not supported"))
+
+        // The branch pulls from another remote than origin.
+        Git.open(dir).use { git ->
+            git.repository.config.apply {
+                unsetSection("url", local)
+                setString("remote", "mirror", "url", local)
+                setString("branch", "main", "remote", "mirror")
+                save()
+            }
+        }
+        assertTrue(assertFailsWith<GitException> { client.pull(dir) }.message!!.contains("mirror remote is not supported"))
+    }
+
+    @Test
     fun `a new repository is created with a gitignore`() {
         val dir = File(root, "fresh").apply { mkdirs() }
         File(dir, "main.c").writeText("int main(){}\n")

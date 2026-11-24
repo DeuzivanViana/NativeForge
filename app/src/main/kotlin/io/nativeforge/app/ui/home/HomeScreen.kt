@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -130,30 +131,10 @@ fun HomeScreen(
             ToolchainBanner(state.toolchain, onInstall = { consentOpen = true })
             if (consentOpen) ToolchainConsentDialog(onAccept = { consentOpen = false; viewModel.installToolchain() }, onDecline = { consentOpen = false })
             if (state.projects.isEmpty()) {
-                EmptyState(
-                    icon = Icons.Filled.Code,
-                    title = "No projects yet",
-                    message = "Create a console, LVGL, raylib, SDL or OpenGL ES project, open a folder from your phone, " +
-                        "or clone a git repository.",
-                    action = {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(onClick = { showNewProject = true }, shape = MaterialTheme.shapes.small) {
-                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("New project")
-                            }
-                            OutlinedButton(onClick = { pickFolder(FolderPurpose.OPEN_PROJECT) }, shape = MaterialTheme.shapes.small) {
-                                Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Open folder")
-                            }
-                            OutlinedButton(onClick = { showClone = true }, shape = MaterialTheme.shapes.small) {
-                                Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Clone")
-                            }
-                        }
-                    },
+                NoProjects(
+                    onNewProject = { showNewProject = true },
+                    onOpenFolder = { pickFolder(FolderPurpose.OPEN_PROJECT) },
+                    onClone = { showClone = true },
                 )
             } else {
                 SectionHeader("Recent projects · ${state.projects.size}") {
@@ -311,4 +292,38 @@ private fun ToolchainBanner(status: ToolchainStatus, onInstall: () -> Unit) {
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+/** Shown while there are no projects: what NativeForge does and the three ways to start. */
+@Composable
+internal fun NoProjects(onNewProject: () -> Unit, onOpenFolder: () -> Unit, onClone: () -> Unit) {
+    EmptyState(
+        icon = Icons.Filled.Code,
+        title = "No projects yet",
+        message = "Create a console, LVGL, raylib, SDL or OpenGL ES project, open a folder from your phone, " +
+            "or clone a git repository.",
+        action = {
+            // Wraps to a second line on narrow screens instead of squeezing the labels.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FilledTonalButton(onClick = onNewProject, shape = MaterialTheme.shapes.small) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("New project", maxLines = 1, softWrap = false)
+                }
+                OutlinedButton(onClick = onOpenFolder, shape = MaterialTheme.shapes.small) {
+                    Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Open folder", maxLines = 1, softWrap = false)
+                }
+                OutlinedButton(onClick = onClone, shape = MaterialTheme.shapes.small) {
+                    Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Clone", maxLines = 1, softWrap = false)
+                }
+            }
+        },
+    )
 }
