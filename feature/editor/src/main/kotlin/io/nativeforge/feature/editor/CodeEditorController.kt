@@ -10,8 +10,10 @@ import io.nativeforge.core.lsp.DiagnosticSeverity
 import io.nativeforge.core.lsp.LspDiagnostic
 import io.nativeforge.core.lsp.Position
 import io.nativeforge.core.lsp.TextEdit
+import io.github.rosemoe.sora.event.ScrollEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
+import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
@@ -19,6 +21,8 @@ import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.widget.SelectionMovement
+import io.nativeforge.feature.editor.highlight.HighlightMode
+import io.nativeforge.feature.editor.highlight.ProgressiveTextMateAnalyzer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +33,9 @@ class EditorDocument(val path: String, initialText: String) {
     internal val content: Content = Content(initialText)
     val fileName: String get() = path.substringAfterLast('/')
     fun text(): String = content.toString()
+
+    /** How much highlighting this document gets for its size (when it was opened). */
+    val highlightMode: HighlightMode get() = HighlightMode.forSize(content.length, content.lineCount)
 
     /** The same text under another path (after a rename). */
     fun copyTo(newPath: String): EditorDocument = EditorDocument(newPath, text())
@@ -67,6 +74,7 @@ class CodeEditorController {
     private var pendingDocument: EditorDocument? = null
     private var preferences = EditorPreferences()
     private var appliedTheme: EditorTheme? = null
+    private var highlighter: ProgressiveTextMateAnalyzer? = null
     var onContentChanged: ((EditorDocument) -> Unit)? = null
 
     /** Semantic completion for the open file (clangd), or null for word completion only. */
@@ -105,6 +113,7 @@ class CodeEditorController {
             }
             refreshSearchState()
         }
+        view.subscribeEvent(ScrollEvent::class.java) { _, _ -> reportViewport() }
         view.setOnFocusChangeListener { _, focused -> if (focused) onFocused?.invoke() }
         (pendingDocument ?: document)?.let(::open)
         pendingDocument = null
@@ -149,22 +158,45 @@ class CodeEditorController {
     fun open(document: EditorDocument) {
         this.document = document
         val view = editor ?: run { pendingDocument = document; return }
+        // Drop the old language first: setText would make it copy and analyze the new text.
+        highlighter = null
+        view.setEditorLanguage(EmptyLanguage())
         view.setText(document.content)
-        val scope = EditorLanguages.scopeFor(document.fileName)
-        view.setEditorLanguage(
-            if (scope != null) IntelligentLanguage(TextMateLanguage.create(scope, true), document.path) { intelligence } else EmptyLanguage(),
-        )
+        view.setEditorLanguage(languageFor(document))
+        reportViewport()
         applyDiagnostics()
         refreshUndoState()
+    }
+
+    /**
+     * TextMate colors for the file type, analyzed screen first (see [ProgressiveTextMateAnalyzer]);
+     * large files get colors only around the screen and no word completion, huge ones plain text.
+     */
+    private fun languageFor(document: EditorDocument): Language {
+        val scope = EditorLanguages.scopeFor(document.fileName) ?: return EmptyLanguage()
+        val mode = document.highlightMode
+        if (mode == HighlightMode.OFF) return EmptyLanguage()
+        val textMate = TextMateLanguage.create(scope, mode == HighlightMode.FULL)
+        val analyzer = ProgressiveTextMateAnalyzer(textMate, mode).also { highlighter = it }
+        return IntelligentLanguage(textMate, document.path, analyzer) { intelligence }
+    }
+
+    /** Tells the highlighter which lines are on screen. */
+    private fun reportViewport() {
+        val view = editor ?: return
+        val first = view.firstVisibleLine
+        val last = view.lastVisibleLine
+        if (last >= first) highlighter?.setViewport(first, last)
     }
 
     /** Shows an empty editor (the last open file was closed or deleted). */
     fun close() {
         document = null
         pendingDocument = null
+        highlighter = null
         editor?.let { view ->
-            view.setText("")
             view.setEditorLanguage(EmptyLanguage())
+            view.setText("")
         }
         refreshUndoState()
     }

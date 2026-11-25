@@ -34,6 +34,7 @@ import io.nativeforge.core.vcs.GitIdentity
 import io.nativeforge.core.vcs.GitStatus
 import io.nativeforge.feature.editor.CodeEditorController
 import io.nativeforge.feature.editor.EditorDocument
+import io.nativeforge.feature.editor.highlight.HighlightMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -249,13 +250,18 @@ class WorkspaceViewModel(
                     escapesProject(file) -> {
                         showMessage("${file.name} is a link to a file outside the project and was not opened"); null
                     }
-                    file.length() > MAX_EDITABLE_BYTES -> { showMessage("${file.name} is too large to edit (over 4 MB)"); null }
+                    file.length() > MAX_EDITABLE_BYTES -> { showMessage("${file.name} is too large to edit (over 16 MB)"); null }
                     isBinary(file) -> { showMessage("${file.name} is a binary file"); null }
                     else -> EditorDocument(file.path, file.readText())
                 }
             }?.also { documents[file.path] = it } ?: return@launch
             editor.open(document)
-            intel.opened(document.path, document.text())
+            when (document.highlightMode) {
+                HighlightMode.FULL -> Unit
+                HighlightMode.VIEWPORT -> showMessage("${file.name} is large: colors only around the screen, no word completion")
+                HighlightMode.OFF -> showMessage("${file.name} is very large: shown without colors")
+            }
+            intel.opened(document.path) { document.text() }
             editor.setDiagnostics(document.path, intel.diagnostics.value[document.path].orEmpty())
             _state.update {
                 it.copy(
@@ -310,7 +316,7 @@ class WorkspaceViewModel(
             val document = loadDocument(file) ?: return@launch showMessage("${file.name} cannot be opened in the editor")
             _state.value.splitFile?.takeIf { it != file.path }?.let { save(it) }
             splitEditor.open(document)
-            intel.opened(document.path, document.text())
+            intel.opened(document.path) { document.text() }
             splitEditor.setDiagnostics(document.path, intel.diagnostics.value[document.path].orEmpty())
             _state.update {
                 it.copy(
@@ -1033,7 +1039,8 @@ class WorkspaceViewModel(
         const val MAX_LOG_LINES = 2000
         const val LOG_FLUSH_MS = 50L
         const val MAX_DIAGNOSTICS = 1000
-        const val MAX_EDITABLE_BYTES = 4L * 1024 * 1024
+        /** Larger files stay closed; from 1 MB the editor highlights less (see HighlightMode). */
+        const val MAX_EDITABLE_BYTES = 16L * 1024 * 1024
         const val SEARCH_DEBOUNCE_MS = 250L
         const val AUTO_SAVE_DELAY_MS = 1_500L
     }
