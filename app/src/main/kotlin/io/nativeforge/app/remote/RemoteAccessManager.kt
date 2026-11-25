@@ -142,6 +142,7 @@ class RemoteAccessManager(private val context: Context, private val container: A
             // Set before start(): the server chains its own listener (closing revoked browsers' connections).
             access.onChanged = { refresh(); onStatus() }
             created.start(socket)
+            created.thermalChanged(container.thermal.level.value)
             server = created
             if (access.trustedBrowsers().isEmpty() && access.currentPairingCode() == null) access.newPairingCode()
             _state.update {
@@ -174,6 +175,9 @@ class RemoteAccessManager(private val context: Context, private val container: A
         access.onChanged = ::refresh
         _state.update { it.copy(running = false, starting = false, connectedBrowsers = 0) }
     }
+
+    /** Streamed programs lower their frame rate while the phone is hot. */
+    internal fun thermalChanged(level: io.nativeforge.core.common.ThermalLevel) = server?.thermalChanged(level)
 
     /** Pushes the app's theme to connected browsers. */
     internal fun themeChanged() = server?.themeChanged()

@@ -87,7 +87,13 @@ class AppContainer(context: Context) {
         logger = logger,
     )
 
-    val buildService = BuildService(BuildSystemRegistry.default(), BuildExecutor(JvmProcessRunner()))
+    /** How hot the phone is: builds start at a lower CPU priority and streams cap their frame rate when it is hot. */
+    val thermal = io.nativeforge.app.device.ThermalMonitor(appContext)
+
+    val buildService = BuildService(
+        BuildSystemRegistry.default(),
+        BuildExecutor(JvmProcessRunner(priority = { thermal.level.value.buildThreadPriority })),
+    )
 
     val apkExporter = ApkExporter(ApksigSigningEngine())
     val webExporter = WebExporter()

@@ -5,10 +5,12 @@ import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
+import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.net.LocalServerSocket
 import android.net.LocalSocket
 import android.net.LocalSocketAddress
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -17,6 +19,7 @@ import io.nativeforge.core.common.Logger
 import io.nativeforge.core.remote.screen.PointerAction
 import io.nativeforge.core.remote.screen.ProgramStream
 import io.nativeforge.core.remote.screen.RemoteInput
+import io.nativeforge.core.remote.screen.StreamQuality
 import io.nativeforge.core.remote.screen.StreamSink
 import io.nativeforge.core.remote.screen.VideoFrame
 import io.nativeforge.feature.runner.ProgramLauncher
@@ -35,7 +38,11 @@ import kotlin.math.roundToInt
  * The phone side of a streamed run: a private virtual display whose picture goes straight
  * into the hardware H.264 encoder (no copies through the CPU), and the local socket the
  * program's process reads browser input from and sends its window size requests to.
- * The display changes size with [resize] (see ScreenHub for when).
+ * The display changes size with [resize], and the encoder's frame rate and bit rate with
+ * [setQuality] (see ScreenHub for when).
+ *
+ * Everything it holds (encoder, display, socket, its low-latency Wi-Fi lock) is released
+ * as soon as the program ends or is stopped.
  *
  * The program itself is started by the caller with [run]; it draws on [display] through a
  * Presentation (see the runner's RemoteHost).
@@ -52,6 +59,8 @@ class AndroidProgramStream private constructor(
     private val blackScreen: Boolean,
     /** What sizes the encoder takes (null when Android did not say). */
     private val capabilities: MediaCodecInfo.VideoCapabilities?,
+    /** The hardware encoder to use (null: whichever Android picks for H.264). */
+    private val codecName: String?,
 ) : ProgramStream {
     private val socketName = "nativeforge.remote-input." + ByteArray(12).also(SecureRandom()::nextBytes).joinToString("") { "%02x".format(it) }
     private val server = LocalServerSocket(socketName)
@@ -60,6 +69,10 @@ class AndroidProgramStream private constructor(
     private val ended = AtomicBoolean()
     private val resizeLock = Any()
     private val writer = Executors.newSingleThreadExecutor { Thread(it, "nf-stream-input").apply { isDaemon = true } }
+    /** Quality changes come from the encoder's own thread; a new encoder is started from here. */
+    private val control = Executors.newSingleThreadExecutor { Thread(it, "nf-stream-control").apply { isDaemon = true } }
+    @Volatile private var quality: StreamQuality = StreamQuality.LEVELS[0]
+    private val wifiLock = lowLatencyWifiLock()
     @Volatile private var encoder: Encoder
     @Volatile private var client: LocalSocket? = null
     @Volatile private var output: DataOutputStream? = null
@@ -74,6 +87,7 @@ class AndroidProgramStream private constructor(
             encoder = Encoder(width, height)
         } catch (e: Exception) {
             runCatching { server.close() }
+            releaseWifiLock()
             throw e
         }
         try {
@@ -84,6 +98,7 @@ class AndroidProgramStream private constructor(
             encoder.stop()
             encoder.start() // its thread releases it
             runCatching { server.close() }
+            releaseWifiLock()
             throw e
         }
         run = RemoteRun(display.display.displayId, socketName, blackScreen)
@@ -104,13 +119,14 @@ class AndroidProgramStream private constructor(
      * output reaches the sink.
      */
     private inner class Encoder(val width: Int, val height: Int) {
-        private val codec: MediaCodec = MediaCodec.createEncoderByType(MIME)
+        private val codec: MediaCodec = codecName?.let { runCatching { MediaCodec.createByCodecName(it) }.getOrNull() }
+            ?: MediaCodec.createEncoderByType(MIME)
         val surface: Surface
         @Volatile private var stopping = false
 
         init {
             try {
-                codec.configure(format(width, height), null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                codec.configure(format(width, height, quality), null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
                 surface = codec.createInputSurface()
                 codec.start()
             } catch (e: Exception) {
@@ -129,6 +145,12 @@ class AndroidProgramStream private constructor(
 
         fun requestKeyFrame() {
             runCatching { codec.setParameters(Bundle().apply { putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0) }) }
+        }
+
+        /** Changes the bit rate of the running encoder (no new key frame needed). */
+        fun setBitRate(bitRate: Int) {
+            runCatching { codec.setParameters(Bundle().apply { putInt(MediaCodec.PARAMETER_KEY_VIDEO_BITRATE, bitRate) }) }
+                .onFailure { logger.debug(TAG, "Bit rate not changed: ${it.message}") }
         }
 
         /** Copies encoded frames to the sink until stopped, then releases the encoder. */
@@ -168,10 +190,13 @@ class AndroidProgramStream private constructor(
         }
     }
 
-    private fun format(width: Int, height: Int) = MediaFormat.createVideoFormat(MIME, width, height).apply {
+    private fun format(width: Int, height: Int, quality: StreamQuality) = MediaFormat.createVideoFormat(MIME, width, height).apply {
         setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        setInteger(MediaFormat.KEY_BIT_RATE, bitRate(width, height))
-        setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE)
+        setInteger(MediaFormat.KEY_BIT_RATE, quality.bitRate(width, height))
+        setInteger(MediaFormat.KEY_FRAME_RATE, quality.frameRate)
+        // Frames the display draws faster than this are dropped before they are encoded
+        // (public as KEY_MAX_FPS_TO_ENCODER since Android 10, honoured by older ones too).
+        if (quality.frameRate < StreamQuality.MAX_FRAME_RATE) setFloat(KEY_MAX_FPS_TO_ENCODER, quality.frameRate.toFloat())
         setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
         // Keep sending frames while the picture stands still, so new viewers get one soon.
         setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 100_000)
@@ -189,19 +214,47 @@ class AndroidProgramStream private constructor(
             val (w, h) = encoderSize(capabilities, width, height)
             val old = encoder
             if (w == old.width && h == old.height) return
-            val next = try {
-                Encoder(w, h)
-            } catch (e: Exception) {
-                logger.warn(TAG, "Could not start an encoder for $w x $h", e)
-                return
-            }
-            encoder = next
-            display.resize(w, h, dpi(w, h))
-            display.surface = next.surface
-            next.start()
-            old.stop()
-            logger.info(TAG, "Display resized to $w x $h")
+            replaceEncoder(w, h)
         }
+    }
+
+    /**
+     * A new bit rate is set on the running encoder; a new frame rate cap needs a new encoder
+     * (it is fixed when one is configured), which starts with a key frame.
+     */
+    override fun setQuality(quality: StreamQuality) {
+        if (stopped.get()) return
+        runCatching {
+            control.execute {
+                synchronized(resizeLock) {
+                    if (stopped.get()) return@execute
+                    val old = this.quality
+                    if (old == quality) return@execute
+                    this.quality = quality
+                    val current = encoder
+                    if (old.frameRate == quality.frameRate) current.setBitRate(quality.bitRate(current.width, current.height))
+                    else if (!replaceEncoder(current.width, current.height)) this.quality = old
+                }
+            }
+        }
+    }
+
+    /** Starts a new encoder of [w] x [h] at the current [quality], then stops the old one. Caller holds [resizeLock]. */
+    private fun replaceEncoder(w: Int, h: Int): Boolean {
+        val old = encoder
+        val next = try {
+            Encoder(w, h)
+        } catch (e: Exception) {
+            logger.warn(TAG, "Could not start an encoder for $w x $h", e)
+            return false
+        }
+        encoder = next
+        if (w != old.width || h != old.height) display.resize(w, h, dpi(w, h))
+        display.surface = next.surface
+        next.start()
+        old.stop()
+        logger.info(TAG, "Encoder now $w x $h at up to ${quality.frameRate} fps")
+        return true
     }
 
     /**
@@ -301,6 +354,26 @@ class AndroidProgramStream private constructor(
         }
     }
 
+    /**
+     * Keeps Wi-Fi in its low-latency mode (Android 10+) while the program streams: less
+     * delay between frames and input. Held only for the run, unlike the service's own lock.
+     */
+    @Suppress("DEPRECATION")
+    private fun lowLatencyWifiLock(): WifiManager.WifiLock? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        return runCatching {
+            val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifi.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "NativeForge:remote-stream").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        }.getOrNull()
+    }
+
+    private fun releaseWifiLock() {
+        runCatching { wifiLock?.takeIf { it.isHeld }?.release() }
+    }
+
     private fun wireAction(action: PointerAction) = when (action) {
         PointerAction.DOWN -> RemoteInputWire.DOWN
         PointerAction.MOVE -> RemoteInputWire.MOVE
@@ -322,6 +395,7 @@ class AndroidProgramStream private constructor(
     private fun finish(reason: String) {
         if (!stopped.getAndSet(true)) {
             writer.shutdownNow()
+            control.shutdownNow()
             release()
         }
         if (!ended.getAndSet(true)) sink.onEnded(reason)
@@ -331,6 +405,9 @@ class AndroidProgramStream private constructor(
         // The program's process ends when its connection closes (it finishes its activity).
         runCatching { client?.close() }
         runCatching { display.release() }
+        // The encoder's thread sees `stopped` and releases it within one poll (100 ms).
+        encoder.stop()
+        releaseWifiLock()
         // LocalServerSocket.accept() does not return when the socket closes: wake it up first.
         if (client == null) runCatching { LocalSocket().use { it.connect(LocalSocketAddress(socketName)) } }
         runCatching { server.close() }
@@ -341,10 +418,26 @@ class AndroidProgramStream private constructor(
     companion object {
         private const val TAG = "ProgramStream"
         private const val MIME = MediaFormat.MIMETYPE_VIDEO_AVC
-        private const val FRAME_RATE = 60
         private const val START_TIMEOUT_MS = 15_000L
+        private const val KEY_MAX_FPS_TO_ENCODER = "max-fps-to-encoder"
 
-        private fun bitRate(width: Int, height: Int) = (width * height * FRAME_RATE * 0.08).toInt().coerceIn(2_000_000, 10_000_000)
+        /**
+         * The H.264 encoder to stream with: a hardware one that takes a surface as input,
+         * else any that takes a surface (software), else null (Android's default).
+         */
+        private fun pickEncoder(): MediaCodecInfo? = runCatching {
+            val candidates = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { info ->
+                info.isEncoder && info.supportedTypes.any { it.equals(MIME, ignoreCase = true) } &&
+                    runCatching { MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface in info.getCapabilitiesForType(MIME).colorFormats }.getOrDefault(false)
+            }
+            candidates.firstOrNull(::isHardware) ?: candidates.firstOrNull()
+        }.getOrNull()
+
+        private fun isHardware(info: MediaCodecInfo): Boolean {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return info.isHardwareAccelerated && !info.isSoftwareOnly
+            val name = info.name.lowercase()
+            return !name.startsWith("omx.google.") && !name.startsWith("c2.android.") && !name.contains(".sw.")
+        }
 
         /**
          * The size closest to [width] x [height] that the encoder takes: rounded down to its
@@ -379,13 +472,15 @@ class AndroidProgramStream private constructor(
             blackScreen: Boolean,
             endReason: () -> String?,
         ): AndroidProgramStream {
+            val chosen = pickEncoder()
             val capabilities = runCatching {
-                MediaCodec.createEncoderByType(MIME).let { codec ->
+                chosen?.getCapabilitiesForType(MIME)?.videoCapabilities ?: MediaCodec.createEncoderByType(MIME).let { codec ->
                     try { codec.codecInfo.getCapabilitiesForType(MIME).videoCapabilities } finally { codec.release() }
                 }
             }.getOrNull()
+            logger.info(TAG, "Streaming with encoder ${chosen?.name ?: "(Android's default)"}")
             val (w, h) = encoderSize(capabilities, width, height)
-            return AndroidProgramStream(context, logger, w, h, sink, endReason, blackScreen, capabilities)
+            return AndroidProgramStream(context, logger, w, h, sink, endReason, blackScreen, capabilities, chosen?.name)
         }
     }
 }

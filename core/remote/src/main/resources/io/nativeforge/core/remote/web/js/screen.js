@@ -1,9 +1,13 @@
 // The picture of a graphical program running on the phone, decoded with WebCodecs, plus the
-// keyboard, mouse and touch input that goes back to it. See ScreenHub.kt for the wire format.
+// keyboard, mouse and touch input that goes back to it (pointer and wheel as small binary
+// messages, the rest as JSON). See ScreenHub.kt for the wire format.
 import { wsUrl } from './api.js';
 import { h, fill, icon, iconButton } from './util.js';
 
 const MOD_SHIFT = 1, MOD_CTRL = 2, MOD_ALT = 4, MOD_META = 8, MOD_CAPS = 16;
+// Binary input messages (ScreenHub.Viewer.receive): pointer and wheel, the frequent ones.
+const BIN_POINTER = 1, BIN_WHEEL = 2;
+const POINTER_ACTIONS = { down: 0, move: 1, up: 2, cancel: 3, hover: 4 };
 
 export const canDecode = () => typeof window.VideoDecoder === 'function' && window.isSecureContext;
 
@@ -27,6 +31,9 @@ export class ScreenView {
     this.pendingMove = null;
     this.fixed = false; // the program chose its window size, so the panel's size doesn't change it
     this.sentSize = '';
+    this.maxFps = 60; // the phone lowers it on a slow network, a slow browser or when it is hot
+    this.hot = false;
+    this.lastLag = 0;
 
     this.canvas = h('canvas', { class: 'screen-canvas', tabIndex: 0, title: 'Click to send keyboard and mouse to the program' });
     this.message = h('div', { class: 'screen-message' }, 'Connecting…');
@@ -82,6 +89,9 @@ export class ScreenView {
       // A new size comes from a new encoder: start again from its next key frame.
       else if (resized && m.t !== 'hello') this.resetDecoder();
       if (m.t === 'hello') { this.sentSize = ''; this.sendPanelSize(); }
+    } else if (m.t === 'quality') {
+      this.maxFps = m.fps || 60;
+      this.hot = !!m.hot;
     } else if (m.t === 'end') {
       this.end(m.reason);
     }
@@ -125,7 +135,7 @@ export class ScreenView {
     const key = (bytes[0] & 1) !== 0;
     if (this.needKey && !key) return;
     // A decoder that falls behind adds latency: drop until the next key frame.
-    if (this.decoder.decodeQueueSize > 8 && !key) { this.needKey = true; this.requestKeyFrame(); return; }
+    if (this.decoder.decodeQueueSize > 8 && !key) { this.needKey = true; this.requestKeyFrame(); this.lag(); return; }
     const view = new DataView(buffer);
     const timestamp = view.getUint32(1) * 2 ** 32 + view.getUint32(5);
     try {
@@ -163,7 +173,8 @@ export class ScreenView {
   updateStats() {
     if (this.ended) return;
     const size = `${this.width}×${this.height}${this.fixed ? ' (set by the program)' : ''}`;
-    this.stats.textContent = this.frames ? `${size} · ${this.frames} fps · ${Math.round(this.bytes * 8 / 1000)} kbit/s` : '';
+    const cap = this.hot ? ` · ${this.maxFps} fps max (phone is hot)` : this.maxFps < 60 ? ` · ${this.maxFps} fps max` : '';
+    this.stats.textContent = this.frames ? `${size} · ${this.frames} fps · ${Math.round(this.bytes * 8 / 1000)} kbit/s${cap}` : '';
     this.frames = 0;
     this.bytes = 0;
   }
@@ -186,6 +197,40 @@ export class ScreenView {
   send(message) { if (this.ws?.readyState === WebSocket.OPEN && !this.ended) this.ws.send(JSON.stringify(message)); }
 
   requestKeyFrame() { this.send({ t: 'keyframe' }); }
+
+  /** Tells the phone this browser could not keep up (it lowers the frame and bit rate); at most once a second. */
+  lag() {
+    const now = performance.now();
+    if (now - this.lastLag < 1000) return;
+    this.lastLag = now;
+    this.send({ t: 'lag' });
+  }
+
+  sendBinary(buffer) { if (this.ws?.readyState === WebSocket.OPEN && !this.ended) this.ws.send(buffer); }
+
+  /** Pointer event as 13 bytes: [1][action][flags: 1 = touch][id][buttons][x f32][y f32]. */
+  sendPointer({ a, x, y, b, id, k }) {
+    const view = new DataView(new ArrayBuffer(13));
+    view.setUint8(0, BIN_POINTER);
+    view.setUint8(1, POINTER_ACTIONS[a]);
+    view.setUint8(2, k === 'touch' ? 1 : 0);
+    view.setUint8(3, id || 0);
+    view.setUint8(4, b & 0xff);
+    view.setFloat32(5, x);
+    view.setFloat32(9, y);
+    this.sendBinary(view.buffer);
+  }
+
+  /** Wheel event as 17 bytes: [2][x f32][y f32][dx f32][dy f32]. */
+  sendWheel(x, y, dx, dy) {
+    const view = new DataView(new ArrayBuffer(17));
+    view.setUint8(0, BIN_WHEEL);
+    view.setFloat32(1, x);
+    view.setFloat32(5, y);
+    view.setFloat32(9, dx);
+    view.setFloat32(13, dy);
+    this.sendBinary(view.buffer);
+  }
 
   releaseKeys() { this.send({ t: 'release' }); }
 
@@ -242,7 +287,7 @@ export class ScreenView {
       e.preventDefault();
       c.setPointerCapture(e.pointerId);
       const k = this.pointerKind(e);
-      this.send({ t: 'ptr', a: 'down', ...p, b: k === 'touch' ? 1 : e.buttons, id: k === 'touch' ? this.touchId(e, true) : 0, k });
+      this.sendPointer({ a: 'down', ...p, b: k === 'touch' ? 1 : e.buttons, id: k === 'touch' ? this.touchId(e, true) : 0, k });
     });
     c.addEventListener('pointermove', (e) => {
       const k = this.pointerKind(e);
@@ -252,15 +297,15 @@ export class ScreenView {
       if (!p) return;
       // One move per animation frame is plenty and keeps the socket quiet.
       const first = !this.pendingMove;
-      this.pendingMove = { t: 'ptr', a: pressed ? 'move' : 'hover', ...p, b: k === 'touch' ? 1 : e.buttons, id: k === 'touch' ? this.touchId(e, false) : 0, k };
-      if (first) requestAnimationFrame(() => { const m = this.pendingMove; this.pendingMove = null; if (m) this.send(m); });
+      this.pendingMove = { a: pressed ? 'move' : 'hover', ...p, b: k === 'touch' ? 1 : e.buttons, id: k === 'touch' ? this.touchId(e, false) : 0, k };
+      if (first) requestAnimationFrame(() => { const m = this.pendingMove; this.pendingMove = null; if (m) this.sendPointer(m); });
     });
     const up = (cancel) => (e) => {
       const k = this.pointerKind(e);
       if (k === 'touch' && !this.touchIds.has(e.pointerId)) return;
       const p = this.position(e, true) || { x: 0, y: 0 };
-      if (this.pendingMove) { this.send(this.pendingMove); this.pendingMove = null; }
-      this.send({ t: 'ptr', a: cancel ? 'cancel' : 'up', ...p, b: k === 'touch' ? 0 : e.buttons, id: k === 'touch' ? this.touchId(e, false) : 0, k });
+      if (this.pendingMove) { this.sendPointer(this.pendingMove); this.pendingMove = null; }
+      this.sendPointer({ a: cancel ? 'cancel' : 'up', ...p, b: k === 'touch' ? 0 : e.buttons, id: k === 'touch' ? this.touchId(e, false) : 0, k });
       if (k === 'touch') this.touchIds.delete(e.pointerId);
     };
     c.addEventListener('pointerup', up(false));
@@ -270,7 +315,7 @@ export class ScreenView {
       if (!p) return;
       e.preventDefault();
       const unit = e.deltaMode === 1 ? 1 : e.deltaMode === 2 ? 10 : 1 / 100; // pixels -> lines
-      this.send({ t: 'wheel', ...p, dx: e.deltaX * unit, dy: e.deltaY * unit });
+      this.sendWheel(p.x, p.y, e.deltaX * unit, e.deltaY * unit);
     }, { passive: false });
     const key = (down) => (e) => {
       if (e.key === 'F11' || e.key === 'F12') return; // the browser's full screen and developer tools

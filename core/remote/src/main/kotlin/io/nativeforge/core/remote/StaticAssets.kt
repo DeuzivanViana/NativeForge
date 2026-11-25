@@ -62,7 +62,7 @@ class StaticAssets(private val loader: (String) -> ByteArray? = ::loadResource) 
 
     private fun asset(name: String, bytes: ByteArray): Asset {
         val type = contentType(name)
-        val gzip = if (HttpServer.isCompressible(type) && bytes.size > 1024) HttpServer.gzip(bytes) else null
+        val gzip = if (HttpServer.isCompressible(type) && bytes.size > 1024) HttpServer.gzip(bytes, java.util.zip.Deflater.BEST_COMPRESSION) else null
         val etag = "\"" + MessageDigest.getInstance("SHA-256").digest(bytes).take(12).joinToString("") { "%02x".format(it) } + "\""
         return Asset(bytes, gzip, etag, type)
     }

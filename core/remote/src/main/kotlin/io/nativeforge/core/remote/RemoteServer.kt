@@ -5,6 +5,7 @@ import io.nativeforge.core.build.model.BuildArtifact
 import io.nativeforge.core.build.model.BuildEvent
 import io.nativeforge.core.common.Logger
 import io.nativeforge.core.common.Outcome
+import io.nativeforge.core.common.ThermalLevel
 import io.nativeforge.core.common.process.OutputStream
 import io.nativeforge.core.project.model.BuildSystemKind
 import io.nativeforge.core.project.model.Language
@@ -146,6 +147,9 @@ class RemoteServer(
         scope.cancel()
         access.onChanged = previousOnChanged
     }
+
+    /** The phone's temperature changed: streamed programs lower their frame rate when it is hot. */
+    fun thermalChanged(level: ThermalLevel) = screen.thermalChanged(level)
 
     /** Pushes the app's current theme to every browser (call when the user changes it). */
     fun themeChanged() = broadcast(Json.obj("t" to "theme", "theme" to themeJson()))
@@ -505,6 +509,16 @@ class RemoteServer(
             }
             touch()
             viewer?.receive(text)
+        }
+
+        /** Pointer and wheel input, in the compact binary form (see [ScreenHub.Viewer.receive]). */
+        override fun onBinary(socket: WebSocket, data: ByteArray) {
+            if (access.authenticate(token) == null) {
+                socket.close(4001, "Signed out")
+                return
+            }
+            touch()
+            viewer?.receive(data)
         }
 
         override fun onClose(socket: WebSocket) {

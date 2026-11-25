@@ -68,6 +68,7 @@ class RemoteAccessService : Service() {
         scope.launch {
             container.settings.settings.map { it.appTheme to it.editor }.distinctUntilChanged().drop(1).collect { manager.themeChanged() }
         }
+        scope.launch { container.thermal.level.collect { manager.thermalChanged(it) } }
         return START_NOT_STICKY
     }
 
