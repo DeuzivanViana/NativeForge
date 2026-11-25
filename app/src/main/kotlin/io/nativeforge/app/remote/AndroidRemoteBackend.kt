@@ -161,6 +161,7 @@ class AndroidRemoteBackend(private val context: Context, private val container: 
             lineNumbers = settings.editor.lineNumbers,
             highlightCurrentLine = settings.editor.highlightCurrentLine,
             terminalFontSize = settings.terminalFontSizeSp,
+            formatOnSave = settings.formatOnSave,
         )
     }
 

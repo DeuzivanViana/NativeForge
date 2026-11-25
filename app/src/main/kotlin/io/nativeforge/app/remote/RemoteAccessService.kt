@@ -63,10 +63,10 @@ class RemoteAccessService : Service() {
                 main.post { stopSelf() }
             }
         }
-        // Browsers follow the app's theme and editor settings live.
+        // Browsers follow the app's theme, editor and terminal settings live.
         val container = (application as NativeForgeApplication).container
         scope.launch {
-            container.settings.settings.map { it.appTheme to it.editor }.distinctUntilChanged().drop(1).collect { manager.themeChanged() }
+            container.settings.settings.map { listOf(it.appTheme, it.editor, it.terminalFontSizeSp, it.formatOnSave) }.distinctUntilChanged().drop(1).collect { manager.themeChanged() }
         }
         scope.launch { container.thermal.level.collect { manager.thermalChanged(it) } }
         return START_NOT_STICKY

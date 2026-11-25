@@ -1,16 +1,34 @@
 // NativeForge in the browser: pairing, projects, and the workspace (explorer, editor,
 // build output, problems, terminals). Everything runs on the phone; this page is the UI.
 import { api, ApiError, Channel, setUnauthorizedHandler } from './api.js';
-import { h, fill, icon, iconButton, toast, dialog, prompt, confirm, menu, resizable, basename, dirname } from './util.js';
+import { h, fill, icon, iconButton, toast, dialog, prompt, confirm, menu, resizable, basename, dirname, copyText, keyHint } from './util.js';
 import { applyPalette } from './theme.js';
+import { effectiveTheme, onPrefsChange, openSettings, bumpEditorFont } from './settings.js';
 import { FileEditor } from './editor.js';
 import { TerminalView } from './terminal.js';
 import { ScreenView } from './screen.js';
 
 const root = document.getElementById('app');
-const app = { theme: null, projects: [], templates: [], channel: null, workspace: null, device: '' };
+// theme: the phone's theme (app.phoneTheme) with this browser's settings on top (settings.js).
+const app = { theme: null, phoneTheme: null, projects: [], templates: [], channel: null, workspace: null, device: '' };
 
 setUnauthorizedHandler(() => { if (app.channel) { app.channel.close(); app.channel = null; } showPairing(); });
+
+function applyTheme() {
+  if (!app.phoneTheme) return;
+  app.theme = effectiveTheme(app.phoneTheme);
+  applyPalette(app.theme);
+  app.workspace?.setTheme(app.theme);
+}
+onPrefsChange(applyTheme);
+
+const showSettings = () => openSettings(() => app.phoneTheme);
+addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === ',' && app.phoneTheme && !document.querySelector('.scrim')) {
+    e.preventDefault();
+    showSettings();
+  }
+});
 
 start();
 
@@ -73,7 +91,7 @@ function showPairing(prefill, hello) {
 
 async function boot() {
   const data = await api('/api/bootstrap');
-  app.theme = data.theme;
+  app.phoneTheme = data.theme;
   app.projects = data.projects;
   app.templates = data.templates;
   app.device = data.device;
@@ -81,12 +99,12 @@ async function boot() {
   app.bootTerminals = data.terminals;
   app.intel = data.intel;
   app.screen = data.screen; // the program shown in the browser, if one runs
-  applyPalette(app.theme);
+  applyTheme();
   document.title = `NativeForge · ${app.device}`;
   app.channel?.close();
   const channel = new Channel();
   app.channel = channel;
-  channel.on('theme', (m) => { app.theme = m.theme; applyPalette(app.theme); app.workspace?.setTheme(app.theme); });
+  channel.on('theme', (m) => { app.phoneTheme = m.theme; applyTheme(); });
   channel.on('open', () => document.querySelector('.offline')?.remove());
   channel.on('screen.start', (m) => { app.screen = { id: m.id, title: m.title }; });
   channel.on('screen.end', (m) => { if (app.screen?.id === m.id) app.screen = null; });
@@ -135,6 +153,7 @@ async function showHome() {
       iconButton('add', 'New project', () => newProjectDialog(), 'accent'),
       iconButton('terminal', 'Terminal', () => openStandaloneTerminal()),
       iconButton('refresh', 'Refresh', async () => { app.projects = await api('/api/projects'); render(); }),
+      iconButton('settings', `Settings (${keyHint('Ctrl+,')})`, showSettings),
       iconButton('logout', 'Sign out this browser', async () => {
         if (await confirm('Sign out', 'This browser will need a new pairing code to connect again.', 'Sign out')) {
           await api('/api/logout', { method: 'POST', body: {} }).catch(() => {});
@@ -152,18 +171,24 @@ async function showHome() {
 
 function projectCard(p) {
   const [ic, color] = RUNTIME_ICON[p.runtime] || ['code', 'var(--accent)'];
+  const actions = (x, y) => menu(x, y, [
+    { label: 'Open', icon: 'folder', onClick: () => openProject(p.key) },
+    { label: 'Open in a terminal', icon: 'terminal', onClick: () => openStandaloneTerminal(p) },
+    { label: 'Copy path on the phone', icon: 'copy', onClick: () => copyText(p.path, 'Path copied') },
+    'sep',
+    p.external
+      ? { label: 'Remove from list', icon: 'close', onClick: () => removeProject(p) }
+      : { label: 'Delete', icon: 'delete', danger: true, onClick: () => removeProject(p) },
+  ]);
   const more = iconButton('more', 'Project actions', (e) => {
     e.stopPropagation();
     const r = e.currentTarget.getBoundingClientRect();
-    menu(r.left, r.bottom, [
-      { label: 'Open', icon: 'folder', onClick: () => openProject(p.key) },
-      'sep',
-      p.external
-        ? { label: 'Remove from list', icon: 'close', onClick: () => removeProject(p) }
-        : { label: 'Delete', icon: 'delete', danger: true, onClick: () => removeProject(p) },
-    ]);
+    actions(r.left, r.bottom);
   });
-  return h('div', { class: 'card', onclick: () => openProject(p.key), title: p.path },
+  return h('div', {
+    class: 'card', onclick: () => openProject(p.key), title: p.path,
+    oncontextmenu: (e) => { if (e.shiftKey) return; e.preventDefault(); actions(e.clientX, e.clientY); },
+  },
     h('div', { class: 'badge', style: { color } }, icon(ic)),
     h('div', { class: 'meta' },
       h('div', { class: 'name' }, p.name),
@@ -243,15 +268,16 @@ async function newProjectDialog() {
   if (result) { app.projects.unshift(result); openProject(result.key); }
 }
 
-async function openStandaloneTerminal() {
+/** A terminal in a dialog: the phone's home folder, or [project]'s folder. */
+async function openStandaloneTerminal(project) {
   const view = h('div', { class: 'term-host', style: { position: 'absolute', inset: '0' } });
   let term;
   try {
-    const { id } = await api('/api/terminals', { method: 'POST', body: { rows: 30, cols: 100 } });
+    const { id } = await api('/api/terminals', { method: 'POST', body: { rows: 30, cols: 100, project: project?.key } });
     await dialog({
-      title: 'Terminal',
+      title: project ? `Terminal · ${project.name}` : 'Terminal',
       wide: true,
-      body: () => { const box = h('div', { style: { position: 'relative', height: '60vh' } }, view); setTimeout(() => { term = new TerminalView(view, id, app.theme); term.focus(); }, 0); return box; },
+      body: () => { const box = h('div', { style: { position: 'relative', height: 'calc(60vh / var(--zoom, 1))' } }, view); setTimeout(() => { term = new TerminalView(view, id, app.theme); term.focus(); }, 0); return box; },
       actions: [{ label: 'Close', onClick: (close) => close(true) }],
     });
     term?.dispose();
@@ -297,6 +323,7 @@ class Workspace {
         iconButton('newFile', 'New file', () => this.newEntry('', false)),
         iconButton('newFolder', 'New folder', () => this.newEntry('', true)),
         iconButton('upload', 'Upload files (or drop files and folders on a folder)', () => this.upload('')),
+        iconButton('collapse', 'Collapse folders', () => this.collapseAll()),
         iconButton('refresh', 'Refresh', () => this.loadTree())),
       this.dropHint,
       this.tree);
@@ -312,6 +339,11 @@ class Workspace {
     this.windowListeners = [['dragover', outside], ['drop', outside], ['dragend', () => this.endDrag()]];
     for (const [type, fn] of this.windowListeners) window.addEventListener(type, fn);
     this.explorer.addEventListener('dragleave', (ev) => { if (!this.explorer.contains(ev.relatedTarget)) this.endDrag(); });
+    this.tree.addEventListener('contextmenu', (ev) => {
+      if (ev.shiftKey || ev.target.closest('.node')) return;
+      ev.preventDefault();
+      this.folderMenu(ev.clientX, ev.clientY);
+    });
     this.tabBar = h('div', { class: 'tabs' });
     this.editorArea = h('div', { class: 'editor-area' });
     this.placeholder = h('div', { class: 'placeholder' }, icon('code'), h('div', null, 'Open a file from the explorer'),
@@ -321,6 +353,8 @@ class Workspace {
     this.panelBody = h('div', { class: 'panel-body' });
     this.log = h('div', { class: 'log' });
     this.problemsEl = h('div', { class: 'problems' });
+    this.log.addEventListener('contextmenu', (ev) => { if (!ev.shiftKey) { ev.preventDefault(); this.logMenu(ev); } });
+    this.problemsEl.addEventListener('contextmenu', (ev) => { if (!ev.shiftKey) { ev.preventDefault(); this.problemsMenu(ev); } });
     this.panelBody.append(this.log, this.problemsEl);
     this.panel = h('div', { class: 'panel' }, this.panelTabs, this.panelBody);
     const splitV = h('div', { class: 'splitter-v' });
@@ -329,6 +363,7 @@ class Workspace {
     this.screenItem = h('span', { class: 'item click', style: { display: 'none' }, title: 'Show the running program', onclick: () => app.screen && this.openScreen(app.screen) }, icon('game', 'i s'), '');
     this.intelEl = h('span', { class: 'item', title: 'clangd: completion, live errors, go to definition' }, h('span', { class: 'dotc' }), 'clangd');
     this.problemCount = h('span', { class: 'item click', onclick: () => this.showPanel('problems') }, icon('error', 'i s'), '0', icon('warning', 'i s'), '0');
+    this.prefsEl = h('span', { class: 'item click', title: 'Editor settings', onclick: showSettings });
     this.el = h('div', { class: 'workspace' },
       h('div', { class: 'topbar' },
         iconButton('back', 'Projects', async () => { if (await this.saveAll()) location.hash = '#/'; }),
@@ -337,11 +372,21 @@ class Workspace {
         this.buildBtn, this.runBtn, this.runOnBtn, this.stopBtn,
         iconButton('download', 'Download the built program', () => this.downloadArtifact()),
         iconButton('terminal', 'New terminal (Ctrl+Shift+`)', () => this.newTerminal()),
-        iconButton('panel', 'Toggle panel (Ctrl+`)', () => this.panel.classList.toggle('hidden'))),
+        iconButton('panel', 'Toggle panel (Ctrl+`)', () => this.panel.classList.toggle('hidden')),
+        iconButton('settings', `Settings (${keyHint('Ctrl+,')})`, showSettings)),
       h('div', { class: 'ws-body' }, this.explorer, splitV,
         h('div', { class: 'center' }, this.tabBar, this.editorArea, splitH, this.panel)),
-      h('div', { class: 'statusbar' }, h('span', { class: 'item' }, icon('phone', 'i s'), app.device), this.problemCount, this.intelEl, this.screenItem, h('div', { class: 'spacer' }), this.cursorEl));
+      h('div', { class: 'statusbar' }, h('span', { class: 'item' }, icon('phone', 'i s'), app.device), this.problemCount, this.intelEl, this.screenItem, h('div', { class: 'spacer' }), this.cursorEl, this.prefsEl));
+    this.updatePrefsItem();
     fill(root, this.el);
+    // Ctrl+scroll (and pinch on a touchpad) changes the editor font, as in desktop editors.
+    let wheel = 0;
+    this.editorArea.addEventListener('wheel', (ev) => {
+      if (!(ev.ctrlKey || ev.metaKey) || this.screen) return;
+      ev.preventDefault();
+      wheel += ev.deltaY;
+      if (Math.abs(wheel) >= 40) { bumpEditorFont(app.theme, wheel < 0 ? 1 : -1); wheel = 0; }
+    }, { passive: false });
     resizable(splitV, this.explorer, 'x', 'nf-explorer', { min: 160, max: 700 });
     resizable(splitH, this.panel, 'y', 'nf-panel', { min: 80, max: 1200, invert: true });
     this.renderPanelTabs();
@@ -564,17 +609,81 @@ class Workspace {
   }
 
   entryMenu(ev, e) {
-    const dir = e.dir ? e.path : dirname(e.path);
+    if (e.dir) { this.folderMenu(ev.clientX, ev.clientY, e); return; }
     menu(ev.clientX, ev.clientY, [
-      ...(e.dir ? [] : [{ label: 'Open', icon: 'file', onClick: () => this.open(e.path) }]),
+      { label: 'Open', icon: 'file', onClick: () => this.open(e.path) },
+      'sep',
+      { label: 'New file…', icon: 'newFile', onClick: () => this.newEntry(dirname(e.path), false) },
+      { label: 'New folder…', icon: 'newFolder', onClick: () => this.newEntry(dirname(e.path), true) },
+      'sep',
+      ...this.pathItems(e.path),
+      'sep',
+      { label: 'Rename…', icon: 'edit', onClick: () => this.rename(e) },
+      { label: 'Duplicate…', icon: 'copy', onClick: () => this.duplicate(e) },
+      { label: 'Download', icon: 'download', onClick: () => this.download(e.path) },
+      { label: 'Delete', icon: 'delete', danger: true, onClick: () => this.remove(e) },
+    ]);
+  }
+
+  /** The menu of a folder row, or of the empty part of the tree (the project folder) when [e] is missing. */
+  folderMenu(x, y, e) {
+    const dir = e ? e.path : '';
+    menu(x, y, [
+      e ? { label: this.expanded.has(dir) ? 'Collapse' : 'Expand', icon: this.expanded.has(dir) ? 'down' : 'right', onClick: () => this.toggle(dir) } : null,
       { label: 'New file…', icon: 'newFile', onClick: () => this.newEntry(dir, false) },
       { label: 'New folder…', icon: 'newFolder', onClick: () => this.newEntry(dir, true) },
       { label: 'Upload here…', icon: 'upload', onClick: () => this.upload(dir) },
+      { label: 'Open in terminal', icon: 'terminal', onClick: () => this.newTerminal(dir) },
       'sep',
-      { label: 'Rename…', icon: 'edit', onClick: () => this.rename(e) },
-      ...(e.dir ? [] : [{ label: 'Download', icon: 'download', onClick: () => this.download(e.path) }]),
-      { label: 'Delete', icon: 'delete', danger: true, onClick: () => this.remove(e) },
+      ...(e ? this.pathItems(dir) : [{ label: 'Copy path on the phone', icon: 'copy', onClick: () => copyText(this.project.path, 'Path copied') }]),
+      'sep',
+      e ? { label: 'Rename…', icon: 'edit', onClick: () => this.rename(e) } : null,
+      e ? { label: 'Duplicate…', icon: 'copy', onClick: () => this.duplicate(e) } : null,
+      e ? { label: 'Delete', icon: 'delete', danger: true, onClick: () => this.remove(e) } : null,
+      e ? null : { label: 'Collapse folders', icon: 'collapse', onClick: () => this.collapseAll() },
+      e ? null : { label: 'Refresh', icon: 'refresh', onClick: () => this.loadTree() },
     ]);
+  }
+
+  pathItems(path) {
+    return [
+      { label: 'Copy path', icon: 'copy', onClick: () => copyText(path, 'Path copied') },
+      { label: 'Copy path on the phone', icon: 'copy', onClick: () => copyText(`${this.project.path}/${path}`, 'Path copied') },
+    ];
+  }
+
+  collapseAll() {
+    this.expanded.clear();
+    this.expanded.add('\u0000'); // not empty: an empty set opens the top folders again
+    this.renderTree();
+  }
+
+  /** Opens the folders above [path] and scrolls its row into view. */
+  reveal(path) {
+    const parts = path.split('/');
+    for (let i = 1; i < parts.length; i++) this.expanded.add(parts.slice(0, i).join('/'));
+    this.renderTree();
+    const row = [...this.tree.children].find((x) => x.title === path);
+    if (row) { row.scrollIntoView({ block: 'nearest' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 900); }
+  }
+
+  async duplicate(e) {
+    const name = basename(e.path);
+    const dot = e.dir ? -1 : name.lastIndexOf('.');
+    const stem = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : '';
+    const dir = dirname(e.path);
+    const join = (n) => (dir ? `${dir}/${n}` : n);
+    const taken = new Set(this.entries.map((x) => x.path));
+    let suggestion = `${stem}_copy${ext}`;
+    for (let n = 2; taken.has(join(suggestion)); n++) suggestion = `${stem}_copy${n}${ext}`;
+    const value = await prompt(e.dir ? 'Duplicate folder' : 'Duplicate file', {
+      label: `Copy of ${e.path}`, value: suggestion, ok: 'Duplicate', select: () => [0, suggestion.length - ext.length],
+    });
+    if (!value?.trim()) return;
+    const to = join(value.trim());
+    await this.fsOp({ op: 'copy', path: e.path, to });
+    if (!e.dir && this.entries.some((x) => x.path === to)) this.open(to);
   }
 
   async fsOp(body, oldPath, newPath) {
@@ -653,16 +762,33 @@ class Workspace {
     const host = h('div', { style: { position: 'absolute', inset: '0', display: 'none' } });
     this.editorArea.append(host);
     const tab = { path, host, modified: file.modified };
-    tab.el = h('div', { class: 'tab', title: path, onclick: () => this.activate(path), onauxclick: (e) => { if (e.button === 1) this.closeTab(tab); } },
+    tab.el = h('div', {
+      class: 'tab', title: path, onclick: () => this.activate(path), onauxclick: (e) => { if (e.button === 1) this.closeTab(tab); },
+      oncontextmenu: (e) => { if (e.shiftKey) return; e.preventDefault(); this.tabMenu(e, tab); },
+    },
       icon('file', 'i s'), h('span', { class: 'label' }, basename(path)),
       h('button', { class: 'close', title: 'Close', onclick: (e) => { e.stopPropagation(); this.closeTab(tab); } }, icon('close', 'i s')));
     tab.editor = new FileEditor(host, file.text, {
       project: this.key, path, channel: app.channel, theme: app.theme,
-      onChange: (dirty) => tab.el.classList.toggle('dirty', dirty),
+      onChange: (dirty) => {
+        tab.el.classList.toggle('dirty', dirty);
+        clearTimeout(tab.autoSave); // Settings › Auto save: a second after the last change
+        if (dirty && app.theme.autoSave) tab.autoSave = setTimeout(() => { if (this.tabs.includes(tab)) this.save(tab, { auto: true }); }, 1000);
+      },
       onSave: () => this.save(tab),
       onCursor: (c) => { if (this.active === tab) this.cursorEl.textContent = `Ln ${c.line}, Col ${c.col}`; },
       onDefinition: (loc) => this.goToDefinition(loc),
-      commands: [{ key: 'Mod-p', preventDefault: true, run: () => { this.quickOpen(); return true; } }],
+      commands: [
+        { key: 'Mod-p', preventDefault: true, run: () => { this.quickOpen(); return true; } },
+        { key: 'Mod-=', run: () => { bumpEditorFont(app.theme, 1); return true; } },
+        { key: 'Mod-+', run: () => { bumpEditorFont(app.theme, 1); return true; } },
+        { key: 'Mod--', run: () => { bumpEditorFont(app.theme, -1); return true; } },
+        { key: 'Mod-0', run: () => { bumpEditorFont(app.theme, 0); return true; } },
+      ],
+      menuItems: () => [
+        { label: 'Reveal in explorer', icon: 'folder', onClick: () => this.reveal(path) },
+        { label: 'Copy path', icon: 'copy', onClick: () => copyText(path, 'Path copied') },
+      ],
     });
     tab.editor.setDiagnostics(this.diagnostics.get(path));
     this.tabs.push(tab);
@@ -711,19 +837,49 @@ class Workspace {
     this.rememberTabs();
   }
 
+  tabMenu(e, tab) {
+    const index = this.tabs.indexOf(tab);
+    const others = this.tabs.filter((t) => t !== tab);
+    const right = this.tabs.slice(index + 1);
+    const saved = this.tabs.filter((t) => !t.editor.dirty);
+    menu(e.clientX, e.clientY, [
+      { label: 'Close', icon: 'close', hint: 'Alt+W', onClick: () => this.closeTab(tab) },
+      { label: 'Close others', disabled: !others.length, onClick: () => this.closeTabs(others) },
+      { label: 'Close to the right', disabled: !right.length, onClick: () => this.closeTabs(right) },
+      { label: 'Close saved', disabled: !saved.length, onClick: () => this.closeTabs(saved) },
+      { label: 'Close all', onClick: () => this.closeTabs([...this.tabs]) },
+      'sep',
+      { label: 'Save', icon: 'save', hint: 'Ctrl+S', disabled: !tab.editor.dirty, onClick: () => this.save(tab) },
+      { label: 'Reveal in explorer', icon: 'folder', onClick: () => this.reveal(tab.path) },
+      ...this.pathItems(tab.path),
+      { label: 'Download', icon: 'download', onClick: () => this.download(tab.path) },
+    ]);
+  }
+
+  /** Closes [tabs] one by one; stops at the first whose unsaved changes the user keeps (Cancel). */
+  async closeTabs(tabs) {
+    for (const t of tabs) {
+      if (!this.tabs.includes(t)) continue;
+      await this.closeTab(t);
+      if (this.tabs.includes(t)) return;
+    }
+  }
+
   rememberTabs() {
     try { sessionStorage.setItem(`nf-tabs:${this.key}`, JSON.stringify({ tabs: this.tabs.map((t) => t.path), active: this.active?.path })); } catch { /* ignore */ }
   }
 
   /** Saves one tab; saves of the same tab run one after another (each needs the previous mtime). */
-  save(tab = this.active) {
+  save(tab = this.active, opts = {}) {
     if (!tab) return Promise.resolve(true);
-    tab.saving = (tab.saving || Promise.resolve(true)).then(() => this.saveNow(tab));
+    tab.saving = (tab.saving || Promise.resolve(true)).then(() => this.saveNow(tab, opts));
     return tab.saving;
   }
 
-  async saveNow(tab) {
+  async saveNow(tab, { auto = false } = {}) {
     if (!tab.editor.dirty && tab.modified !== undefined) return true;
+    // Format on save, but not on auto save: the text would move while you type.
+    if (!auto && app.theme.formatOnSave && tab.editor.clangd) await tab.editor.format(4000);
     const text = tab.editor.text;
     try {
       const r = await api('/api/file', { method: 'PUT', query: { project: this.key, path: tab.path, expected: tab.modified }, raw: new TextEncoder().encode(text) });
@@ -732,6 +888,7 @@ class Workspace {
       return true;
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
+        if (auto) { toast(`${tab.path} changed on the phone: auto save paused until you save it (${keyHint('Ctrl+S')})`, 'err'); return false; }
         const overwrite = await confirm('File changed on the phone', `${tab.path} was changed on the phone after you opened it. Overwrite it with your version?`, 'Overwrite', true);
         if (overwrite) { tab.modified = undefined; return this.saveNow(tab); }
         return false;
@@ -895,6 +1052,29 @@ class Workspace {
     if (stick) this.log.scrollTop = this.log.scrollHeight;
   }
 
+  logMenu(ev) {
+    const selection = String(getSelection() || '');
+    menu(ev.clientX, ev.clientY, [
+      { label: 'Copy', icon: 'copy', hint: 'Ctrl+C', disabled: !selection || !this.log.contains(getSelection().anchorNode), onClick: () => copyText(selection, null) },
+      { label: 'Copy all output', icon: 'copy', disabled: !this.log.childElementCount, onClick: () => copyText(this.log.innerText, 'Output copied') },
+      'sep',
+      { label: 'Clear output', icon: 'delete', onClick: () => this.clearLog() },
+    ]);
+  }
+
+  problemsMenu(ev) {
+    const row = ev.target.closest('.problem');
+    const p = row && this.problemList?.[[...this.problemsEl.children].indexOf(row)];
+    const line = (x) => `${x.path ? `${x.path}${x.line ? `:${x.line}${x.column ? `:${x.column}` : ''}` : ''}: ` : ''}${x.severity}: ${x.message}`;
+    menu(ev.clientX, ev.clientY, [
+      p?.path ? { label: 'Go to problem', icon: 'jump', onClick: () => row.click() } : null,
+      p ? { label: 'Copy', icon: 'copy', onClick: () => copyText(line(p), 'Problem copied') } : null,
+      p ? { label: 'Copy message', icon: 'copy', onClick: () => copyText(p.message, 'Message copied') } : null,
+      'sep',
+      { label: 'Copy all problems', icon: 'copy', disabled: !this.problemList?.length, onClick: () => copyText(this.problemList.map(line).join('\n'), 'Problems copied') },
+    ]);
+  }
+
   addProblem(d) { this.buildProblems.push(d); this.renderProblems(); }
 
   renderProblems() {
@@ -908,6 +1088,7 @@ class Workspace {
     this.problemCount.childNodes[1].textContent = String(errors);
     this.problemCount.childNodes[3].textContent = String(warnings);
     this.problemTotal = all.length;
+    this.problemList = all;
     fill(this.problemsEl, ...(all.length ? all.map((p) => h('div', {
       class: `problem ${p.severity}`,
       onclick: async () => { if (!p.path) return; const tab = await this.open(p.path); tab?.editor.goTo(p.line || 1, p.column || 1); },
@@ -923,8 +1104,21 @@ class Workspace {
     fill(this.panelTabs, 
       tab('output', 'Output'),
       tab('problems', 'Problems', this.problemTotal ? h('span', { class: 'count' }, String(this.problemTotal)) : null),
-      ...this.terminals.map((t) => tab(t.id, h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } }, icon('terminal', 'i s'), t.title),
-        h('span', { class: 'x', title: 'Close terminal', onclick: (e) => { e.stopPropagation(); this.closeTerminal(t); } }, icon('close', 'i s')))),
+      ...this.terminals.map((t) => {
+        const el = tab(t.id, h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } }, icon('terminal', 'i s'), t.title),
+          h('span', { class: 'x', title: 'Close terminal', onclick: (e) => { e.stopPropagation(); this.closeTerminal(t); } }, icon('close', 'i s')));
+        el.addEventListener('contextmenu', (e) => {
+          if (e.shiftKey) return;
+          e.preventDefault();
+          menu(e.clientX, e.clientY, [
+            { label: 'New terminal', icon: 'add', onClick: () => this.newTerminal() },
+            'sep',
+            { label: 'Close terminal', icon: 'close', onClick: () => this.closeTerminal(t) },
+            { label: 'Close other terminals', disabled: this.terminals.length < 2, onClick: () => this.terminals.filter((x) => x !== t).forEach((x) => this.closeTerminal(x)) },
+          ]);
+        });
+        return el;
+      }),
       iconButton('add', 'New terminal', () => this.newTerminal()),
       h('div', { class: 'spacer' }),
       this.panelTab === 'output' ? iconButton('delete', 'Clear output', () => this.clearLog()) : null,
@@ -942,9 +1136,10 @@ class Workspace {
     if (t) { t.view.refit(); t.view.focus(); }
   }
 
-  async newTerminal() {
+  /** A terminal in the project folder, or in its folder [dir]. */
+  async newTerminal(dir) {
     try {
-      const { id, title } = await api('/api/terminals', { method: 'POST', body: { project: this.key, rows: 24, cols: 100 } });
+      const { id, title } = await api('/api/terminals', { method: 'POST', body: { project: this.key, dir: dir || undefined, rows: 24, cols: 100 } });
       this.attachTerminal(id, title, true);
     } catch (e) { toast(e.message, 'err'); }
   }
@@ -957,7 +1152,12 @@ class Workspace {
     this.terminals.push(t);
     if (show) { this.panelTab = id; this.panel.classList.remove('hidden'); }
     this.renderPanelTabs();
-    t.view = new TerminalView(host, id, app.theme);
+    t.view = new TerminalView(host, id, app.theme, {
+      menuItems: () => [
+        { label: 'New terminal', icon: 'add', onClick: () => this.newTerminal() },
+        { label: 'Close terminal', icon: 'close', onClick: () => this.closeTerminal(t) },
+      ],
+    });
     if (show) setTimeout(() => { t.view.refit(); t.view.focus(); }, 0);
   }
 
@@ -985,6 +1185,12 @@ class Workspace {
   setTheme(theme) {
     for (const t of this.tabs) t.editor.setTheme(theme);
     for (const t of this.terminals) t.view.setTheme(theme);
+    this.updatePrefsItem();
+  }
+
+  updatePrefsItem() {
+    const t = app.theme;
+    fill(this.prefsEl, icon('settings', 'i s'), `${Math.round(t.fontSize || 13)} px · Spaces: ${t.tabWidth || 4}${t.uiScale && t.uiScale !== 100 ? ` · ${t.uiScale}%` : ''}`);
   }
 
   dispose() {

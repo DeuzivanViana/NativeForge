@@ -253,6 +253,15 @@ work still happens on the phone; the browser is the screen and keyboard.
 * The page applies the app's palette as CSS variables and turns the selected
   editor theme (the same TextMate JSON the app uses) into a CodeMirror theme;
   changing the theme in the app updates open browsers.
+* Browser settings (`web/js/settings.js`, gear icon or Ctrl+,): interface size
+  (CSS `zoom`), editor font, size, line height, ligatures, tab width, wrap,
+  format/auto save and terminal font size. They start from the phone's values
+  sent with the theme and only the changes are kept, in the browser's
+  `localStorage` (`nf-prefs`); the phone and other browsers are not affected.
+* Right-click menus (`menu()` in `web/js/util.js`) in the editor, tabs,
+  explorer, terminals, output and problems; Shift+right-click keeps the
+  browser's own menu. Duplicating uses the `copy` file operation and "Open in
+  terminal" passes `dir` to `/api/terminals`, both confined by `ProjectFiles`.
 * `RemoteAccessService` is a foreground service with a partial wake lock and
   a high-performance Wi-Fi lock, so builds and terminals keep running with the
   screen off; it stops after the user's idle time. Terminals use Termux's PTY

@@ -49,6 +49,25 @@ class ProjectFilesTest {
     }
 
     @Test
+    fun `copy duplicates files and folders but never escapes or nests`() {
+        files.write("src/main.c", "int main(){}".toByteArray())
+        files.write("src/lib/util.h", "#pragma once".toByteArray())
+        files.copy("src/main.c", "src/main copy.c")
+        assertEquals("int main(){}", File(root, "src/main copy.c").readText())
+        Files.createSymbolicLink(File(root, "src/lib/outside").toPath(), base.toPath())
+        files.copy("src", "src2")
+        assertEquals("#pragma once", File(root, "src2/lib/util.h").readText())
+        assertTrue(File(root, "src2/main copy.c").isFile)
+        assertFalse(File(root, "src2/lib/outside").exists(), "symbolic links are not copied")
+        assertEquals(409, assertFailsWith<FileAccessException> { files.copy("src/main.c", "src2/main.c") }.status)
+        assertEquals(400, assertFailsWith<FileAccessException> { files.copy("src", "src/inner") }.status)
+        assertEquals(404, assertFailsWith<FileAccessException> { files.copy("nope.c", "x.c") }.status)
+        assertEquals(403, assertFailsWith<FileAccessException> { files.copy("src/lib/outside", "x") }.status)
+        assertFailsWith<FileAccessException> { files.copy("src/main.c", "../stolen.c") }
+        assertFalse(File(base, "stolen.c").exists())
+    }
+
+    @Test
     fun `binary files are reported, not decoded`() {
         File(root, "a.bin").writeBytes(byteArrayOf(1, 0, 2))
         assertNull(files.readText("a.bin").text)

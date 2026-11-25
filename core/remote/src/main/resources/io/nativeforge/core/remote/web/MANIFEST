@@ -5,6 +5,7 @@ js/api.js
 js/app.js
 js/editor.js
 js/screen.js
+js/settings.js
 js/terminal.js
 js/theme.js
 js/util.js

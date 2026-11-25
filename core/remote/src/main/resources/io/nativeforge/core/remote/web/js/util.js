@@ -68,6 +68,19 @@ const PATHS = {
   touch: 'M9 11.24V7.5C9 6.12 10.12 5 11.5 5S14 6.12 14 7.5v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z',
   monitor: 'M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H3V4h18v12z',
   check: 'M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+  settings: 'M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z',
+  copy: 'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z',
+  cut: 'M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3z',
+  paste: 'M19 2h-4.18C14.4.84 13.3 0 12 0c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 18H5V4h2v3h10V4h2v16z',
+  selectAll: 'M3 5h2V3c-1.1 0-2 .9-2 2zm0 8h2v-2H3v2zm4 8h2v-2H7v2zM3 9h2V7H3v2zm10-6h-2v2h2V3zm6 0v2h2c0-1.1-.9-2-2-2zM5 21v-2H3c0 1.1.9 2 2 2zm-2-4h2v-2H3v2zM9 3H7v2h2V3zm2 18h2v-2h-2v2zm8-8h2v-2h-2v2zm0 8c1.1 0 2-.9 2-2h-2v2zm0-12h2V7h-2v2zm0 8h2v-2h-2v2zm-4 4h2v-2h-2v2zm0-16h2V3h-2v2zM7 17h10V7H7v10zm2-8h6v6H9V9z',
+  comment: 'M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z',
+  format: 'M3 21h18v-2H3v2zm0-4h12v-2H3v2zm0-4h18v-2H3v2zm0-4h12V7H3v2zm0-6v2h18V3H3z',
+  jump: 'M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z',
+  line: 'M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z',
+  collapse: 'M7.41 18.59 8.83 20 12 16.83 15.17 20l1.41-1.41L12 14l-4.59 4.59zm9.18-13.18L15.17 4 12 7.17 8.83 4 7.41 5.41 12 10l4.59-4.59z',
+  undo: 'M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z',
+  redo: 'M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z',
+  minus: 'M19 13H5v-2h14v2z',
   external: 'M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z',
 };
 
@@ -131,18 +144,108 @@ export function confirm(title, message, okLabel = 'OK', danger = false) {
   return dialog({ title, body: h('p', null, message), actions: [{ label: 'Cancel', value: false }, { label: okLabel, primary: !danger, danger, value: true }] });
 }
 
-/** A context menu at the mouse position. items: {label, icon, onClick, danger} or 'sep'. */
+/** The interface zoom (Settings › Interface size): CSS pixels inside the page are this many screen pixels. */
+export function uiZoom() {
+  const z = parseFloat(document.documentElement.style.zoom);
+  return z > 0 ? z : 1;
+}
+
+export const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+/** "Ctrl+Shift+F" as this platform writes it ("⇧⌘F" on a Mac). */
+export function keyHint(keys) {
+  if (!keys || !isMac) return keys;
+  return keys.replace(/Ctrl\+/g, '⌘').replace(/Shift\+/g, '⇧').replace(/Alt\+/g, '⌥');
+}
+
+/**
+ * A context menu at [x], [y] (viewport coordinates, as in mouse events).
+ * items: { label, icon, hint, onClick, danger, disabled } or 'sep'; null and false are skipped,
+ * and separators never stack up or end the menu. Arrow keys move, Enter picks, Escape closes.
+ */
 export function menu(x, y, items) {
-  document.querySelector('.menu')?.remove();
-  const el = h('div', { class: 'menu', role: 'menu' }, items.map((it) => it === 'sep' ? h('hr') : h('button', {
-    class: it.danger ? 'danger' : '', onclick: () => { el.remove(); it.onClick(); },
-  }, it.icon ? icon(it.icon, 'i s') : null, it.label)));
+  document.querySelector('.menu')?.dispatchEvent(new Event('nf-close'));
+  const list = [];
+  for (const it of items) {
+    if (!it) continue;
+    if (it === 'sep' && (!list.length || list[list.length - 1] === 'sep')) continue;
+    list.push(it);
+  }
+  while (list[list.length - 1] === 'sep') list.pop();
+  if (!list.length) return null;
+  const before = document.activeElement;
+  const el = h('div', { class: 'menu', role: 'menu' }, list.map((it) => it === 'sep' ? h('hr') : h('button', {
+    class: it.danger ? 'danger' : '', role: 'menuitem', disabled: !!it.disabled,
+    onclick: () => { close(false); it.onClick(); },
+  }, it.icon ? icon(it.icon, 'i s') : h('span', { class: 'i s' }), h('span', { class: 'label' }, it.label),
+  it.hint ? h('span', { class: 'hint' }, keyHint(it.hint)) : null)));
+  const buttons = () => [...el.querySelectorAll('button:not(:disabled)')];
+  const dismiss = (e) => { if (!el.contains(e.target)) close(false); };
+  const onKey = (e) => {
+    const all = buttons();
+    const at = all.indexOf(document.activeElement);
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); all[(at + 1) % all.length]?.focus(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); all[at < 0 ? all.length - 1 : (at - 1 + all.length) % all.length]?.focus(); }
+    else if (e.key === 'Home') { e.preventDefault(); all[0]?.focus(); }
+    else if (e.key === 'End') { e.preventDefault(); all[all.length - 1]?.focus(); }
+    else if (e.key === 'Tab') { e.preventDefault(); close(true); }
+  };
+  const onLeave = () => close(false);
+  function close(restoreFocus) {
+    if (!el.isConnected) return;
+    el.remove();
+    removeEventListener('mousedown', dismiss, true);
+    removeEventListener('contextmenu', dismiss, true);
+    removeEventListener('keydown', onKey, true);
+    removeEventListener('resize', onLeave);
+    removeEventListener('blur', onLeave);
+    if (restoreFocus) before?.focus?.();
+  }
+  el.addEventListener('nf-close', () => close(false));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
   document.body.append(el);
+  // The page may be zoomed (Interface size): mouse and layout positions are screen pixels, styles are CSS pixels.
+  const z = uiZoom();
   const r = el.getBoundingClientRect();
-  el.style.left = `${Math.min(x, innerWidth - r.width - 8)}px`;
-  el.style.top = `${Math.min(y, innerHeight - r.height - 8)}px`;
-  const dismiss = (e) => { if (!el.contains(e.target)) { el.remove(); removeEventListener('mousedown', dismiss, true); } };
-  setTimeout(() => addEventListener('mousedown', dismiss, true), 0);
+  el.style.left = `${Math.max(4, Math.min(x, innerWidth - r.width - 8)) / z}px`;
+  el.style.top = `${Math.max(4, Math.min(y, innerHeight - r.height - 8)) / z}px`;
+  addEventListener('keydown', onKey, true);
+  addEventListener('resize', onLeave);
+  addEventListener('blur', onLeave);
+  setTimeout(() => {
+    addEventListener('mousedown', dismiss, true);
+    addEventListener('contextmenu', dismiss, true);
+  }, 0);
+  el.tabIndex = -1;
+  el.focus({ preventScroll: true }); // the keys reach the menu; arrows then walk its items
+  return el;
+}
+
+/** Copies [text]; falls back to a hidden text field where the clipboard API is missing. */
+export async function copyText(text, what = 'Copied') {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const area = h('textarea', { value: text, style: { position: 'fixed', opacity: '0', top: '0' } });
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    if (!ok) { toast('The browser blocked the clipboard', 'err'); return false; }
+  }
+  if (what) toast(what);
+  return true;
+}
+
+/** Text from the clipboard, or null (with a hint) when the browser does not allow reading it. */
+export async function readClipboard() {
+  try {
+    return await navigator.clipboard.readText();
+  } catch {
+    toast(`The browser blocked reading the clipboard: paste with ${keyHint('Ctrl+V')}`, 'err');
+    return null;
+  }
 }
 
 /** Makes [handle] resize [target] along [axis]; the size is remembered under [key]. */
@@ -153,17 +256,18 @@ export function resizable(handle, target, axis, key, { min = 80, max = 2000, inv
     e.preventDefault();
     handle.setPointerCapture(e.pointerId);
     handle.classList.add('dragging');
+    const z = uiZoom(); // mouse positions are screen pixels, sizes CSS pixels
     const start = axis === 'x' ? e.clientX : e.clientY;
-    const startSize = target.getBoundingClientRect()[prop];
+    const startSize = target.getBoundingClientRect()[prop] / z;
     const move = (ev) => {
-      const delta = (axis === 'x' ? ev.clientX : ev.clientY) - start;
+      const delta = ((axis === 'x' ? ev.clientX : ev.clientY) - start) / z;
       target.style[prop] = `${Math.max(min, Math.min(max, startSize + (invert ? -delta : delta)))}px`;
       dispatchEvent(new Event('resize'));
     };
     const up = () => {
       handle.classList.remove('dragging');
       handle.removeEventListener('pointermove', move);
-      try { localStorage.setItem(key, String(Math.round(target.getBoundingClientRect()[prop]))); } catch { /* ignore */ }
+      try { localStorage.setItem(key, String(Math.round(target.getBoundingClientRect()[prop] / uiZoom()))); } catch { /* ignore */ }
     };
     handle.addEventListener('pointermove', move);
     handle.addEventListener('pointerup', up, { once: true });

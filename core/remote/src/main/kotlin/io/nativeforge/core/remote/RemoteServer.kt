@@ -416,6 +416,7 @@ class RemoteServer(
             "mkdir" -> files.createDirectory(path)
             "touch" -> files.createFile(path)
             "rename" -> files.rename(path, body.string("to").orEmpty())
+            "copy" -> files.copy(path, body.string("to").orEmpty())
             "delete" -> { intel.close(files.resolve(path)); files.delete(path) }
             else -> throw IllegalArgumentException("Unknown operation")
         }
@@ -455,8 +456,20 @@ class RemoteServer(
         val body = bodyJson(request)
         val shell = backend.shellCommand()
         val project = body.string("project")?.takeIf { it.isNotBlank() }?.let(::project)
-        val command = if (project != null) shell.copy(workingDirectory = project.root.path) else shell
-        val session = terminals.open(command, project?.name ?: "Terminal", body.int("rows") ?: 24, body.int("cols") ?: 80)
+        // "dir": a folder of the project to start in ("Open in terminal" in the explorer).
+        val dir = body.string("dir")?.takeIf { it.isNotBlank() && project != null }
+        val start = when {
+            project == null -> null
+            dir != null -> files(project).resolve(dir).takeIf { it.isDirectory } ?: throw FileAccessException(404, "No such folder")
+            else -> project.root
+        }
+        val command = if (start != null) shell.copy(workingDirectory = start.path) else shell
+        val title = when {
+            project == null -> "Terminal"
+            dir != null -> "${project.name}/${dir.trimEnd('/').substringAfterLast('/')}"
+            else -> project.name
+        }
+        val session = terminals.open(command, title, body.int("rows") ?: 24, body.int("cols") ?: 80)
         return HttpResponse.json(Json.obj("id" to session.id, "title" to session.title).toString(), 201)
     }
 
@@ -734,6 +747,7 @@ class RemoteServer(
             "lineNumbers" to theme.lineNumbers,
             "highlightLine" to theme.highlightCurrentLine,
             "terminalFontSize" to theme.terminalFontSize,
+            "formatOnSave" to theme.formatOnSave,
         )
     }
 

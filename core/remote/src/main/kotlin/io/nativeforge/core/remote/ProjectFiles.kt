@@ -109,6 +109,39 @@ class ProjectFiles(root: File, private val hiddenDirectories: Set<File> = emptyS
         if (!source.renameTo(target)) throw FileAccessException(500, "Could not rename")
     }
 
+    /**
+     * Copies a file or a folder (with everything in it) to [to], which must not exist yet.
+     * Symbolic links inside a copied folder are skipped, so a copy never reaches outside the project.
+     */
+    fun copy(from: String, to: String) {
+        val source = resolve(from)
+        val target = resolve(to)
+        if (!source.exists() || SafeFiles.isSymlink(source)) throw FileAccessException(404, "No such file")
+        if (target.exists()) throw FileAccessException(409, "Already exists")
+        if (source.isDirectory && (target.path + File.separator).startsWith(source.path + File.separator)) {
+            throw FileAccessException(400, "A folder cannot be copied into itself")
+        }
+        if (source.isFile) {
+            if (source.length() > MAX_COPY_BYTES) throw FileAccessException(413, "Too large to copy")
+            target.parentFile?.mkdirs()
+            source.copyTo(target)
+            return
+        }
+        var total = 0L
+        val files = ArrayList<File>()
+        source.walkTopDown().onEnter { it == source || !SafeFiles.isSymlink(it) }.forEach { file ->
+            if (file.isFile && !SafeFiles.isSymlink(file)) {
+                total += file.length()
+                files += file
+            }
+            if (files.size > MAX_TREE_ENTRIES || total > MAX_COPY_BYTES) throw FileAccessException(413, "Too large to copy")
+        }
+        if (!target.mkdirs()) throw FileAccessException(500, "Could not create the folder")
+        source.walkTopDown().onEnter { it == source || !SafeFiles.isSymlink(it) }.filter { it.isDirectory && it != source }
+            .forEach { File(target, it.relativeTo(source).path).mkdirs() }
+        for (file in files) file.copyTo(File(target, file.relativeTo(source).path))
+    }
+
     fun delete(relative: String) {
         val file = resolve(relative)
         if (!file.exists() && !SafeFiles.isSymlink(file)) throw FileAccessException(404, "No such file")
@@ -119,6 +152,8 @@ class ProjectFiles(root: File, private val hiddenDirectories: Set<File> = emptyS
     companion object {
         const val MAX_TEXT_BYTES = 8L * 1024 * 1024
         const val MAX_TREE_ENTRIES = 5000
+        /** Duplicating a folder stays a quick operation; bigger copies belong in a terminal. */
+        const val MAX_COPY_BYTES = 256L * 1024 * 1024
         private const val MAX_DEPTH = 16
         val SKIPPED_DIRS = setOf(".git", ".cache", "node_modules")
 
