@@ -1689,6 +1689,84 @@
           "m"
         ]
       }
+    },
+    {
+      "name": "ncurses",
+      "version": "6.6",
+      "description": "ncurses 6: text user interfaces in the terminal (windows, colors, keys, mouse, menus, forms)",
+      "architecture": "aarch64",
+      "depends": [],
+      "downloadUrl": "asset:packages/aarch64/ncurses-6.6.tar.xz",
+      "sha256": "a63f3c8650a12c5005a901185e4c27a08e5eda6ddc6be44491fbaa40257574db",
+      "sizeBytes": 227304,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "formw",
+          "menuw",
+          "panelw",
+          "ncursesw"
+        ]
+      }
+    },
+    {
+      "name": "ncurses",
+      "version": "6.6",
+      "description": "ncurses 6: text user interfaces in the terminal (windows, colors, keys, mouse, menus, forms)",
+      "architecture": "arm",
+      "depends": [],
+      "downloadUrl": "asset:packages/arm/ncurses-6.6.tar.xz",
+      "sha256": "a4ee73212a35a87412d03f7d1179cdb668ae0f67e26278282a52f9145df27b80",
+      "sizeBytes": 225976,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "formw",
+          "menuw",
+          "panelw",
+          "ncursesw"
+        ]
+      }
+    },
+    {
+      "name": "ncurses",
+      "version": "6.6",
+      "description": "ncurses 6: text user interfaces in the terminal (windows, colors, keys, mouse, menus, forms)",
+      "architecture": "x86_64",
+      "depends": [],
+      "downloadUrl": "asset:packages/x86_64/ncurses-6.6.tar.xz",
+      "sha256": "d40a96a0383fdef413639252e0da099ddb014cd3f209097a8fd1d2420bb41505",
+      "sizeBytes": 229916,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "formw",
+          "menuw",
+          "panelw",
+          "ncursesw"
+        ]
+      }
     }
   ]
 }

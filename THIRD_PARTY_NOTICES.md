@@ -32,6 +32,7 @@
 | [SLF4J](https://www.slf4j.org/) 1.7.36 API and no-op binding | Logging facade used by JGit | MIT |
 | [Lua](https://www.lua.org/) 5.4.9 | Bundled Android library | MIT |
 | [SQLite](https://sqlite.org/) 3.54.1 | Bundled Android library | Public domain |
+| [ncurses](https://invisible-island.net/ncurses/) 6.6 (ncursesw, panelw, menuw, formw) | Bundled Android library | MIT (X11 style) |
 | [raygui](https://github.com/raysan5/raygui) 4.0 | Bundled header-only library | Zlib |
 | [GLM](https://github.com/g-truc/glm) 1.0.1 | Bundled header-only library | MIT (or the Happy Bunny License) |
 | [JSON for Modern C++](https://github.com/nlohmann/json) 3.11.3 | Bundled header-only library | MIT |

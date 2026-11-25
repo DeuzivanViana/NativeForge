@@ -97,6 +97,7 @@ when updating `SDL2_VERSION`.
 | sfml | shared | graphics, window, audio, network, system |
 | box2d, box3d, lua | static | Box3D 0.1 is an alpha C API; SIMD is off on armeabi-v7a |
 | sqlite3 | static | SQLite 3 with FTS5, R*Tree, JSON and math functions; `find_package(SQLite3)` works through CMake's own module. The amalgamation is generated from the canonical sources with the host `cc` (SQLite's configure builds its own jimsh, so no Tcl) |
+| ncurses | static | ncurses 6.6 with wide characters (`-lncursesw`, panel, menu and form). No terminfo database: `xterm-256color`, `xterm`, `vt100`, `linux` and `dumb` are compiled in (`--with-fallbacks`, generated with `tic`/`infocmp` built from the same sources), so text UIs also run in exported apps |
 | native-app-glue, opengles | static / headers | raw NativeActivity + EGL/GLES programs |
 | glm, nlohmann-json, entt, stb, miniaudio | header-only | one archive for every ABI (`architecture: all`) |
 

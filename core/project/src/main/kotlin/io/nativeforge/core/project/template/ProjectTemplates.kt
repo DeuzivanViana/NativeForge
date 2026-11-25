@@ -27,6 +27,73 @@ object ProjectTemplates {
             },
         ),
         SimpleTemplate(
+            id = "ncurses-tui",
+            displayName = "Text UI (ncurses)",
+            description = "Full screen terminal app with windows, colors, keys and taps.",
+            details = "A menu and a panel drawn with ncurses: arrow keys, Enter and taps on the menu, colors, " +
+                "a clock that ticks while waiting for keys, and a layout that follows screen rotation. " +
+                "The bundled ncurses also has panels, menus and forms.",
+            category = TemplateCategory.CONSOLE,
+            runtime = RuntimeKind.CONSOLE,
+            languages = C_AND_CPP,
+            packages = listOf("ncurses"),
+            sources = { language -> resourceSources(language, "ncurses-tui") },
+        ),
+        SimpleTemplate(
+            id = "multi-file",
+            displayName = "Multi-file program",
+            description = "Code split into modules with headers in include/.",
+            details = "A grade book split into a module (header in include/, code in src/) and a main file that reads " +
+                "names and grades and prints a report. Shows declarations vs. definitions, static helpers and " +
+                "dynamic arrays in C, classes and the standard library in C++. Every file in src/ is built.",
+            category = TemplateCategory.CONSOLE,
+            runtime = RuntimeKind.CONSOLE,
+            languages = C_AND_CPP,
+            sources = { language ->
+                if (language == Language.C) {
+                    mapOf(
+                        "src/main.c" to TemplateResources.read("multi-file/main.c"),
+                        "src/grades.c" to TemplateResources.read("multi-file/grades.c"),
+                        "include/grades.h" to TemplateResources.read("multi-file/grades.h"),
+                    )
+                } else {
+                    mapOf(
+                        "src/main.cpp" to TemplateResources.read("multi-file/main.cpp"),
+                        "src/gradebook.cpp" to TemplateResources.read("multi-file/gradebook.cpp"),
+                        "include/gradebook.hpp" to TemplateResources.read("multi-file/gradebook.hpp"),
+                    )
+                }
+            },
+        ),
+        SimpleTemplate(
+            id = "unit-tests",
+            displayName = "Unit tests",
+            description = "Functions with tests that run when you press Run.",
+            details = "A small module and its unit tests with a tiny test helper (no library needed): each check " +
+                "reports its file and line, the run lists PASS or FAIL per test, and the exit code counts the " +
+                "failures. The C++ version registers tests with TEST(name), like GoogleTest.",
+            category = TemplateCategory.CONSOLE,
+            runtime = RuntimeKind.CONSOLE,
+            languages = C_AND_CPP,
+            sources = { language ->
+                if (language == Language.C) {
+                    mapOf(
+                        "src/main.c" to TemplateResources.read("unit-tests/main.c"),
+                        "src/textutil.c" to TemplateResources.read("unit-tests/textutil.c"),
+                        "include/textutil.h" to TemplateResources.read("unit-tests/textutil.h"),
+                        "include/check.h" to TemplateResources.read("unit-tests/check.h"),
+                    )
+                } else {
+                    mapOf(
+                        "src/main.cpp" to TemplateResources.read("unit-tests/main.cpp"),
+                        "src/textutil.cpp" to TemplateResources.read("unit-tests/textutil.cpp"),
+                        "include/textutil.hpp" to TemplateResources.read("unit-tests/textutil.hpp"),
+                        "include/check.hpp" to TemplateResources.read("unit-tests/check.hpp"),
+                    )
+                }
+            },
+        ),
+        SimpleTemplate(
             id = "raylib",
             displayName = "raylib game",
             description = "Game loop with text, shapes and touch input.",

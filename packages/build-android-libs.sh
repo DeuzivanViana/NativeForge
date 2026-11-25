@@ -59,6 +59,7 @@ IMGUI_VERSION=1.92.2b
 LVGL_VERSION=9.6.0
 LVGL_COMMIT=80ca777e37a2b176770726a02e07a6fb79ef0b39
 SQLITE_VERSION=3.54.1
+NCURSES_VERSION=6.6+20251231
 # Packages built by ONLY=... runs (names as in the index); empty means everything.
 ONLY=${ONLY:-}
 wanted() { [ -z "$ONLY" ] || [[ " $ONLY " == *" $1 "* ]]; }
@@ -94,6 +95,7 @@ fetch_new_sources() {
   fetch "$UBUNTU/universe/libs/libsdl2-mixer/libsdl2-mixer_${SDL2_MIXER_VERSION}+dfsg.orig.tar.gz" "SDL2_mixer-$SDL2_MIXER_VERSION"
   fetch "$UBUNTU/universe/i/imgui/imgui_${IMGUI_VERSION}+ds.orig.tar.xz" "imgui-$IMGUI_VERSION"
   fetch "$UBUNTU/main/s/sqlite3/sqlite3_${SQLITE_VERSION}.orig.tar.xz" "sqlite3-$SQLITE_VERSION"
+  fetch "$UBUNTU/main/n/ncurses/ncurses_${NCURSES_VERSION}.orig.tar.gz" "ncurses-${NCURSES_VERSION/+/-}"
   # minimp3 (CC0), removed from the Debian SDL2_mixer tarball.
   local mp3=$SRC/SDL2_mixer-$SDL2_MIXER_VERSION/src/codecs/minimp3
   mkdir -p "$mp3"
@@ -408,6 +410,46 @@ PY
   cp "$REPO/LICENSE.runtime" "$S/share/licenses/lvgl/lv_nativeforge-LICENSE"
 }
 
+# tic and infocmp for the build machine, from the same ncurses sources: they turn
+# misc/terminfo.src into the compiled-in terminal descriptions below, so the result does not
+# depend on the build machine's own ncurses.
+build_ncurses_host() {
+  local H=$WORK/build/ncurses-host N=$SRC/ncurses-${NCURSES_VERSION/+/-}
+  [ -x "$H/progs/tic" ] && [ -x "$H/progs/infocmp" ] && return
+  rm -rf "$H"; mkdir -p "$H"
+  (cd "$H" && CC=gcc "$N/configure" --without-shared --without-cxx --without-cxx-binding --without-ada \
+      --without-tests --without-manpages --enable-widec >configure.log 2>&1 &&
+    make -j"$JOBS" -C include >make.log 2>&1 && make -j"$JOBS" -C ncurses >>make.log 2>&1 &&
+    make -j"$JOBS" -C progs tic infocmp >>make.log 2>&1) || { tail -20 "$H"/*.log; exit 1; }
+}
+
+# ncurses with wide characters (ncursesw, panelw, menuw, formw) as static libraries. There
+# is no terminfo database: the descriptions of the terminals NativeForge's console reports
+# (TERM=xterm-256color) are compiled in, so text UIs work the same when run from the IDE and
+# in exported apps, which have no terminfo files.
+build_ncurses() { # abi
+  local abi=$1 B=$WORK/build/$1/ncurses S=$WORK/stage/$1/ncurses N=$SRC/ncurses-${NCURSES_VERSION/+/-}
+  local H=$WORK/build/ncurses-host
+  [ -f "$S/lib/libncursesw.a" ] && return
+  build_ncurses_host
+  rm -rf "$B" "$S"; mkdir -p "$B" "$S/share/licenses/ncurses"
+  (cd "$B" && CC="$LLVM/clang --target=$(triple $abi)$API" CFLAGS="-O2 -fPIC -ffunction-sections -fdata-sections" \
+      AR="$LLVM/llvm-ar" RANLIB="$LLVM/llvm-ranlib" STRIP="$LLVM/llvm-strip" \
+      "$N/configure" --host="$(triple $abi)" --build=x86_64-pc-linux-gnu --prefix=/ \
+      --without-shared --with-normal --without-debug --without-cxx --without-cxx-binding --without-ada \
+      --without-progs --without-tests --without-manpages --enable-widec --enable-overwrite \
+      --disable-database --disable-db-install --disable-home-terminfo \
+      --with-fallbacks=xterm-256color,xterm,vt100,linux,dumb \
+      --with-tic-path="$H/progs/tic" --with-infocmp-path="$H/progs/infocmp" >configure.log 2>&1 &&
+    make -j"$JOBS" libs >make.log 2>&1 && make install.libs install.includes DESTDIR="$S" >>make.log 2>&1) ||
+    { tail -30 "$B"/*.log; exit 1; }
+  # Plain files instead of the ncurses.h -> curses.h symbolic link.
+  find "$S" -type l | while read -r l; do cp --remove-destination "$(readlink -f "$l")" "$l"; done
+  rm -rf "$S/bin" "$S/lib/pkgconfig" "$S/share/terminfo" "$S/share/tabset"
+  "$LLVM/llvm-strip" --strip-debug "$S"/lib/*.a
+  cp "$N/COPYING" "$S/share/licenses/ncurses/COPYING"
+}
+
 # SQLite's single-file amalgamation (sqlite3.c, sqlite3.h, sqlite3ext.h), generated once from the
 # canonical sources with the host C compiler. The generator scripts run in jimsh, which SQLite's
 # configure builds from its own sources, so no Tcl installation is needed.
@@ -525,7 +567,7 @@ package() {
   SDL2_MIXER_VERSION=$SDL2_MIXER_VERSION IMGUI_VERSION=$IMGUI_VERSION LVGL_VERSION=$LVGL_VERSION \
   SDL3_IMAGE_VERSION=$SDL3_IMAGE_VERSION SDL3_TTF_VERSION=$SDL3_TTF_VERSION SDL3_MIXER_VERSION=$SDL3_MIXER_VERSION \
   BOX2D_VERSION=$BOX2D_VERSION BOX3D_VERSION=$BOX3D_VERSION LUA_VERSION=$LUA_VERSION GLM_VERSION=$GLM_VERSION JSON_VERSION=$JSON_VERSION \
-  RAYGUI_VERSION=$RAYGUI_VERSION ENTT_VERSION=$ENTT_VERSION MINIAUDIO_VERSION=$MINIAUDIO_VERSION SQLITE_VERSION=$SQLITE_VERSION \
+  RAYGUI_VERSION=$RAYGUI_VERSION ENTT_VERSION=$ENTT_VERSION MINIAUDIO_VERSION=$MINIAUDIO_VERSION SQLITE_VERSION=$SQLITE_VERSION NCURSES_VERSION=$NCURSES_VERSION \
   python3 - "$WORK/stage" "$OUT" "$SDL3_VERSION" "$RAYLIB_VERSION" "$SFML_VERSION" $ABIS <<'PY'
 import hashlib, json, os, subprocess, sys
 stage, out, sdl3, raylib, sfml, *abis = sys.argv[1:]
@@ -580,6 +622,9 @@ specs = {
     "lvgl": dict(version=v["LVGL_VERSION"], depends=["sdl2"],
                  description="LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
                  build=dict(linkLibraries=["lvgl", "m"])),
+    "ncurses": dict(version=v["NCURSES_VERSION"].split("+")[0],
+                    description="ncurses 6: text user interfaces in the terminal (windows, colors, keys, mouse, menus, forms)",
+                    build=dict(linkLibraries=["formw", "menuw", "panelw", "ncursesw"])),
     "sqlite3": dict(version=v["SQLITE_VERSION"],
                     description="SQLite 3: SQL database in a single file, with FTS5, R*Tree, JSON and math functions (C)",
                     build=dict(linkLibraries=["sqlite3", "dl", "m"])),
@@ -649,6 +694,7 @@ if [ -z "${PACKAGE_ONLY:-}" ]; then
       fi
     fi
     if wanted sqlite3; then build_sqlite "$abi"; fi
+    if wanted ncurses; then build_ncurses "$abi"; fi
     if wanted lvgl; then
       # LVGL's SDL driver needs SDL2's headers; an ONLY run reads them from the bundled archive.
       if [ -d "$WORK/stage/$abi/sdl2/include/SDL2" ]; then
