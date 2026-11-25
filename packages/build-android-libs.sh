@@ -426,13 +426,15 @@ build_ncurses_host() {
 # ncurses with wide characters (ncursesw, panelw, menuw, formw) as static libraries. There
 # is no terminfo database: the descriptions of the terminals NativeForge's console reports
 # (TERM=xterm-256color) are compiled in, so text UIs work the same when run from the IDE and
-# in exported apps, which have no terminfo files.
+# in exported apps, which have no terminfo files. The package is named "ncursesw" because
+# Termux's "ncurses" (the shared library bash, nano and less need) must keep its name: the
+# bundled index comes first, and a package of the same name would replace Termux's.
 build_ncurses() { # abi
-  local abi=$1 B=$WORK/build/$1/ncurses S=$WORK/stage/$1/ncurses N=$SRC/ncurses-${NCURSES_VERSION/+/-}
+  local abi=$1 B=$WORK/build/$1/ncurses S=$WORK/stage/$1/ncursesw N=$SRC/ncurses-${NCURSES_VERSION/+/-}
   local H=$WORK/build/ncurses-host
   [ -f "$S/lib/libncursesw.a" ] && return
   build_ncurses_host
-  rm -rf "$B" "$S"; mkdir -p "$B" "$S/share/licenses/ncurses"
+  rm -rf "$B" "$S"; mkdir -p "$B" "$S/share/licenses/ncursesw"
   (cd "$B" && CC="$LLVM/clang --target=$(triple $abi)$API" CFLAGS="-O2 -fPIC -ffunction-sections -fdata-sections" \
       AR="$LLVM/llvm-ar" RANLIB="$LLVM/llvm-ranlib" STRIP="$LLVM/llvm-strip" \
       "$N/configure" --host="$(triple $abi)" --build=x86_64-pc-linux-gnu --prefix=/ \
@@ -447,7 +449,7 @@ build_ncurses() { # abi
   find "$S" -type l | while read -r l; do cp --remove-destination "$(readlink -f "$l")" "$l"; done
   rm -rf "$S/bin" "$S/lib/pkgconfig" "$S/share/terminfo" "$S/share/tabset"
   "$LLVM/llvm-strip" --strip-debug "$S"/lib/*.a
-  cp "$N/COPYING" "$S/share/licenses/ncurses/COPYING"
+  cp "$N/COPYING" "$S/share/licenses/ncursesw/COPYING"
 }
 
 # SQLite's single-file amalgamation (sqlite3.c, sqlite3.h, sqlite3ext.h), generated once from the
@@ -622,7 +624,7 @@ specs = {
     "lvgl": dict(version=v["LVGL_VERSION"], depends=["sdl2"],
                  description="LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
                  build=dict(linkLibraries=["lvgl", "m"])),
-    "ncurses": dict(version=v["NCURSES_VERSION"].split("+")[0],
+    "ncursesw": dict(version=v["NCURSES_VERSION"].split("+")[0],
                     description="ncurses 6: text user interfaces in the terminal (windows, colors, keys, mouse, menus, forms)",
                     build=dict(linkLibraries=["formw", "menuw", "panelw", "ncursesw"])),
     "sqlite3": dict(version=v["SQLITE_VERSION"],
@@ -694,7 +696,7 @@ if [ -z "${PACKAGE_ONLY:-}" ]; then
       fi
     fi
     if wanted sqlite3; then build_sqlite "$abi"; fi
-    if wanted ncurses; then build_ncurses "$abi"; fi
+    if wanted ncursesw; then build_ncurses "$abi"; fi
     if wanted lvgl; then
       # LVGL's SDL driver needs SDL2's headers; an ONLY run reads them from the bundled archive.
       if [ -d "$WORK/stage/$abi/sdl2/include/SDL2" ]; then

@@ -71,6 +71,10 @@ class FileSystemProjectRepositoryTest {
         val index = File("../../app/src/main/assets/packages/index.json").readText()
         val bundled = Regex("\"name\": \"([^\"]+)\"").findAll(index).map { it.groupValues[1] }.toSet()
         assertTrue("sqlite3" in bundled)
+        // The bundled index is searched first, so a bundled package named like a Termux package
+        // the toolchain or the terminal needs would replace it (bash links Termux's libncursesw.so).
+        val termuxBase = setOf("ncurses", "readline", "libandroid-support", "libiconv", "zlib", "openssl", "libc++", "bash")
+        assertTrue((bundled intersect termuxBase).isEmpty(), "bundled packages shadow Termux's: ${bundled intersect termuxBase}")
         ProjectTemplates.all.forEach { template ->
             template.requiredPackages.forEach { assertTrue(it in bundled, "${template.id} needs $it") }
         }
@@ -91,7 +95,7 @@ class FileSystemProjectRepositoryTest {
     fun `console templates cover ncurses, modules and unit tests in C and C++`() {
         val console = ProjectTemplates.all.filter { it.category == TemplateCategory.CONSOLE }.map { it.id }
         assertEquals(listOf("console", "ncurses-tui", "multi-file", "unit-tests"), console)
-        assertEquals(listOf("ncurses"), ProjectTemplates.byId("ncurses-tui")!!.requiredPackages)
+        assertEquals(listOf("ncursesw"), ProjectTemplates.byId("ncurses-tui")!!.requiredPackages)
         val expected = mapOf(
             "ncurses-tui" to (setOf("src/main.c") to setOf("src/main.cpp")),
             "multi-file" to (setOf("src/main.c", "src/grades.c", "include/grades.h") to
@@ -109,7 +113,7 @@ class FileSystemProjectRepositoryTest {
         }
         val tui = ProjectTemplates.byId("ncurses-tui")!!.generate("demo", ProjectOptions(language = Language.C))
         assertTrue("#include <ncurses.h>" in tui.files.getValue("src/main.c"))
-        assertEquals(listOf("ncurses"), tui.config.packages)
+        assertEquals(listOf("ncursesw"), tui.config.packages)
     }
 
     @Test

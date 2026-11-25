@@ -36,7 +36,7 @@ object ProjectTemplates {
             category = TemplateCategory.CONSOLE,
             runtime = RuntimeKind.CONSOLE,
             languages = C_AND_CPP,
-            packages = listOf("ncurses"),
+            packages = listOf("ncursesw"),
             sources = { language -> resourceSources(language, "ncurses-tui") },
         ),
         SimpleTemplate(
