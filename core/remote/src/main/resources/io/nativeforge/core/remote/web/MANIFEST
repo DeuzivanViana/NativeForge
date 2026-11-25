@@ -4,6 +4,7 @@ index.html
 js/api.js
 js/app.js
 js/editor.js
+js/languages.js
 js/screen.js
 js/settings.js
 js/terminal.js
@@ -13,6 +14,15 @@ vendor/codemirror/autocomplete.js
 vendor/codemirror/commands.js
 vendor/codemirror/lang-cpp.js
 vendor/codemirror/language.js
+vendor/codemirror/legacy-modes/cmake.js
+vendor/codemirror/legacy-modes/diff.js
+vendor/codemirror/legacy-modes/javascript.js
+vendor/codemirror/legacy-modes/properties.js
+vendor/codemirror/legacy-modes/python.js
+vendor/codemirror/legacy-modes/shell.js
+vendor/codemirror/legacy-modes/toml.js
+vendor/codemirror/legacy-modes/xml.js
+vendor/codemirror/legacy-modes/yaml.js
 vendor/codemirror/lint.js
 vendor/codemirror/search.js
 vendor/codemirror/state.js
@@ -26,6 +36,7 @@ vendor/licenses/codemirror_autocomplete.LICENSE
 vendor/licenses/codemirror_commands.LICENSE
 vendor/licenses/codemirror_lang-cpp.LICENSE
 vendor/licenses/codemirror_language.LICENSE
+vendor/licenses/codemirror_legacy-modes.LICENSE
 vendor/licenses/codemirror_lint.LICENSE
 vendor/licenses/codemirror_search.LICENSE
 vendor/licenses/codemirror_state.LICENSE

@@ -361,10 +361,13 @@ class CodeEditorController {
     fun showKeyboard() { editor?.showSoftInput() }
     fun hideKeyboard() { editor?.hideSoftInput() }
 
-    /** Toggles a line comment (`//`, or `#` in CMake files) on every selected line, as one undo step. */
+    /**
+     * Toggles a line comment (`//`, or `#` in CMake, Makefiles, shell, YAML...) on every selected
+     * line, as one undo step. Does nothing in languages without line comments (JSON, XML, Markdown).
+     */
     fun toggleComment() {
         val view = editor ?: return
-        val prefix = if (EditorLanguages.scopeFor(document?.fileName.orEmpty()) == "source.cmake") "#" else "//"
+        val prefix = EditorLanguages.lineComment(document?.fileName.orEmpty()) ?: return
         val text = view.text
         val cursor = view.cursor
         val first = cursor.leftLine

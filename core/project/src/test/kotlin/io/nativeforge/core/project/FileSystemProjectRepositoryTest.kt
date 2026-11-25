@@ -52,6 +52,7 @@ class FileSystemProjectRepositoryTest {
                     if (buildSystem == BuildSystemKind.CMAKE) {
                         val cmake = generated.files.getValue("CMakeLists.txt")
                         assertTrue(("CMAKE_" + (if (language == Language.C) "C" else "CXX") + "_STANDARD") in cmake)
+                        assertTrue("cmake_minimum_required(VERSION 3.22...4.2)" in cmake, "policies up to CMake 4.2")
                         val target = if (template.runtime.producesSharedLibrary) "add_library(main SHARED" else "add_executable(main"
                         assertTrue(target in cmake, template.id)
                     }

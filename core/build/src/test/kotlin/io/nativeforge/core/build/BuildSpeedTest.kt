@@ -51,9 +51,9 @@ class BuildSpeedTest {
     @Test
     fun `cmake and makefile builds use ccache as the compiler launcher`() {
         val cmake = project(ProjectConfig(name = "cm", buildSystem = BuildSystemKind.CMAKE), "CMakeLists.txt" to "")
-        val configure = CMakeBuildSystem().plan(BuildRequest(cmake, fast)).steps[0].process.command
-        assertTrue("-DCMAKE_C_COMPILER_LAUNCHER=${ccache.path}" in configure)
-        assertTrue("-DCMAKE_CXX_COMPILER_LAUNCHER=${ccache.path}" in configure)
+        val cache = cmakeCache(CMakeBuildSystem().plan(BuildRequest(cmake, fast)))
+        assertEquals(ccache.path, cache["CMAKE_C_COMPILER_LAUNCHER"])
+        assertEquals(ccache.path, cache["CMAKE_CXX_COMPILER_LAUNCHER"])
 
         val make = project(ProjectConfig(name = "mk", buildSystem = BuildSystemKind.MAKE), "Makefile" to "all:\n")
         fast.make.apply { parentFile.mkdirs(); writeText("") }
@@ -91,9 +91,9 @@ class BuildSpeedTest {
     @Test
     fun `cmake release builds get the section and link flags`() {
         val project = project(ProjectConfig(name = "cmrel", buildSystem = BuildSystemKind.CMAKE), "CMakeLists.txt" to "")
-        val configure = CMakeBuildSystem().plan(BuildRequest(project, plain, BuildType.RELEASE)).steps[0].process.command
-        assertTrue(configure.single { it.startsWith("-DCMAKE_CXX_FLAGS=") }.contains("-ffunction-sections"))
-        assertTrue(configure.single { it.startsWith("-DCMAKE_EXE_LINKER_FLAGS=") }.contains("-Wl,--gc-sections"))
+        val cache = cmakeCache(CMakeBuildSystem().plan(BuildRequest(project, plain, BuildType.RELEASE)))
+        assertTrue(cache.getValue("CMAKE_CXX_FLAGS").contains("-ffunction-sections"))
+        assertTrue(cache.getValue("CMAKE_EXE_LINKER_FLAGS").contains("-Wl,--gc-sections"))
     }
 
     @Test

@@ -20,6 +20,10 @@ import java.io.File
  * include path and their libraries are appended to every link through
  * CMAKE_<LANG>_STANDARD_LIBRARIES. CMAKE_PREFIX_PATH also lets `find_package()` find them,
  * and NATIVEFORGE_LIBRARIES lists them for `target_link_libraries()`.
+ *
+ * NativeForge's variables go through an initial-cache script ([CMakeInitialCache]) so CMake
+ * does not warn about the ones a project ignores; the project's own options
+ * ([io.nativeforge.core.project.model.ProjectConfig.cmakeOptions]) stay `-D` options and win.
  */
 class CMakeBuildSystem : BuildSystem {
 
@@ -74,15 +78,14 @@ class CMakeBuildSystem : BuildSystem {
             definitions["CMAKE_C_COMPILER_LAUNCHER"] = ccache.path
             definitions["CMAKE_CXX_COMPILER_LAUNCHER"] = ccache.path
         }
-        definitions.putAll(config.cmakeOptions)
+        val initialCache = CMakeInitialCache.write(File(buildDir, INITIAL_CACHE), definitions)
 
         val configure = buildList {
             add(toolchain.cmake.path)
             addAll(listOf("-G", generator.cmakeName, "-S", project.root.path, "-B", buildDir.path))
-            // NativeForge always passes its own variables (NATIVEFORGE_*, the standard libraries);
-            // a project that does not read them is fine, so don't warn about them on every configure.
-            add("--no-warn-unused-cli")
-            definitions.forEach { (key, value) -> add("-D$key=$value") }
+            // -C before -D: CMake applies them in order, so the project's options override ours.
+            addAll(listOf("-C", initialCache.path))
+            config.cmakeOptions.forEach { (key, value) -> add("-D$key=$value") }
         }
         val build = buildList {
             addAll(listOf(toolchain.cmake.path, "--build", buildDir.path, "--parallel", toolchain.parallelJobs.toString()))
@@ -110,5 +113,10 @@ class CMakeBuildSystem : BuildSystem {
             artifact = BuildArtifact(artifact, kind, CompilerFlags.runtimeLibraries(request)),
             artifactSearchRoot = buildDir,
         )
+    }
+
+    companion object {
+        /** Initial-cache script in the build folder, rewritten before every configure. */
+        const val INITIAL_CACHE = "nativeforge-init.cmake"
     }
 }

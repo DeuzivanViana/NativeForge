@@ -2,6 +2,17 @@
 
 ## Unreleased — faster builds, a lighter IDE
 
+* CMake: NativeForge's own variables (compilers, flags, `NATIVEFORGE_*`) go in an
+  initial-cache script (`-C build/<type>/nativeforge-init.cmake`) instead of `-D` options,
+  so CMake no longer warns about the ones a project ignores, without the deprecated
+  `--no-warn-unused-cli` (CMake 4.2 prints a warning for it; `-Wno-unused-cli` is ignored
+  by CMake 3.x). The project's own CMake options stay `-D` and win. New CMake templates
+  use `cmake_minimum_required(VERSION 3.22...4.2)`.
+* Syntax highlighting for the other files of a C/C++ project, in the app's editor and in
+  the browser IDE: JSON, YAML (also `.clang-format`, `.clangd`, `.clang-tidy`), TOML,
+  INI/`.editorconfig`, Makefiles, shell, Python, Markdown, XML, GLSL shaders and diffs
+  (CMake already had it). Toggle comment uses each language's comment (`#`, `//`).
+
 * Built-in build: ccache in front of clang when the `ccache` package is installed (now
   part of the toolchain install; `pkg install ccache` for existing installs), also for
   CMake (`CMAKE_<LANG>_COMPILER_LAUNCHER`) and Makefiles (the gcc/cc wrappers). Build

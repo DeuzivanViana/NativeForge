@@ -1,0 +1,130 @@
+{
+  "name": "glsl",
+  "scopeName": "source.glsl",
+  "fileTypes": [
+    "glsl",
+    "vert",
+    "frag",
+    "geom",
+    "comp",
+    "tesc",
+    "tese",
+    "vs",
+    "fs",
+    "vsh",
+    "fsh"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#preprocessor"
+    },
+    {
+      "name": "keyword.control.glsl",
+      "match": "\\b(?:if|else|for|while|do|switch|case|default|break|continue|return|discard)\\b"
+    },
+    {
+      "name": "storage.modifier.glsl",
+      "match": "\\b(?:attribute|const|uniform|varying|buffer|shared|coherent|volatile|restrict|readonly|writeonly|centroid|flat|smooth|noperspective|patch|sample|in|out|inout|layout|invariant|precise|precision|lowp|mediump|highp|subroutine)\\b"
+    },
+    {
+      "name": "storage.type.glsl",
+      "match": "\\b(?:void|bool|u?int|float|double|atomic_uint|[biud]?vec[234]|d?mat[234](?:x[234])?|[iu]?(?:sampler|image|texture|subpassInput)\\w*|struct)\\b"
+    },
+    {
+      "name": "constant.language.glsl",
+      "match": "\\b(?:true|false)\\b"
+    },
+    {
+      "name": "support.variable.glsl",
+      "match": "\\bgl_\\w+\\b"
+    },
+    {
+      "name": "support.function.glsl",
+      "match": "\\b(?:radians|degrees|sin|cos|tan|asin|acos|atan|sinh|cosh|tanh|asinh|acosh|atanh|pow|exp|log|exp2|log2|sqrt|inversesqrt|abs|sign|floor|trunc|round|roundEven|ceil|fract|mod|modf|min|max|clamp|mix|step|smoothstep|isnan|isinf|fma|frexp|ldexp|floatBitsToInt|floatBitsToUint|intBitsToFloat|uintBitsToFloat|packUnorm2x16|packSnorm2x16|packUnorm4x8|packSnorm4x8|unpackUnorm2x16|unpackSnorm2x16|unpackUnorm4x8|unpackSnorm4x8|packHalf2x16|unpackHalf2x16|packDouble2x32|unpackDouble2x32|length|distance|dot|cross|normalize|faceforward|reflect|refract|matrixCompMult|outerProduct|transpose|determinant|inverse|lessThan|lessThanEqual|greaterThan|greaterThanEqual|equal|notEqual|any|all|not|uaddCarry|usubBorrow|umulExtended|imulExtended|bitfieldExtract|bitfieldInsert|bitfieldReverse|bitCount|findLSB|findMSB|texture|textureSize|textureQueryLod|textureQueryLevels|textureSamples|textureProj|textureLod|textureOffset|texelFetch|texelFetchOffset|textureProjOffset|textureLodOffset|textureProjLod|textureProjLodOffset|textureGrad|textureGradOffset|textureProjGrad|textureProjGradOffset|textureGather|textureGatherOffset|textureGatherOffsets|texture1D|texture2D|texture3D|textureCube|shadow2D|texture2DProj|texture2DLod|textureCubeLod|dFdx|dFdy|dFdxFine|dFdyFine|dFdxCoarse|dFdyCoarse|fwidth|fwidthFine|fwidthCoarse|interpolateAtCentroid|interpolateAtSample|interpolateAtOffset|EmitVertex|EndPrimitive|EmitStreamVertex|EndStreamPrimitive|barrier|memoryBarrier|memoryBarrierAtomicCounter|memoryBarrierBuffer|memoryBarrierShared|memoryBarrierImage|groupMemoryBarrier|imageLoad|imageStore|imageSize|imageSamples|imageAtomicAdd|imageAtomicMin|imageAtomicMax|imageAtomicAnd|imageAtomicOr|imageAtomicXor|imageAtomicExchange|imageAtomicCompSwap|atomicCounterIncrement|atomicCounterDecrement|atomicCounter|atomicAdd|atomicMin|atomicMax|atomicAnd|atomicOr|atomicXor|atomicExchange|atomicCompSwap)\\b(?=\\s*\\()"
+    },
+    {
+      "name": "entity.name.function.glsl",
+      "match": "\\b[A-Za-z_]\\w*\\b(?=\\s*\\()"
+    },
+    {
+      "name": "constant.numeric.hex.glsl",
+      "match": "\\b0[xX][0-9a-fA-F]+[uU]?\\b"
+    },
+    {
+      "name": "constant.numeric.glsl",
+      "match": "(?:\\b\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?(?:lf|LF|[fFuU])?\\b"
+    },
+    {
+      "name": "keyword.operator.glsl",
+      "match": "[-+*/%=<>!&|^~?:]"
+    },
+    {
+      "name": "punctuation.terminator.statement.glsl",
+      "match": ";"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.glsl",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.glsl"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.glsl"
+            }
+          }
+        },
+        {
+          "name": "comment.line.double-slash.glsl",
+          "begin": "//",
+          "end": "$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.glsl"
+            }
+          }
+        }
+      ]
+    },
+    "preprocessor": {
+      "name": "meta.preprocessor.glsl",
+      "begin": "^\\s*(#)\\s*(version|extension|define|undef|if|ifdef|ifndef|else|elif|endif|pragma|line|error|include)\\b",
+      "beginCaptures": {
+        "1": {
+          "name": "punctuation.definition.directive.glsl"
+        },
+        "2": {
+          "name": "keyword.control.directive.glsl"
+        }
+      },
+      "end": "(?<!\\\\)$",
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "name": "string.quoted.double.glsl",
+          "match": "\\\"[^\\\"]*\\\"|<[^>]*>"
+        },
+        {
+          "name": "constant.language.glsl",
+          "match": "\\b(?:core|compatibility|es|require|enable|warn|disable|all|defined)\\b"
+        },
+        {
+          "name": "constant.numeric.glsl",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    }
+  }
+}

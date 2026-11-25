@@ -38,7 +38,6 @@ internal object TemplateSources {
         |}
         |""".trimMargin()
 
-    /** CMakeLists.txt for a console program built from [source]. */
     /** CMakeLists.txt for a template: every source under src/, linked with the project's libraries. */
     fun cmakeLists(language: Language, standard: String, runtime: RuntimeKind): String {
         val cmakeLanguage = if (language == Language.C) "C" else "CXX"
@@ -50,7 +49,8 @@ internal object TemplateSources {
             "add_executable(main ${'$'}{SOURCES})"
         }
         return """
-            |cmake_minimum_required(VERSION 3.22)
+            |# 3.22 or newer; policies up to CMake 4.2 use their new behaviour.
+            |cmake_minimum_required(VERSION 3.22...4.2)
             |project(@PROJECT_NAME@ LANGUAGES C CXX)
             |
             |set(CMAKE_${cmakeLanguage}_STANDARD $version)

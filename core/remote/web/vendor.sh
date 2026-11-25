@@ -25,6 +25,7 @@ packages=(
   "@codemirror/search@6.7.2 dist/index.js:codemirror/search.js"
   "@codemirror/lang-cpp@6.0.3 dist/index.js:codemirror/lang-cpp.js"
   "@codemirror/streamparser@6.0.0 dist/index.js:codemirror/streamparser.js"
+  "@codemirror/legacy-modes@6.5.5 mode/cmake.js:codemirror/legacy-modes/cmake.js mode/shell.js:codemirror/legacy-modes/shell.js mode/yaml.js:codemirror/legacy-modes/yaml.js mode/toml.js:codemirror/legacy-modes/toml.js mode/properties.js:codemirror/legacy-modes/properties.js mode/xml.js:codemirror/legacy-modes/xml.js mode/javascript.js:codemirror/legacy-modes/javascript.js mode/diff.js:codemirror/legacy-modes/diff.js mode/python.js:codemirror/legacy-modes/python.js"
   "@lezer/common@1.5.6 dist/index.js:lezer/common.js"
   "@lezer/highlight@1.2.5 dist/index.js:lezer/highlight.js"
   "@lezer/lr@1.4.12 dist/index.js:lezer/lr.js"
