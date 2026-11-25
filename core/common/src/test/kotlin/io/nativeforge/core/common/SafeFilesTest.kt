@@ -35,4 +35,29 @@ class SafeFilesTest {
         assertNull(SafeFiles.resolveInside(assets, "b.png"))
         assertEquals(File(assets, "a.png"), SafeFiles.resolveInside(assets, "a.png"))
     }
+
+    @Test
+    fun `atomic writes replace the content, keep the executable bit and leave no temporary file`() {
+        val dir = java.nio.file.Files.createTempDirectory("nf-atomic").toFile()
+        val file = File(dir, "run.sh").apply { writeText("old"); setExecutable(true) }
+        SafeFiles.writeTextAtomically(file, "new")
+        kotlin.test.assertEquals("new", file.readText())
+        kotlin.test.assertTrue(file.canExecute())
+        kotlin.test.assertEquals(listOf("run.sh"), dir.list()!!.toList())
+
+        val created = File(dir, "sub/new.c")
+        SafeFiles.writeTextAtomically(created, "int x;")
+        kotlin.test.assertEquals("int x;", created.readText())
+    }
+
+    @Test
+    fun `atomic writes go through a symbolic link`() {
+        val dir = java.nio.file.Files.createTempDirectory("nf-atomic-link").toFile()
+        val target = File(dir, "real.c").apply { writeText("old") }
+        val link = File(dir, "link.c")
+        java.nio.file.Files.createSymbolicLink(link.toPath(), target.toPath())
+        SafeFiles.writeTextAtomically(link, "new")
+        kotlin.test.assertTrue(java.nio.file.Files.isSymbolicLink(link.toPath()))
+        kotlin.test.assertEquals("new", target.readText())
+    }
 }

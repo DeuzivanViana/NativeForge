@@ -38,8 +38,16 @@ class ShellSetup(private val layout: ToolchainLayout) {
         writeIfChanged(shrc, SHRC, executable = false)
         writeIfChanged(pkgScript, PKG_SCRIPT, executable = true)
         writeIfChanged(aptScript, APT_SCRIPT, executable = true)
-        relocateTermuxFiles(File(layout.prefix, "etc"))
+        // Only scripts from 0.11.0 need it (installs relocate everything since 0.11.1): walk
+        // `etc` once, not every time a terminal opens.
+        if (!relocatedMarker.isFile) {
+            relocateTermuxFiles(File(layout.prefix, "etc"))
+            runCatching { relocatedMarker.writeText("1\n") }
+        }
     }
+
+    /** Written after [relocateTermuxFiles] went through `etc` once. */
+    private val relocatedMarker: File get() = File(layout.prefix, "etc/nativeforge/termux-files-relocated")
 
     /**
      * Start-up scripts installed before 0.11.1 still name Termux's home

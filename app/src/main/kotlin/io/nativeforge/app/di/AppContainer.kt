@@ -47,7 +47,7 @@ class AppContainer(context: Context) {
     val toolchain: Toolchain = ClangToolchain(layout, abi)
 
     /** Builds console programs as WebAssembly for the web export (same clang, WASI sysroot). */
-    val wasiToolchain = WasiToolchain(toolchain, layout)
+    val wasiToolchain by lazy { WasiToolchain(toolchain, layout) }
 
     val projectRepository: ProjectRepository = FileSystemProjectRepository(
         workspaceRoot = File(appContext.filesDir, "projects").also { it.mkdirs() },
@@ -89,8 +89,9 @@ class AppContainer(context: Context) {
 
     val buildService = BuildService(BuildSystemRegistry.default(), BuildExecutor(JvmProcessRunner()))
 
-    val apkExporter = ApkExporter(ApksigSigningEngine())
-    val webExporter = WebExporter()
+    // Only the Export screen needs these: created on first use, which keeps the app's start short.
+    val apkExporter by lazy { ApkExporter(ApksigSigningEngine()) }
+    val webExporter by lazy { WebExporter() }
 
     /** The remote web IDE (Remote access screen): trusted browsers, TLS key and server. */
     val remoteAccess: io.nativeforge.app.remote.RemoteAccessManager by lazy { io.nativeforge.app.remote.RemoteAccessManager(appContext, this) }
@@ -122,10 +123,10 @@ class AppContainer(context: Context) {
     }
 
     /** The keystore lives in private app storage, which other apps cannot read. */
-    val signingKeyStore = SigningKeyStore(File(appContext.filesDir, "signing/export.p12"), "nativeforge".toCharArray())
+    val signingKeyStore by lazy { SigningKeyStore(File(appContext.filesDir, "signing/export.p12"), "nativeforge".toCharArray()) }
 
     /** Keystores the user created or imported (see Export › Signing). */
-    val signingKeys = SigningKeyRepository(File(appContext.filesDir, "signing/keystores"), PasswordVault())
+    val signingKeys by lazy { SigningKeyRepository(File(appContext.filesDir, "signing/keystores"), PasswordVault()) }
 
     val exportsDirectory: File get() = File(appContext.filesDir, "exports").also { it.mkdirs() }
 

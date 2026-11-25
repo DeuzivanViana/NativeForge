@@ -95,7 +95,42 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
         scope.launch(Dispatchers.IO) { runCatching { ClangdFiles.writeDatabase(request) } }
     }
 
+    private var hiddenStop: Job? = null
+    private var stoppedWhileHidden = false
+
+    /**
+     * The app went to the background. If it stays there for [HIDDEN_STOP_DELAY_MS], clangd is
+     * stopped, so its workers and background index don't take CPU and memory from a running
+     * program or other apps. The open documents are kept and sent again by [appShown].
+     */
+    fun appHidden() {
+        if (hiddenStop?.isActive == true) return
+        hiddenStop = scope.launch {
+            delay(HIDDEN_STOP_DELAY_MS)
+            if (session != null || _status.value == IntelStatus.Starting) {
+                stoppedWhileHidden = true
+                shutdown()
+            }
+        }
+    }
+
+    /** Back in the foreground: restarts clangd when [appHidden] stopped it. */
+    fun appShown() {
+        hiddenStop?.cancel()
+        hiddenStop = null
+        if (!stoppedWhileHidden) return
+        stoppedWhileHidden = false
+        if (session == null && _status.value == IntelStatus.Off) request?.let { start(it, options) }
+    }
+
     fun stop() {
+        hiddenStop?.cancel()
+        hiddenStop = null
+        stoppedWhileHidden = false
+        shutdown()
+    }
+
+    private fun shutdown() {
         generation.incrementAndGet()
         pendingSync.values.forEach { it.cancel() }
         pendingSync.clear()
@@ -115,13 +150,20 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
     }
 
     /** The editor text of [path] changed: tell clangd after a short pause (diagnostics follow). */
-    fun textChanged(path: String, text: String) {
+    fun textChanged(path: String, text: String) = textChanged(path) { text }
+
+    /**
+     * Like [textChanged], but reads the text only when the pause is over, on the caller's
+     * thread (the editor's): typing in a big file no longer copies the whole file on every key.
+     */
+    fun textChanged(path: String, text: () -> String) {
         if (!ClangdSession.supports(File(path))) return
-        texts[path] = text
         pendingSync.remove(path)?.cancel()
-        val job = scope.launch(Dispatchers.IO) {
+        val job = scope.launch {
             delay(SYNC_DELAY_MS)
-            withSession { it.sync(File(path), text) }
+            val current = text()
+            texts[path] = current
+            withContext(Dispatchers.IO) { withSession { it.sync(File(path), current) } }
         }
         pendingSync[path] = job
         // Finished jobs would otherwise keep the last text of every edited file alive.
@@ -195,5 +237,6 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
         const val COMPLETION_TIMEOUT_MS = 4_000L
         const val REQUEST_TIMEOUT_MS = 10_000L
         const val MAX_RESTARTS = 3
+        const val HIDDEN_STOP_DELAY_MS = 30_000L
     }
 }

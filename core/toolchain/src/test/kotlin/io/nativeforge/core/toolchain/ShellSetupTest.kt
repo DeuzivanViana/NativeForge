@@ -69,6 +69,16 @@ class ShellSetupTest {
     }
 
     @Test
+    fun `old start-up scripts are rewritten only on the first prepare`() {
+        setup.prepare()
+        val later = File(layout.prefix, "etc/profile.d/later.sh")
+        later.parentFile.mkdirs()
+        later.writeText("echo /data/data/com.termux/files/home\n")
+        setup.prepare()
+        assertTrue("com.termux" in later.readText(), "etc is not walked again on every terminal start")
+    }
+
+    @Test
     fun `prepare is idempotent`() {
         setup.prepare()
         val stamp = setup.bashrc.lastModified()

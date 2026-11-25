@@ -12,6 +12,7 @@ import io.nativeforge.core.lsp.Position
 import io.nativeforge.core.lsp.TextEdit
 import io.nativeforge.core.lsp.WorkspaceEdit
 import io.nativeforge.core.project.model.BuildSystemKind
+import io.nativeforge.core.toolchain.BuildParallelism
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -25,7 +26,34 @@ data class CodeIntelOptions(
     val backgroundIndex: Boolean = true,
     /** Worker threads clangd may use. */
     val threads: Int = 2,
-)
+) {
+    companion object {
+        /** Below this much free memory clangd skips the project-wide index (each file still works). */
+        const val LOW_MEMORY_MB = 1_024L
+
+        /** Memory budget of one clangd worker (an AST of a file with big headers). */
+        const val MEMORY_PER_THREAD_MB = 768L
+
+        /**
+         * Options sized for the phone: at most half the cores and one worker per
+         * [MEMORY_PER_THREAD_MB] of free memory (1 to 4), and no background index when memory
+         * is short. [availableMemoryMb] null (unknown) leaves the index on.
+         */
+        fun forDevice(
+            clangTidy: Boolean,
+            cores: Int = Runtime.getRuntime().availableProcessors(),
+            availableMemoryMb: Long? = BuildParallelism.availableMemoryMb(),
+        ): CodeIntelOptions {
+            val byCpu = (cores / 2).coerceIn(1, 4)
+            val byMemory = availableMemoryMb?.let { (it / MEMORY_PER_THREAD_MB).toInt().coerceIn(1, 4) } ?: byCpu
+            return CodeIntelOptions(
+                clangTidy = clangTidy,
+                backgroundIndex = availableMemoryMb == null || availableMemoryMb >= LOW_MEMORY_MB,
+                threads = minOf(byCpu, byMemory),
+            )
+        }
+    }
+}
 
 /**
  * One clangd process serving one project.
@@ -147,20 +175,7 @@ class ClangdSession private constructor(
             val databaseDir = ClangdFiles.writeDatabase(request)
             environment["HOME"]?.let { home -> ClangdFiles.writeUserConfig(File(home), toolchain.baseCompileFlags(), options) }
 
-            val command = buildList {
-                add(clangd.path)
-                add("--compile-commands-dir=${databaseDir.path}")
-                add("--background-index=${options.backgroundIndex}")
-                add("-j=${options.threads.coerceIn(1, 8)}")
-                add("--pch-storage=disk")
-                add("--header-insertion=iwyu")
-                add("--completion-style=detailed")
-                add("--function-arg-placeholders=false")
-                add("--limit-results=100")
-                add("--log=" + (System.getenv("NF_CLANGD_LOG") ?: "error"))
-                if (options.clangTidy) add("--clang-tidy")
-            }
-            val process = ProcessBuilder(command)
+            val process = ProcessBuilder(command(clangd, databaseDir, options))
                 .directory(request.project.root)
                 .apply { environment().putAll(environment) }
                 .start()
@@ -175,6 +190,26 @@ class ClangdSession private constructor(
                 throw IllegalStateException("clangd did not start: ${e.cause?.message ?: e.message}\n$log".trim(), e)
             }
             return session
+        }
+
+        /**
+         * clangd's command line. Light on a phone: a bounded worker pool, preambles on disk
+         * instead of in memory, and the background index on the lowest priority so typing,
+         * completion and builds come first.
+         */
+        fun command(clangd: File, databaseDir: File, options: CodeIntelOptions): List<String> = buildList {
+            add(clangd.path)
+            add("--compile-commands-dir=${databaseDir.path}")
+            add("--background-index=${options.backgroundIndex}")
+            if (options.backgroundIndex) add("--background-index-priority=low")
+            add("-j=${options.threads.coerceIn(1, 8)}")
+            add("--pch-storage=disk")
+            add("--header-insertion=iwyu")
+            add("--completion-style=detailed")
+            add("--function-arg-placeholders=false")
+            add("--limit-results=100")
+            add("--log=" + (System.getenv("NF_CLANGD_LOG") ?: "error"))
+            if (options.clangTidy) add("--clang-tidy")
         }
     }
 }

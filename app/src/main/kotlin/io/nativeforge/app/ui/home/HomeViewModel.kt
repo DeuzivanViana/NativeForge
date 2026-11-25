@@ -61,6 +61,11 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     init {
         refresh()
+        // Write the terminal's start-up files now, so opening the terminal later only starts bash.
+        viewModelScope.launch(Dispatchers.IO) {
+            val shell = ShellSetup(container.layout)
+            if (shell.bash.isFile) runCatching { shell.prepare() }
+        }
         viewModelScope.launch {
             container.packageManager.loadInstalled()
             val updated = container.updateBundledPackages()
