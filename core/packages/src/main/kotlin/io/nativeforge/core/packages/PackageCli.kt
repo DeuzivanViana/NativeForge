@@ -62,6 +62,7 @@ class PackageCli(
         var done = 0
         manager.install(names, reinstall).collect { event ->
             when (event) {
+                is InstallEvent.Preparing -> out.println(event.message)
                 is InstallEvent.Resolved -> {
                     total = event.packages.size
                     if (total == 0) out.println("Nothing to do.") else out.println("Installing $total package(s): " + event.packages.joinToString(" ") { it.name })

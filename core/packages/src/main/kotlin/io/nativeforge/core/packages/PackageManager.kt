@@ -170,16 +170,25 @@ class PackageManager(
      * [reinstall] are installed again even when present.
      */
     fun install(names: List<String>, reinstall: Set<String> = emptySet()): Flow<InstallEvent> = channelFlow {
+        // Another install (an update of the bundled libraries at start-up, a build) holds the
+        // lock: say so, instead of looking as if nothing happened.
+        if (mutex.isLocked) send(InstallEvent.Preparing("Waiting for another installation to finish…"))
         mutex.withLock {
             val plan = try {
-                // Every source must be read: the catalog may only hold the bundled index.
-                if (!allSourcesLoaded) refresh()
-                try {
-                    DependencyResolver(_catalog.value).resolve(names, database.names() - reinstall)
-                } catch (e: DependencyResolutionException) {
-                    // A package list may be stale or have failed earlier; read them again once.
-                    refresh()
-                    DependencyResolver(_catalog.value).resolve(names, database.names() - reinstall)
+                val skip = database.names() - reinstall
+                // Libraries bundled in the APK need no package list from the network: when the
+                // sources read so far (the bundled index first) provide everything, use them.
+                resolveFromLoadedSources(names, skip) ?: run {
+                    send(InstallEvent.Preparing("Downloading the package lists…"))
+                    // Every source must be read: the catalog may only hold the bundled index.
+                    if (!allSourcesLoaded) refresh()
+                    try {
+                        DependencyResolver(_catalog.value).resolve(names, skip)
+                    } catch (e: DependencyResolutionException) {
+                        // A package list may be stale or have failed earlier; read them again once.
+                        refresh()
+                        DependencyResolver(_catalog.value).resolve(names, skip)
+                    }
                 }
             } catch (e: DependencyResolutionException) {
                 val failures = lastFailures
@@ -228,6 +237,23 @@ class PackageManager(
             }
         }
     }.flowOn(dispatchers.io)
+
+    /**
+     * Resolves [names] with the sources read so far, when they are the first sources in
+     * precedence order (normally just the bundled index). No later source can take a package
+     * from them, so the plan is the same one a full refresh would give. Null when that is not
+     * possible or something is missing: then every source must be read.
+     */
+    private fun resolveFromLoadedSources(names: List<String>, installed: Set<String>): List<PackageInfo>? {
+        val leading = sources.takeWhile { it.id in loadedSources }.map { it.id }.toSet()
+        if (leading.isEmpty()) return null
+        val catalog = _catalog.value.filter { it.sourceId in leading }
+        return try {
+            DependencyResolver(catalog).resolve(names, installed)
+        } catch (e: DependencyResolutionException) {
+            null
+        }
+    }
 
     suspend fun uninstall(name: String): Outcome<Unit> = withContext(dispatchers.io) {
         mutex.withLock {

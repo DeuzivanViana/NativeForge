@@ -76,6 +76,7 @@ class PackagesViewModel(private val container: AppContainer) : ViewModel() {
             ui.update { it.copy(busyPackage = name) }
             manager.install(listOf(name)).collect { event ->
                 val status = when (event) {
+                    is InstallEvent.Preparing -> event.message
                     is InstallEvent.Resolved -> "Installing ${event.packages.joinToString { it.name }}"
                     is InstallEvent.Extracting -> "Extracting ${event.pkg.name}…"
                     is InstallEvent.Failed -> event.error.message

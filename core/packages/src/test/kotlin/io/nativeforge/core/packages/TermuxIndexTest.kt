@@ -52,4 +52,45 @@ class TermuxIndexTest {
         assertEquals("data/data/com.termux/files/usr", clang.stripPrefix)
         assertEquals(30000000L, clang.sizeBytes)
     }
+
+    @Test
+    fun `termux source moves to the next server when one cannot be reached or serves a broken file`() = runBlocking<Unit> {
+        val asked = mutableListOf<String>()
+        val http = object : HttpClient {
+            override suspend fun getBytes(url: String): ByteArray {
+                asked += url
+                return when {
+                    url.startsWith("https://down.test/") -> throw java.net.UnknownHostException("down.test")
+                    url.startsWith("https://broken.test/") && url.endsWith(".xz") -> "<html>not xz</html>".toByteArray()
+                    url.startsWith("https://good.test/") && url.endsWith("/Packages") -> index.toByteArray()
+                    else -> throw HttpException(404, url)
+                }
+            }
+            override suspend fun download(url: String, destination: File, onProgress: (Long, Long?) -> Unit) = error("unused")
+        }
+        val source = TermuxAptSource(http, mirrors = listOf("https://down.test/t", "https://broken.test/t", "https://good.test/t"))
+        val clang = source.fetchIndex(Abi.ARM64_V8A).first { it.name == "clang" }
+
+        // Archives come from the server that gave the index.
+        assertEquals("https://good.test/t/pool/main/c/clang/clang_19.1.7_aarch64.deb", clang.downloadUrl)
+        assertEquals(1, asked.count { it.startsWith("https://down.test/") })
+        assertEquals(1, asked.count { it.startsWith("https://broken.test/") })
+    }
+
+    @Test
+    fun `termux source reports the last server's error when none works`() = runBlocking<Unit> {
+        val http = object : HttpClient {
+            override suspend fun getBytes(url: String): ByteArray = throw java.io.IOException("offline: $url")
+            override suspend fun download(url: String, destination: File, onProgress: (Long, Long?) -> Unit) = error("unused")
+        }
+        val error = runCatching { TermuxAptSource(http, mirrors = listOf("https://a.test", "https://b.test")).fetchIndex(Abi.ARM64_V8A) }.exceptionOrNull()
+        kotlin.test.assertNotNull(error)
+        kotlin.test.assertTrue("b.test" in error.message.orEmpty(), error.message)
+    }
+
+    @Test
+    fun `the default servers are Termux's own, over HTTPS`() {
+        kotlin.test.assertTrue(TermuxAptSource.DEFAULT_MIRRORS.all { it.startsWith("https://") && java.net.URI(it).host.endsWith(".termux.dev") })
+        assertEquals(TermuxAptSource.DEFAULT_MIRROR, TermuxAptSource.DEFAULT_MIRRORS.first())
+    }
 }

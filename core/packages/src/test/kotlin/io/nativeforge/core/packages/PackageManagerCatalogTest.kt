@@ -10,6 +10,7 @@ import io.nativeforge.core.packages.source.PackageSource
 import io.nativeforge.core.toolchain.Abi
 import io.nativeforge.core.toolchain.ToolchainLayout
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.IOException
@@ -27,7 +28,9 @@ class PackageManagerCatalogTest {
     private class FakeSource(override val id: String, private val names: List<String>) : PackageSource {
         override val displayName = id
         var fail = false
+        var fetches = 0
         override suspend fun fetchIndex(abi: Abi): List<PackageInfo> {
+            fetches++
             if (fail) throw IOException("Unable to resolve host")
             return names.map {
                 PackageInfo(
@@ -76,5 +79,27 @@ class PackageManagerCatalogTest {
         val event = firstOutcome("clang")
         assertIs<InstallEvent.Failed>(event)
         assertTrue("internet" in event.error.message && "Unable to resolve host" in event.error.message, event.error.message)
+    }
+
+    @Test
+    fun `bundled libraries install without waiting for the other package lists`() = runBlocking {
+        manager.refreshSource("bundled")
+        termux.fail = true
+        val events = manager.install(listOf("raylib")).toList()
+        // Planned from the bundled index alone: Termux was never asked, and nothing waited on it.
+        val resolved = events.filterIsInstance<InstallEvent.Resolved>().single()
+        assertEquals(listOf("raylib"), resolved.packages.map { it.name })
+        assertEquals(0, termux.fetches)
+        assertTrue(events.none { it is InstallEvent.Preparing }, events.toString())
+    }
+
+    @Test
+    fun `reading the package lists is announced before the plan`() = runBlocking {
+        manager.refreshSource("bundled")
+        val events = manager.install(listOf("clang")).toList()
+        val preparing = events.indexOfFirst { it is InstallEvent.Preparing }
+        val resolved = events.indexOfFirst { it is InstallEvent.Resolved }
+        assertTrue(preparing in 0 until resolved, events.toString())
+        assertEquals(1, termux.fetches)
     }
 }

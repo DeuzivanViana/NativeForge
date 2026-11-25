@@ -138,7 +138,7 @@ internal fun WebDownloadDialog(prompt: WebDownloadPrompt, onAccept: () -> Unit, 
     ) {
         Text(
             "Building for the web needs wasi-libc$size: the C and C++ standard libraries for WebAssembly (WASI). " +
-                "NativeForge downloads it once from the Termux package repository (packages-cf.termux.dev) and uses it " +
+                "NativeForge downloads it once from the Termux package repository (packages-cf.termux.dev, or packages.termux.dev when it fails) and uses it " +
                 "with the clang you already have.\n\nLike the compiler, it is free software that is not built or checked " +
                 "by F-Droid or by the store you installed NativeForge from.",
             style = MaterialTheme.typography.bodySmall,
