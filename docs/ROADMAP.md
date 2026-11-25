@@ -11,13 +11,19 @@
   colored only around the screen (no word completion or block lines), files over 8 MB are
   plain text, lines over 10 000 characters are not tokenized, and files up to 16 MB (was
   4 MB) open in the editor.
-* "Voxel sandbox" example (raylib + Box3D): a first-person block world made from noise,
-  with lakes, beaches, trees and snowy peaks. An on-screen pad walks, dragging looks, and
-  one-block steps are climbed by themselves; the hotbar throws balls, crates, barrels,
-  beach balls, planks and bombs that roll, float in water and explode with Box3D. Drawing
-  is one mesh per 16 x 16 chunk with only the faces next to air (with ambient occlusion and
-  distance fog); the terrain collides as a single Box3D triangle mesh. Keyboard and mouse
-  work too (remote access). Screenshot in `docs/screenshots/voxel-sandbox.png`.
+* "Voxel sandbox" example (raylib + Box3D): a first-person block world without end, made
+  from noise as you walk (seas, beaches, forests, snowy peaks), in 16 x 16 chunks that are
+  made, meshed and dropped a few per frame. Block-game movement: a box that collides with
+  the blocks one axis at a time, with gravity, jumping, running, sneaking (which never
+  steps off an edge), swimming and flying (double tap jump). Break blocks (hold a finger
+  still), place them (tap), or punch things with the bare hand; a creative inventory holds
+  25 blocks with textures drawn by code and ten Box3D things (balls, crates, barrels,
+  beach balls, planks, bombs that blow craters, dominoes that stand where you tap, steel
+  balls, cones, tyres). Only the chunks around the player get Box3D colliders; things
+  farther away wait until it comes back. Drawing has ambient occlusion, see-through water
+  and glass, and distance fog; keyboard and mouse work too (remote access). The source is
+  split into a few files (`game.hpp`, `world.cpp`, `player.cpp`, `things.cpp`, `ui.cpp`,
+  `main.cpp`). Screenshot in `docs/screenshots/voxel-sandbox.png`.
 * CI: the NativeActivity examples (raylib, 2D/3D physics, voxel sandbox, paint, particles)
   are compiled and linked with the NDK against the bundled libraries, for arm64, armv7 and
   x86_64, as debug builds like the IDE's default (`.github/scripts/compile-examples.py`),

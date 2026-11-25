@@ -26,6 +26,7 @@ PACKAGES = REPO / "app/src/main/assets/packages"
 API_LEVEL = 24  # ClangToolchain.DEFAULT_API_LEVEL
 ABIS = {"aarch64": "aarch64-linux-android", "arm": "armv7a-linux-androideabi", "x86_64": "x86_64-linux-android"}
 STANDARDS = {".c": "c17", ".cpp": "c++20"}  # Language.defaultStandard
+HEADERS = {".h", ".hpp"}  # written next to the sources, not compiled
 
 
 def examples():
@@ -118,9 +119,11 @@ def main():
                         compile_flags += ["-isystem", str(root / inc)]
                     compile_flags += build.get("compileFlags", [])
                 # C and C++ variants of a template are separate programs.
-                for language in sorted({Path(f).suffix for f in files}):
+                for language in sorted({Path(f).suffix for f in files} - HEADERS):
                     out = work / "out" / ident / arch / language.lstrip(".")
                     out.mkdir(parents=True, exist_ok=True)
+                    for f in (f for f in files if Path(f).suffix in HEADERS):
+                        (out / Path(f).name).write_text((RESOURCES / f).read_text().replace("@PROJECT_NAME@", "Example"))
                     objects, ok = [], True
                     for f in (f for f in files if Path(f).suffix == language):
                         source = out / Path(f).name
