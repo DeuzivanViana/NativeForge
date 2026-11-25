@@ -24,8 +24,17 @@ interface Toolchain {
     /** POSIX shell used to run Makefile recipes. */
     val shell: File
 
-    /** Number of parallel jobs for make and ninja. */
-    val parallelJobs: Int get() = Runtime.getRuntime().availableProcessors().coerceIn(1, 8)
+    /** Number of parallel jobs for make and ninja: cores, limited by free memory (see [BuildParallelism]). */
+    val parallelJobs: Int get() = BuildParallelism.jobs()
+
+    /** ccache, when installed. Compile commands then run through it (see the build systems). */
+    val compilerCache: File? get() = null
+
+    /** True when objects are ELF and `-gsplit-dwarf` works: debug info stays out of the link. */
+    val supportsSplitDwarf: Boolean get() = false
+
+    /** True when the linker is lld, which does ThinLTO without a plugin. */
+    val supportsThinLto: Boolean get() = false
 
     /**
      * Prepares the toolchain before a build (for example writing compiler config files),

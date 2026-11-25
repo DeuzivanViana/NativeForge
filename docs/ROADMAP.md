@@ -1,5 +1,40 @@
 # Roadmap
 
+## Unreleased — faster builds, a lighter IDE
+
+* Built-in build: ccache in front of clang when the `ccache` package is installed (now
+  part of the toolchain install; `pkg install ccache` for existing installs), also for
+  CMake (`CMAKE_<LANG>_COMPILER_LAUNCHER`) and Makefiles (the gcc/cc wrappers). Build
+  settings › Compiler cache turns it off per project.
+* Precompiled header for the built-in build (Build settings › Precompiled header, or
+  `precompiledHeader` in nativeforge.json): compiled once per language and loaded with
+  `-include-pch`; clangd gets the same header with `-include`.
+* Debug builds keep DWARF in `.dwo` files (`-gsplit-dwarf`), so links read less; links use
+  lld explicitly (`-fuse-ld=lld`). Release builds (and so release exports) add
+  `-ffunction-sections -fdata-sections`, link with `--gc-sections` and strip the symbol
+  table (`-s`); the built-in build also uses ThinLTO with a cache. `-fvisibility=hidden`
+  is not used: it would hide entry points hosts look up by name.
+* Parallel jobs follow the free memory as well as the cores (512 MB per job).
+* clangd: threads and the background index sized by cores and free memory, background
+  index at low priority, and clangd stops 30 s after the app leaves the screen (it starts
+  again on return). Editor changes reach clangd without copying the file on every key.
+* Auto save writes 1.5 s after the last key (without formatting); every save is atomic
+  (temporary file and rename). The explorer reads folders only when they open and
+  refreshes on its own when files appear or disappear (inotify); "Go to file" still
+  lists the whole project.
+* Image previews stay in a memory-bounded cache that Android can empty
+  (`onTrimMemory`). The terminal's start-up files are written in the background when the
+  app starts, and `etc` is scanned for old Termux paths only once.
+* Release APK shrunk with R8 (IDE classes and reflective libraries kept whole,
+  no obfuscation): about 48 MB → 37 MB. A Baseline Profile for start-up, the workspace
+  and the editor is installed by androidx.profileinstaller, also outside Google Play.
+  Graphical programs start faster: their `:runner` process no longer builds the IDE's
+  services.
+* Compose treats `java.io.File` and read-only collections as stable
+  (`compose-stability.conf`).
+* Benchmarks workflow (on main and on demand): build planning time for a 600-file
+  project, APK and dex size, and cold start on an emulator.
+
 ## Unreleased — remote access: the IDE in a computer's browser
 
 * Home › cast icon › Start: the phone serves the IDE over HTTPS to a browser

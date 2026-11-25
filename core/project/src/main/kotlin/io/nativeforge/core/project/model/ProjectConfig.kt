@@ -185,6 +185,13 @@ data class ProjectConfig(
     val sourceDir: String = Project.SOURCE_DIR,
     /** Command line arguments passed to the program when it runs. */
     val runArguments: List<String> = emptyList(),
+    /**
+     * Header compiled once and included in every source of the built-in build (for example
+     * `src/pch.h` with the big library headers), relative to the project root. Null: none.
+     */
+    val precompiledHeader: String? = null,
+    /** Run compiles through ccache when it is installed (built-in build, CMake, Make, Ninja). */
+    val compilerCache: Boolean = true,
     val export: ExportSettings = ExportSettings(appName = name, packageId = defaultPackageId(name)),
 ) {
     companion object {

@@ -27,6 +27,24 @@ class CodeIntelTest {
     private val root: File = Files.createTempDirectory("nf-codeintel").toFile()
 
     @Test
+    fun `clangd options follow the cores and free memory`() {
+        assertEquals(CodeIntelOptions(clangTidy = true, backgroundIndex = true, threads = 4), CodeIntelOptions.forDevice(true, cores = 8, availableMemoryMb = 6_000))
+        assertEquals(2, CodeIntelOptions.forDevice(false, cores = 8, availableMemoryMb = 1_600).threads)
+        val low = CodeIntelOptions.forDevice(false, cores = 8, availableMemoryMb = 700)
+        assertEquals(1, low.threads)
+        assertEquals(false, low.backgroundIndex, "no project index when memory is short")
+        assertEquals(1, CodeIntelOptions.forDevice(false, cores = 1, availableMemoryMb = null).threads)
+    }
+
+    @Test
+    fun `background index runs at low priority`() {
+        val on = ClangdSession.command(File("/x/clangd"), File("/db"), CodeIntelOptions(threads = 2))
+        assertTrue("--background-index-priority=low" in on && "-j=2" in on && "--pch-storage=disk" in on)
+        val off = ClangdSession.command(File("/x/clangd"), File("/db"), CodeIntelOptions(backgroundIndex = false))
+        assertTrue("--background-index=false" in off && off.none { it.startsWith("--background-index-priority") })
+    }
+
+    @Test
     fun `replacement offsets are converted from UTF-8 bytes to chars`() {
         val text = "int ação=1;\nint  x;"
         val bytes = text.toByteArray()

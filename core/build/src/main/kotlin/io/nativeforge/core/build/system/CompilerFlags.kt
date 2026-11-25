@@ -12,10 +12,28 @@ internal object CompilerFlags {
     fun artifactKind(request: BuildRequest): ArtifactKind =
         if (request.project.config.runtime.producesSharedLibrary) ArtifactKind.SHARED_LIBRARY else ArtifactKind.EXECUTABLE
 
-    fun optimization(buildType: BuildType): List<String> = when (buildType) {
-        BuildType.DEBUG -> listOf("-O0", "-g")
-        BuildType.RELEASE -> listOf("-O2", "-DNDEBUG")
+    /**
+     * Optimization and debug flags. Debug builds keep the DWARF data in `.dwo` files next to
+     * the objects (`-gsplit-dwarf`), so the linker reads and writes much less. Release builds put
+     * each function and variable in its own section, so the link can drop unused ones.
+     */
+    fun optimization(request: BuildRequest): List<String> = when (request.buildType) {
+        BuildType.DEBUG -> listOf("-O0", "-g") + if (request.toolchain.supportsSplitDwarf) listOf("-gsplit-dwarf") else emptyList()
+        BuildType.RELEASE -> listOf("-O2", "-DNDEBUG") + RELEASE_SECTION_FLAGS
     }
+
+    val RELEASE_SECTION_FLAGS = listOf("-ffunction-sections", "-fdata-sections")
+
+    /**
+     * Release links drop unused sections and strip the symbol table (`-s`): smaller programs
+     * and exported APKs. The dynamic symbols that hosts look up (`ANativeActivity_onCreate`,
+     * `SDL_main`) stay, since stripping only removes `.symtab` and debug data.
+     */
+    val RELEASE_LINK_FLAGS = listOf("-Wl,--gc-sections", "-s")
+
+    /** ThinLTO for the built-in build's release builds, when the linker is lld. */
+    fun usesThinLto(request: BuildRequest): Boolean =
+        request.buildType == BuildType.RELEASE && request.toolchain.supportsThinLto
 
     /**
      * Flags common to C and C++ compilation, excluding the language standard.
@@ -24,7 +42,7 @@ internal object CompilerFlags {
     fun compile(request: BuildRequest, optimize: Boolean = true): List<String> = buildList {
         val project = request.project
         addAll(request.toolchain.baseCompileFlags())
-        if (optimize) addAll(optimization(request.buildType))
+        if (optimize) addAll(optimization(request))
         if (artifactKind(request) == ArtifactKind.SHARED_LIBRARY) add("-fPIC")
         add("-DNATIVEFORGE=1")
         add("-DNATIVEFORGE_RUNTIME_${project.config.runtime.name}=1")
@@ -43,6 +61,7 @@ internal object CompilerFlags {
     /** Linker options that may appear anywhere on the command line (before the objects). */
     fun linkOptions(request: BuildRequest): List<String> = buildList {
         addAll(request.toolchain.baseLinkFlags())
+        if (request.buildType == BuildType.RELEASE) addAll(RELEASE_LINK_FLAGS)
         if (artifactKind(request) == ArtifactKind.SHARED_LIBRARY) {
             add("-shared")
             addAll(SHARED_LIBRARY_GUARDS)

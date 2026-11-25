@@ -104,7 +104,9 @@ private sealed interface Loaded<out T> {
 
 @Composable
 private fun ImageViewer(file: File) {
-    val image by produceState<Loaded<Bitmap>>(Loaded.Loading, file) {
+    val cached = remember(file) { PreviewCache.get(file) }
+    val image by produceState<Loaded<Bitmap>>(cached?.let { Loaded.Ready(it) } ?: Loaded.Loading, file) {
+        PreviewCache.get(file)?.let { value = Loaded.Ready(it); return@produceState }
         value = withContext(Dispatchers.IO) {
             runCatching {
                 if (file.extension.equals("tga", ignoreCase = true)) {
@@ -118,7 +120,7 @@ private fun ImageViewer(file: File) {
                     while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 4096) sample *= 2
                     BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
                         ?: error("Android cannot decode this image")
-                }
+                }.also { PreviewCache.put(file, it) }
             }.fold({ Loaded.Ready(it) }, { Loaded.Failed(it.message ?: "Could not open the image") })
         }
     }

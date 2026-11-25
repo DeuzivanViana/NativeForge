@@ -41,7 +41,10 @@ class CMakeBuildSystem : BuildSystem {
         }
         val env = toolchain.environment()
 
-        val compileFlags = CompilerFlags.compile(request, optimize = false).joinToString(" ")
+        val compileFlags = (
+            CompilerFlags.compile(request, optimize = false) +
+                if (request.buildType == BuildType.RELEASE) CompilerFlags.RELEASE_SECTION_FLAGS else emptyList()
+            ).joinToString(" ")
         val linkOptions = CompilerFlags.linkOptions(request)
             .filterNot { it == "-shared" || it in CompilerFlags.SHARED_LIBRARY_GUARDS }
             .joinToString(" ")
@@ -67,6 +70,10 @@ class CMakeBuildSystem : BuildSystem {
             "NATIVEFORGE_INCLUDE_DIRS" to request.dependencies.flatMap { it.includeDirectories }.joinToString(";") { it.path },
         )
         if (prefixPath.isNotEmpty()) definitions["CMAKE_PREFIX_PATH"] = prefixPath
+        CompilerCache.launcher(request)?.let { ccache ->
+            definitions["CMAKE_C_COMPILER_LAUNCHER"] = ccache.path
+            definitions["CMAKE_CXX_COMPILER_LAUNCHER"] = ccache.path
+        }
         definitions.putAll(config.cmakeOptions)
 
         val configure = buildList {

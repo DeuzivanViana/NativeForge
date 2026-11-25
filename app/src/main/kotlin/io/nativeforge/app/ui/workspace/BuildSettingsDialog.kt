@@ -27,6 +27,7 @@ import io.nativeforge.core.ui.component.FormSection
 import io.nativeforge.core.ui.component.NfDialog
 import io.nativeforge.core.ui.component.NfTextField
 import io.nativeforge.core.ui.component.SegmentedChoice
+import io.nativeforge.core.ui.component.SwitchRow
 import java.io.File
 
 /**
@@ -44,6 +45,8 @@ fun BuildSettingsDialog(project: Project, onSave: ((ProjectConfig) -> ProjectCon
     var arguments by remember { mutableStateOf(config.buildArguments.joinToString(" ")) }
     var artifact by remember { mutableStateOf(config.artifactPath.orEmpty()) }
     var sourceDir by remember { mutableStateOf(config.sourceDir) }
+    var precompiledHeader by remember { mutableStateOf(config.precompiledHeader.orEmpty()) }
+    var compilerCache by remember { mutableStateOf(config.compilerCache) }
     val scripts = remember(project.root) {
         BuildSystemKind.entries.associateWith { kind ->
             when (kind) {
@@ -71,6 +74,8 @@ fun BuildSettingsDialog(project: Project, onSave: ((ProjectConfig) -> ProjectCon
                         buildArguments = arguments.split(' ').map(String::trim).filter(String::isNotEmpty),
                         artifactPath = artifact.trim().trimStart('/').ifEmpty { null },
                         sourceDir = sourceDir.trim().trimStart('/').ifEmpty { "." },
+                        precompiledHeader = precompiledHeader.trim().trimStart('/').ifEmpty { null },
+                        compilerCache = compilerCache,
                     )
                 }
                 onDismiss()
@@ -115,9 +120,24 @@ fun BuildSettingsDialog(project: Project, onSave: ((ProjectConfig) -> ProjectCon
                     }
                     BuildSystemKind.MAKE, BuildSystemKind.NINJA ->
                         NfTextField(buildTarget, { buildTarget = it }, label = "Target", placeholder = "default target", monospace = true)
-                    BuildSystemKind.SINGLE ->
+                    BuildSystemKind.SINGLE -> {
                         NfTextField(sourceDir, { sourceDir = it }, label = "Source folder", placeholder = ". (project root)", monospace = true)
+                        NfTextField(
+                            precompiledHeader,
+                            { precompiledHeader = it },
+                            label = "Precompiled header",
+                            placeholder = "none (for example src/pch.h)",
+                            supportingText = "Compiled once and loaded by every source: put the big library headers (raylib.h, <vector>, imgui.h) in it.",
+                            monospace = true,
+                        )
+                    }
                 }
+                SwitchRow(
+                    title = "Compiler cache (ccache)",
+                    checked = compilerCache,
+                    onCheckedChange = { compilerCache = it },
+                    subtitle = "Reuses earlier compiles after a clean or a debug/release switch. Needs the ccache package (pkg install ccache).",
+                )
                 if (buildSystem != BuildSystemKind.SINGLE) {
                     NfTextField(
                         arguments,

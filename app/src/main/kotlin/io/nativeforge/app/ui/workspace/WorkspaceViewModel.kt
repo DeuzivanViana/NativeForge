@@ -16,11 +16,14 @@ import io.nativeforge.core.build.model.BuildArtifact
 import io.nativeforge.core.build.model.BuildEvent
 import io.nativeforge.core.build.model.BuildRequest
 import io.nativeforge.core.common.Outcome
+import io.nativeforge.core.common.SafeFiles
 import io.nativeforge.core.common.process.OutputStream
 import io.nativeforge.core.packages.model.InstallEvent
 import io.nativeforge.core.project.model.Project
 import io.nativeforge.core.project.model.ProjectConfig
 import io.nativeforge.core.project.search.ProjectSearch
+import io.nativeforge.core.project.tree.ProjectTree
+import io.nativeforge.core.project.tree.ProjectWatcher
 import io.nativeforge.core.project.search.SearchMatch
 import io.nativeforge.core.project.search.SearchQuery
 import io.nativeforge.core.project.search.SearchResult
@@ -38,13 +41,14 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /** A row of the project file tree. [relativePath] uses '/' separators, as git does. */
-data class FileNode(val file: File, val depth: Int, val isDirectory: Boolean, val relativePath: String)
+typealias FileNode = io.nativeforge.core.project.tree.FileNode
 
 /** A file's changes shown in the diff viewer. */
 data class DiffView(val path: String, val change: FileChange?, val text: String)
@@ -131,7 +135,8 @@ class WorkspaceViewModel(
     init {
         val onChanged: (EditorDocument) -> Unit = { document ->
             _state.update { it.copy(dirtyFiles = it.dirtyFiles + document.path) }
-            intel.textChanged(document.path, document.text())
+            intel.textChanged(document.path) { document.text() }
+            scheduleAutoSave(document.path)
         }
         editor.onContentChanged = onChanged
         splitEditor.onContentChanged = onChanged
@@ -159,8 +164,18 @@ class WorkspaceViewModel(
                     refreshFiles()
                     startCodeIntelligence()
                     defaultFile(result.value)?.let(::openFile)
+                    watchFiles(result.value)
                 }
                 is Outcome.Failure -> showMessage(result.error.message)
+            }
+        }
+    }
+
+    /** Files made outside the explorer (terminal, git, a Makefile) show up on their own. */
+    private fun watchFiles(project: Project) {
+        viewModelScope.launch {
+            runCatching {
+                ProjectWatcher(project.root).changes().flowOn(Dispatchers.IO).collect { refreshFiles() }
             }
         }
     }
@@ -168,14 +183,24 @@ class WorkspaceViewModel(
     fun refreshFiles() {
         val project = _state.value.project ?: return
         viewModelScope.launch {
-            val nodes = withContext(Dispatchers.IO) { listTree(project.root) }
+            val expanded = _state.value.expandedDirs
+            val nodes = withContext(Dispatchers.IO) { ProjectTree.list(project.root, expanded) }
             _state.update { it.copy(files = nodes) }
             refreshGit()
         }
     }
 
-    fun toggleDirectory(relativePath: String) = _state.update {
-        it.copy(expandedDirs = if (relativePath in it.expandedDirs) it.expandedDirs - relativePath else it.expandedDirs + relativePath)
+    fun toggleDirectory(relativePath: String) {
+        val opening = relativePath !in _state.value.expandedDirs
+        _state.update { it.copy(expandedDirs = if (opening) it.expandedDirs + relativePath else it.expandedDirs - relativePath) }
+        // The explorer reads folders when they open (see ProjectTree).
+        if (opening) refreshFiles()
+    }
+
+    /** Every file of the project, for "Go to file" (the explorer only lists open folders). */
+    suspend fun allFiles(): List<FileNode> {
+        val project = _state.value.project ?: return emptyList()
+        return withContext(Dispatchers.IO) { ProjectTree.listAll(project.root).filterNot { it.isDirectory } }
     }
 
     fun collapseAll() = _state.update { it.copy(expandedDirs = emptySet()) }
@@ -187,7 +212,8 @@ class WorkspaceViewModel(
         intel.stop()
         if (!settings.codeIntelligence) return
         val request = BuildRequest(project, container.toolchain, dependencies = container.packageManager.nativeDependencies(project.config.packages))
-        intel.start(request, CodeIntelOptions(clangTidy = settings.clangTidy, threads = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4)))
+        // Threads and the background index follow the cores and the free memory.
+        intel.start(request, CodeIntelOptions.forDevice(clangTidy = settings.clangTidy))
     }
 
     private var intelSettings: Pair<Boolean, Boolean>? = null
@@ -652,10 +678,10 @@ class WorkspaceViewModel(
         viewModelScope.launch { documents.keys.toList().forEach { save(it) } }
     }
 
-    private suspend fun save(path: String) {
+    private suspend fun save(path: String, format: Boolean = true) {
         val document = documents[path] ?: return
         if (path !in _state.value.dirtyFiles) return
-        if (container.settings.settings.value.formatOnSave) {
+        if (format && container.settings.settings.value.formatOnSave) {
             val controller = when (path) {
                 editor.document?.path -> editor
                 splitEditor.document?.path -> splitEditor
@@ -663,10 +689,29 @@ class WorkspaceViewModel(
             }
             if (controller != null) formatInPlace(controller, document, quiet = true)
         }
-        withContext(Dispatchers.IO) { File(path).writeText(document.text()) }
+        val text = document.text()
+        withContext(Dispatchers.IO) { SafeFiles.writeTextAtomically(File(path), text) }
         intel.saved(path)
-        _state.update { it.copy(dirtyFiles = it.dirtyFiles - path) }
-        if (_state.value.git != null) refreshGit()
+        // Typed again while the file was being written: it stays unsaved.
+        if (document.text() == text) _state.update { it.copy(dirtyFiles = it.dirtyFiles - path) }
+        // Auto saves happen at every pause in typing; the Changes list follows explicit saves.
+        if (format && _state.value.git != null) refreshGit()
+    }
+
+    private val autoSaves = HashMap<String, Job>()
+
+    /**
+     * With auto save on, a file is written [AUTO_SAVE_DELAY_MS] after the last key, without
+     * formatting it: no work while typing, and little to lose if the app is killed.
+     */
+    private fun scheduleAutoSave(path: String) {
+        if (!container.settings.settings.value.autoSave) return
+        autoSaves.remove(path)?.cancel()
+        autoSaves[path] = viewModelScope.launch {
+            delay(AUTO_SAVE_DELAY_MS)
+            autoSaves.remove(path)
+            save(path, format = false)
+        }
     }
 
     /** Saves, installs missing packages, builds, and optionally runs the program. */
@@ -924,11 +969,17 @@ class WorkspaceViewModel(
 
     fun consumeMessage() = _state.update { it.copy(message = null) }
 
+    /** The app left the screen (home button, a running program): clangd stops if it stays away. */
+    fun onAppHidden() = intel.appHidden()
+
+    /** Back on screen: clangd starts again if it was stopped while away. */
+    fun onAppShown() = intel.appShown()
+
     override fun onCleared() {
         intel.stop()
         // Persist unsaved edits when the screen goes away.
         documents.forEach { (path, document) ->
-            if (path in _state.value.dirtyFiles) runCatching { File(path).writeText(document.text()) }
+            if (path in _state.value.dirtyFiles) runCatching { SafeFiles.writeTextAtomically(File(path), document.text()) }
         }
     }
 
@@ -966,27 +1017,6 @@ class WorkspaceViewModel(
         project.sourceDirectory.walkTopDown().firstOrNull { it.isFile && it.nameWithoutExtension == "main" }
             ?: project.sourceDirectory.walkTopDown().firstOrNull { it.isFile }
 
-    private fun listTree(root: File): List<FileNode> {
-        val result = mutableListOf<FileNode>()
-        fun visit(dir: File, depth: Int, prefix: String) {
-            if (result.size >= MAX_TREE_NODES) return
-            dir.listFiles().orEmpty()
-                .filterNot { it.name in HIDDEN_NAMES || (depth == 0 && it.name == Project.BUILD_DIR) }
-                .sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
-                .forEach { child ->
-                    if (result.size >= MAX_TREE_NODES) return
-                    // Symbolic links are listed but never followed (a link could loop or leave the project).
-                    val link = java.nio.file.Files.isSymbolicLink(child.toPath())
-                    val isDir = child.isDirectory && !link
-                    val rel = prefix + child.name
-                    result += FileNode(child, depth, isDir, rel)
-                    if (isDir) visit(child, depth + 1, "$rel/")
-                }
-        }
-        visit(root, 0, "")
-        return result
-    }
-
     private fun isBinary(file: File): Boolean = file.inputStream().use { input ->
         val buffer = ByteArray(8192)
         val read = input.read(buffer)
@@ -1002,9 +1032,8 @@ class WorkspaceViewModel(
         const val MAX_LOG_LINES = 2000
         const val LOG_FLUSH_MS = 50L
         const val MAX_DIAGNOSTICS = 1000
-        const val MAX_TREE_NODES = 5000
         const val MAX_EDITABLE_BYTES = 4L * 1024 * 1024
         const val SEARCH_DEBOUNCE_MS = 250L
-        val HIDDEN_NAMES = setOf(".git", ".cache", ".gradle", ".idea", ".vscode", ".DS_Store")
+        const val AUTO_SAVE_DELAY_MS = 1_500L
     }
 }

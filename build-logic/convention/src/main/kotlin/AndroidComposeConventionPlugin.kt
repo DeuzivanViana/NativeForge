@@ -5,6 +5,7 @@ import io.nativeforge.buildlogic.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension
 
 /** Enables Jetpack Compose. Apply after an application or library convention plugin. */
 class AndroidComposeConventionPlugin : Plugin<Project> {
@@ -14,6 +15,11 @@ class AndroidComposeConventionPlugin : Plugin<Project> {
             extensions.findByType(ApplicationExtension::class.java)
                 ?: extensions.getByType(LibraryExtension::class.java)
         android.buildFeatures.compose = true
+        // java.io.File and Kotlin's read-only collections never change in place in this code base:
+        // treated as stable, rows such as the explorer's skip recomposition when they are equal.
+        extensions.configure(ComposeCompilerGradlePluginExtension::class.java) {
+            stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose-stability.conf"))
+        }
 
         dependencies {
             val bom = libs.findLibrary("compose-bom").get()

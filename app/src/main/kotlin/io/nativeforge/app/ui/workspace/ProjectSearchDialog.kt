@@ -140,7 +140,7 @@ fun ProjectSearchDialog(
         }
         if (state.running) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 480.dp)) {
-            items(rows) { row ->
+            items(rows, contentType = { if (it is ResultRow.Header) "header" else "hit" }) { row ->
                 when (row) {
                     is ResultRow.Header -> FileHeader(row.file)
                     is ResultRow.Hit -> MatchRow(row.match) { onOpen(row.file, row.match) }

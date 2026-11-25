@@ -2,10 +2,12 @@ package io.nativeforge.core.common
 
 import java.io.File
 import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 
 /**
@@ -64,5 +66,33 @@ object SafeFiles {
         val base = root.canonicalPath
         val canonical = file.canonicalPath
         return file.takeIf { canonical == base || canonical.startsWith(base + File.separator) }
+    }
+
+    /**
+     * Writes [text] so that [file] holds either the old or the new content, never half of it
+     * (a crash, a full disk or the process being killed mid-save): the text goes to a temporary
+     * file in the same folder, which then replaces [file] with an atomic rename. The executable
+     * bit is kept. A symbolic link is written through, so the link itself stays.
+     */
+    fun writeTextAtomically(file: File, text: String) {
+        val path = file.toPath()
+        if (Files.isSymbolicLink(path)) {
+            file.writeText(text)
+            return
+        }
+        val dir = file.absoluteFile.parentFile ?: throw IOException("No parent folder: $file")
+        dir.mkdirs()
+        val temp = File(dir, ".${file.name}.nf-save")
+        try {
+            temp.writeText(text)
+            if (file.canExecute()) temp.setExecutable(true, false)
+            try {
+                Files.move(temp.toPath(), path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            } catch (e: AtomicMoveNotSupportedException) {
+                Files.move(temp.toPath(), path, StandardCopyOption.REPLACE_EXISTING)
+            }
+        } finally {
+            temp.delete()
+        }
     }
 }

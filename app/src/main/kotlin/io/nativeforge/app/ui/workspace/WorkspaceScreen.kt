@@ -51,6 +51,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -150,7 +151,9 @@ fun WorkspaceScreen(
     }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         if (settings.autoSave) viewModel.saveAll()
+        viewModel.onAppHidden()
     }
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { viewModel.onAppShown() }
     // Back from a graphical program: show why it closed, if it reported a start-up error.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.reportStartError(ProgramRunner.consumeStartError(context))
@@ -443,8 +446,9 @@ fun WorkspaceScreen(
     }
 
     if (quickOpen) {
-        val items = remember(state.files) {
-            state.files.filterNot { it.isDirectory }.map { PickerItem(it.file, it.relativePath, "") }
+        // The explorer only lists open folders; "Go to file" walks the whole project once per opening.
+        val items by produceState(emptyList<PickerItem<File>>()) {
+            value = viewModel.allFiles().map { PickerItem(it.file, it.relativePath, "") }
         }
         PickerDialog(
             title = "Go to file",

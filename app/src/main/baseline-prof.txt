@@ -1,0 +1,29 @@
+# Baseline Profile: classes and methods used while the app starts and the Home screen,
+# the workspace and the editor open. Android compiles them ahead of time at install (via
+# androidx.profileinstaller, also for installs outside Google Play such as F-Droid), so
+# they don't run in the interpreter on first use. Compose, AndroidX and Kotlin ship their
+# own profiles, which are merged with this one.
+HSPLio/nativeforge/app/NativeForgeApplication;->**(**)**
+HSPLio/nativeforge/app/MainActivity**;->**(**)**
+HSPLio/nativeforge/app/di/**;->**(**)**
+HSPLio/nativeforge/app/settings/**;->**(**)**
+HSPLio/nativeforge/app/ui/navigation/**;->**(**)**
+HSPLio/nativeforge/app/ui/home/**;->**(**)**
+HSPLio/nativeforge/app/ui/workspace/**;->**(**)**
+HSPLio/nativeforge/app/intel/**;->**(**)**
+HSPLio/nativeforge/core/ui/**;->**(**)**
+HSPLio/nativeforge/core/project/**;->**(**)**
+HSPLio/nativeforge/core/common/**;->**(**)**
+HSPLio/nativeforge/feature/editor/**;->**(**)**
+HSPLio/github/rosemoe/sora/**;->**(**)**
+HSPLorg/eclipse/tm4e/**;->**(**)**
+Lio/nativeforge/app/NativeForgeApplication;
+Lio/nativeforge/app/MainActivity**;
+Lio/nativeforge/app/di/**;
+Lio/nativeforge/app/settings/**;
+Lio/nativeforge/app/ui/navigation/**;
+Lio/nativeforge/app/ui/home/**;
+Lio/nativeforge/app/ui/workspace/**;
+Lio/nativeforge/core/ui/**;
+Lio/nativeforge/feature/editor/**;
+Lio/github/rosemoe/sora/**;
