@@ -211,6 +211,22 @@ runtimes. Commands that already carry NativeForge's flags (`-DNATIVEFORGE=1`,
 also present in LDFLAGS) are left alone apart from that clean-up.
 `ProjectDetector` fills `nativeforge.json` for cloned or imported folders.
 
+### Editor highlighting
+
+The editor is sora-editor with TextMate grammars (`feature/editor`). Sora already draws
+only the visible lines and lays out long files in the background, but its TextMate
+analyzer tokenizes every line before it shows any color, because a TextMate state
+depends on all the lines above (the C++ grammar runs at about 1 ms per line on a desktop
+JVM). `highlight/ProgressiveTextMateAnalyzer` replaces that analyzer and keeps sora's
+tokenizer: `ProgressiveHighlighter` runs the exact pass from the top in small published
+steps, colors a screen far ahead of it by starting a few lines above with the initial
+state (corrected when the exact pass arrives), and after an edit stops re-tokenizing at
+the first line that ends in the same state as before. The controller reports the visible
+lines from scroll events. `HighlightMode` picks less work for big files: above 1 MB or
+20 000 lines only the lines around the screen are analyzed (no word completion, no block
+lines), above 8 MB the text is plain. Lines over 10 000 characters are not tokenized.
+The browser IDE uses CodeMirror 6, which already parses incrementally around the viewport.
+
 ### Code intelligence (clangd)
 
 `core/lsp` is a small JSON-RPC/LSP client with no Android dependency.

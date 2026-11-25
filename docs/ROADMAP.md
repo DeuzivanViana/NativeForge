@@ -2,6 +2,15 @@
 
 ## Unreleased — faster builds, a lighter IDE
 
+* Faster highlighting in big files: colors appear for the screen right away instead of
+  after the whole file was analyzed (sora-editor's TextMate analyzer tokenizes every line
+  before it shows any color: about 4 s for stb_image.h with the C++ grammar on a desktop,
+  much more on a phone). The exact pass now runs from the top in small steps, a screen far
+  below it is colored at once from a guess that is corrected later, and an edit stops
+  re-tokenizing as soon as a line ends as before. Files over 1 MB or 20 000 lines are
+  colored only around the screen (no word completion or block lines), files over 8 MB are
+  plain text, lines over 10 000 characters are not tokenized, and files up to 16 MB (was
+  4 MB) open in the editor.
 * "Voxel sandbox" example (raylib + Box3D): a first-person block world made from noise,
   with lakes, beaches, trees and snowy peaks. An on-screen pad walks, dragging looks, and
   one-block steps are climbed by themselves; the hotbar throws balls, crates, barrels,
