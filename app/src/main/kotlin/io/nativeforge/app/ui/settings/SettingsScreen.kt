@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.nativeforge.app.BuildConfig
+import io.nativeforge.app.crash.CrashReportList
 import io.nativeforge.app.di.appContainer
 import io.nativeforge.app.settings.AppSettings
 import io.nativeforge.core.ui.component.CompactTopBar
@@ -179,6 +180,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                     update { it.copy(packageRepositories = urls) }
                     container.applyPackageRepositories(urls)
                 }
+            }
+
+            FormSection("Crash reports") {
+                CrashReportList()
             }
 
             FormSection("About") {

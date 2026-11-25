@@ -52,6 +52,8 @@ class ProjectWatcher(private val root: File, private val maxDirectories: Int = M
         }
 
         register(rootPath)
+        // Ends quietly on any failure: an exception escaping this thread would end the app,
+        // and watching is only a convenience (the explorer still refreshes by hand).
         val reader = thread(name = "project-watcher", isDaemon = true) {
             try {
                 while (true) {
@@ -70,6 +72,8 @@ class ProjectWatcher(private val root: File, private val maxDirectories: Int = M
                 }
             } catch (_: ClosedWatchServiceException) {
             } catch (_: InterruptedException) {
+            } catch (_: Exception) {
+                runCatching { service.close() }
             }
         }
         awaitClose {

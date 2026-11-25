@@ -1,6 +1,7 @@
 package io.nativeforge.app
 
 import android.app.Application
+import io.nativeforge.app.crash.CrashReporter
 import io.nativeforge.app.di.AppContainer
 import io.nativeforge.feature.assets.PreviewCache
 
@@ -11,6 +12,12 @@ class NativeForgeApplication : Application() {
      * longer waits for the package manager, signing keys and the rest.
      */
     val container: AppContainer by lazy { AppContainer(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        // First, so that a crash anywhere later is recorded (IDE process only).
+        CrashReporter.install(this)
+    }
 
     /** Gives cached image previews back when Android runs short of memory. */
     override fun onTrimMemory(level: Int) {
