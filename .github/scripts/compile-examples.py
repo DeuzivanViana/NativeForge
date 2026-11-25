@@ -24,7 +24,7 @@ TEMPLATES_KT = REPO / "core/project/src/main/kotlin/io/nativeforge/core/project/
 RESOURCES = REPO / "core/project/src/main/resources/io/nativeforge/core/project/templates"
 PACKAGES = REPO / "app/src/main/assets/packages"
 API_LEVEL = 24  # ClangToolchain.DEFAULT_API_LEVEL
-ABIS = {"aarch64": "aarch64-linux-android", "x86_64": "x86_64-linux-android"}
+ABIS = {"aarch64": "aarch64-linux-android", "arm": "armv7a-linux-androideabi", "x86_64": "x86_64-linux-android"}
 STANDARDS = {".c": "c17", ".cpp": "c++20"}  # Language.defaultStandard
 
 
@@ -108,7 +108,9 @@ def main():
             for arch, triple in ABIS.items():
                 target = f"--target={triple}{API_LEVEL}"
                 deps = [(p, unpack(p, work)) for p in resolve(index, names, arch)]
-                compile_flags = ["-fPIC", "-O1", "-Wall", "-Werror=return-type", "-DNATIVEFORGE=1",
+                # -O0 without NDEBUG, like the phone's default Debug build: inline library code
+                # (Box3D's asserts, for one) then keeps every call it makes, which -O1 can fold away.
+                compile_flags = ["-fPIC", "-O0", "-Wall", "-Werror=return-type", "-DNATIVEFORGE=1",
                                  "-DNATIVEFORGE_RUNTIME_NATIVE_ACTIVITY=1"]
                 for p, root in deps:
                     build = p.get("build", {})
