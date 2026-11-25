@@ -385,7 +385,10 @@ static Thing makeThing(b3WorldId world, Item item, b3Vec3 position, b3Vec3 veloc
     b3BodyDef def = b3DefaultBodyDef();
     def.type = b3_dynamicBody;
     def.position = position;
-    def.rotation = b3MakeQuatFromAxisAngle({0, 1, 0}, yaw);  // faces the player; planks fly sideways
+    // Turned to face the player (planks fly sideways): a rotation of yaw around the y axis. Written
+    // out instead of b3MakeQuatFromAxisAngle, whose debug-only check needs a symbol the bundled
+    // release build of Box3D does not have, so debug builds would not link.
+    def.rotation = b3Quat{{0.0f, std::sin(yaw / 2), 0.0f}, std::cos(yaw / 2)};
     def.linearVelocity = velocity;
     def.angularVelocity = {velocity.z * 0.3f, 0.0f, -velocity.x * 0.3f};
     b3BodyId body = b3CreateBody(world, &def);
