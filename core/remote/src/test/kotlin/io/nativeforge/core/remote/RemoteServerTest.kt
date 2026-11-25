@@ -139,6 +139,25 @@ class RemoteServerTest {
     }
 
     @Test
+    fun `explorer copies entries and opens terminals in a project folder`() {
+        val auth = mapOf("Cookie" to pairedCookie(), "Origin" to origin, "Content-Type" to "application/json")
+        assertEquals(201, call("POST", "/api/projects", auth, """{"name":"tools","template":"console","language":"C"}""".toByteArray()).status)
+        assertEquals(200, call("PUT", "/api/file?project=tools&path=src/a.c", auth, "int a;".toByteArray()).status)
+        val copy = call("POST", "/api/fs", auth, """{"project":"tools","op":"copy","path":"src/a.c","to":"src/a copy.c"}""".toByteArray())
+        assertEquals(200, copy.status, copy.text)
+        assertTrue("int a;" in call("GET", "/api/file?project=tools&path=src/a%20copy.c", auth).text)
+        assertEquals(409, call("POST", "/api/fs", auth, """{"project":"tools","op":"copy","path":"src/a.c","to":"src/a copy.c"}""".toByteArray()).status)
+
+        val opened = call("POST", "/api/terminals", auth, """{"project":"tools","dir":"src","rows":10,"cols":40}""".toByteArray())
+        assertEquals(201, opened.status, opened.text)
+        assertTrue("\"title\":\"tools/src\"" in opened.text, opened.text)
+        val id = Regex("\"id\":\"([^\"]+)\"").find(opened.text)!!.groupValues[1]
+        call("POST", "/api/terminals/close", auth, """{"id":"$id"}""".toByteArray())
+        assertEquals(404, call("POST", "/api/terminals", auth, """{"project":"tools","dir":"missing"}""".toByteArray()).status)
+        assertEquals(400, call("POST", "/api/terminals", auth, """{"project":"tools","dir":"../.."}""".toByteArray()).status)
+    }
+
+    @Test
     fun `websocket upgrade needs a session and the same origin`() {
         val key = Base64.getEncoder().encodeToString(ByteArray(16) { it.toByte() })
         val ws = mapOf("Upgrade" to "websocket", "Connection" to "Upgrade", "Sec-WebSocket-Version" to "13", "Sec-WebSocket-Key" to key)

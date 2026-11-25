@@ -4,11 +4,29 @@ import { EditorView } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 
+/** The font stack of code (editor, terminal, build output) when no font is picked in Settings. */
+export const MONO_FONTS = '"JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, "Roboto Mono", "DejaVu Sans Mono", monospace';
+
+/** [theme.fontFamily] first, then the default stack for characters it lacks. */
+export function codeFont(theme) {
+  const family = String(theme.fontFamily || '').replace(/["\\;{}]/g, '').trim();
+  return family ? `"${family}", ${MONO_FONTS}` : MONO_FONTS;
+}
+
 export function applyPalette(theme) {
   const root = document.documentElement;
   for (const [name, value] of Object.entries(theme.colors || {})) root.style.setProperty(`--${name}`, value);
   root.style.colorScheme = theme.dark ? 'dark' : 'light';
   root.style.setProperty('--editor-font', `${theme.fontSize || 13}px`);
+  root.style.setProperty('--code', codeFont(theme));
+  root.style.setProperty('--editor-line-height', String(theme.lineHeight || 1.5));
+  root.style.setProperty('--editor-ligatures', theme.ligatures === false ? 'none' : 'normal');
+  // Interface size: CSS zoom scales the whole page, editor and terminal included.
+  const zoom = Math.max(0.5, Math.min(3, (theme.uiScale || 100) / 100));
+  const before = root.style.zoom || '1';
+  root.style.zoom = zoom === 1 ? '' : String(zoom);
+  root.style.setProperty('--zoom', String(zoom));
+  if ((root.style.zoom || '1') !== before) dispatchEvent(new Event('resize'));
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.append(meta); }
   meta.content = theme.colors?.panel || '#21252b';

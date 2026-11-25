@@ -87,6 +87,8 @@ data class RemoteTheme(
     val lineNumbers: Boolean,
     val highlightCurrentLine: Boolean,
     val terminalFontSize: Int,
+    /** Run clang-format on C/C++ files when saving. */
+    val formatOnSave: Boolean = false,
 )
 
 /** A process to start in a pseudo-terminal. */

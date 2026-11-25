@@ -5,16 +5,18 @@ import {
   EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, drawSelection,
   dropCursor, rectangularSelection, crosshairCursor, highlightActiveLine, hoverTooltip,
 } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import {
+  defaultKeymap, history, historyKeymap, indentWithTab, toggleComment, selectAll, undo, redo, undoDepth, redoDepth,
+} from '@codemirror/commands';
 import {
   indentOnInput, bracketMatching, foldGutter, foldKeymap, indentUnit, syntaxHighlighting, defaultHighlightStyle,
 } from '@codemirror/language';
-import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
+import { searchKeymap, highlightSelectionMatches, openSearchPanel, gotoLine } from '@codemirror/search';
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap, startCompletion } from '@codemirror/autocomplete';
 import { lintGutter, setDiagnostics, lintKeymap } from '@codemirror/lint';
 import { cpp } from '@codemirror/lang-cpp';
 import { editorTheme } from './theme.js';
-import { debounce } from './util.js';
+import { debounce, menu, copyText, readClipboard } from './util.js';
 
 const CLANGD_EXT = new Set(['c', 'h', 'cpp', 'cc', 'cxx', 'c++', 'hpp', 'hh', 'hxx', 'inl', 'ipp', 'm', 'mm']);
 export const isClangdFile = (path) => CLANGD_EXT.has(path.split('.').pop().toLowerCase());
@@ -48,7 +50,7 @@ function applyEdits(view, edits) {
 
 /**
  * One editor per open file. ctx: { project, path, channel, theme, onChange(dirty), onSave(),
- * onDefinition(location), commands }.
+ * onDefinition(location), commands, menuItems() (extra right-click entries) }.
  */
 export class FileEditor {
   constructor(parent, text, ctx) {
@@ -84,6 +86,22 @@ export class FileEditor {
         if (u.selectionSet || u.docChanged) ctx.onCursor?.(this.cursor());
       }),
       EditorView.domEventHandlers({
+        contextmenu: (e, view) => {
+          if (e.shiftKey) return false; // Shift+right-click: the browser's own menu (spelling, extensions)
+          e.preventDefault();
+          let { clientX: x, clientY: y } = e;
+          if (!x && !y) { // the menu key or Shift+F10: open at the cursor
+            const c = view.coordsAtPos(view.state.selection.main.head);
+            if (c) { x = c.left; y = c.bottom; }
+          } else {
+            // Like desktop editors: a right-click outside the selection moves the cursor there first,
+            // so "Go to definition" acts on the word under the mouse.
+            const pos = view.posAtCoords({ x, y });
+            if (pos != null && !view.state.selection.ranges.some((r) => r.from <= pos && pos <= r.to)) view.dispatch({ selection: { anchor: pos } });
+          }
+          this.showMenu(x, y);
+          return true;
+        },
         mousedown: (e, view) => {
           if (!(e.ctrlKey || e.metaKey) || e.button !== 0) return false;
           const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
@@ -238,11 +256,61 @@ export class FileEditor {
     } catch { /* ignore */ }
   }
 
-  async format() {
+  /** Formats with clang-format; [timeoutMs] keeps format-on-save from holding a save for long. */
+  async format(timeoutMs) {
     if (!this.clangd) return;
     try {
-      const edits = await this.request('lsp.format', { payload: { tabSize: this.ctx.theme.tabWidth || 4 } });
-      if (edits) applyEdits(this.view, edits);
+      const state = this.view.state;
+      const pos = lspPosition(state.doc, state.selection.main.head);
+      const edits = await this.ctx.channel.request('lsp.format', {
+        project: this.ctx.project, path: this.ctx.path, text: state.doc.toString(), line: pos.line, ch: pos.ch, tabSize: this.ctx.theme.tabWidth || 4,
+      }, timeoutMs);
+      if (edits && this.view.state.doc === state.doc) applyEdits(this.view, edits);
     } catch { /* ignore */ }
+  }
+
+  // ---- right-click menu
+  selectedText() {
+    const { state } = this.view;
+    return state.selection.ranges.filter((r) => !r.empty).map((r) => state.sliceDoc(r.from, r.to)).join(state.lineBreak);
+  }
+
+  async copy(cut = false) {
+    const text = this.selectedText();
+    if (!text) return;
+    if (await copyText(text, null) && cut) this.view.dispatch(this.view.state.replaceSelection(''), { userEvent: 'delete.cut', scrollIntoView: true });
+    this.focus();
+  }
+
+  async paste() {
+    const text = await readClipboard();
+    if (text) this.view.dispatch(this.view.state.replaceSelection(text), { userEvent: 'input.paste', scrollIntoView: true });
+    this.focus();
+  }
+
+  /** Runs a CodeMirror command (they take the view) and gives the editor its focus back. */
+  run(command) { command(this.view); this.focus(); }
+
+  showMenu(x, y) {
+    const { state } = this.view;
+    const hasSelection = state.selection.ranges.some((r) => !r.empty);
+    const canComment = state.languageDataAt('commentTokens', state.selection.main.head).length > 0;
+    menu(x, y, [
+      this.clangd ? { label: 'Go to definition', icon: 'jump', hint: 'F12', onClick: () => this.definition() } : null,
+      this.clangd ? { label: 'Format document', icon: 'format', hint: 'Shift+Alt+F', onClick: () => { this.format(); this.focus(); } } : null,
+      'sep',
+      { label: 'Cut', icon: 'cut', hint: 'Ctrl+X', disabled: !hasSelection, onClick: () => this.copy(true) },
+      { label: 'Copy', icon: 'copy', hint: 'Ctrl+C', disabled: !hasSelection, onClick: () => this.copy() },
+      { label: 'Paste', icon: 'paste', hint: 'Ctrl+V', onClick: () => this.paste() },
+      { label: 'Select all', icon: 'selectAll', hint: 'Ctrl+A', onClick: () => this.run(selectAll) },
+      'sep',
+      canComment ? { label: 'Toggle comment', icon: 'comment', hint: 'Ctrl+/', onClick: () => this.run(toggleComment) } : null,
+      { label: 'Find and replace', icon: 'search', hint: 'Ctrl+F', onClick: () => this.run(openSearchPanel) },
+      { label: 'Go to line…', icon: 'line', hint: 'Ctrl+Alt+G', onClick: () => this.run(gotoLine) },
+      'sep',
+      { label: 'Undo', icon: 'undo', hint: 'Ctrl+Z', disabled: !undoDepth(state), onClick: () => this.run(undo) },
+      { label: 'Redo', icon: 'redo', hint: 'Ctrl+Shift+Z', disabled: !redoDepth(state), onClick: () => this.run(redo) },
+      ...(this.ctx.menuItems ? ['sep', ...this.ctx.menuItems()] : []),
+    ]);
   }
 }

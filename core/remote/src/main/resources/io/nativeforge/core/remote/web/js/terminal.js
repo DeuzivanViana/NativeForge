@@ -3,10 +3,12 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { api, wsUrl } from './api.js';
-import { terminalTheme } from './theme.js';
+import { terminalTheme, codeFont } from './theme.js';
+import { menu, copyText, readClipboard } from './util.js';
 
 export class TerminalView {
-  constructor(host, id, theme, { onExit } = {}) {
+  /** [menuItems]: extra entries for the right-click menu, such as closing the terminal. */
+  constructor(host, id, theme, { onExit, menuItems } = {}) {
     this.id = id;
     this.host = host;
     this.onExit = onExit;
@@ -14,7 +16,7 @@ export class TerminalView {
     this.disposed = false;
     this.retry = 500;
     this.term = new Terminal({
-      fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--mono').trim() || 'monospace',
+      fontFamily: codeFont(theme),
       fontSize: Math.round((theme.terminalFontSize || 12) * 1.1),
       theme: terminalTheme(theme),
       cursorBlink: true,
@@ -31,7 +33,33 @@ export class TerminalView {
     this.term.onResize(({ rows, cols }) => this.control({ t: 'resize', rows, cols }));
     this.resizer = new ResizeObserver(() => this.refit());
     this.resizer.observe(host);
+    host.addEventListener('contextmenu', (e) => {
+      if (e.shiftKey) return; // Shift+right-click: the browser's own menu
+      e.preventDefault();
+      const selection = this.term.getSelection();
+      menu(e.clientX, e.clientY, [
+        { label: 'Copy', icon: 'copy', hint: 'Ctrl+Shift+C', disabled: !selection, onClick: () => { copyText(selection, null); this.focus(); } },
+        { label: 'Paste', icon: 'paste', hint: 'Ctrl+Shift+V', onClick: () => this.pasteClipboard() },
+        { label: 'Select all', icon: 'selectAll', onClick: () => this.term.selectAll() },
+        'sep',
+        { label: 'Clear', icon: 'delete', onClick: () => { this.term.clear(); this.focus(); } },
+        ...(menuItems ? ['sep', ...menuItems()] : []),
+      ]);
+    });
+    // Ctrl+Shift+C / Ctrl+Shift+V like desktop terminals (Ctrl+C stays the interrupt key).
+    this.term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== 'keydown' || !e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return true;
+      if (e.code === 'KeyC') { const s = this.term.getSelection(); if (s) copyText(s, null); e.preventDefault(); return false; }
+      if (e.code === 'KeyV') { this.pasteClipboard(); e.preventDefault(); return false; }
+      return true;
+    });
     this.connect();
+  }
+
+  async pasteClipboard() {
+    const text = await readClipboard();
+    if (text) this.term.paste(text);
+    this.focus();
   }
 
   connect() {
@@ -42,7 +70,7 @@ export class TerminalView {
     let first = true;
     ws.onopen = () => {
       this.retry = 500;
-        this.refit();
+      this.refit();
       this.control({ t: 'resize', rows: this.term.rows, cols: this.term.cols });
     };
     ws.onmessage = (e) => {
@@ -93,6 +121,7 @@ export class TerminalView {
   setTheme(theme) {
     this.term.options.theme = terminalTheme(theme);
     this.term.options.fontSize = Math.round((theme.terminalFontSize || 12) * 1.1);
+    this.term.options.fontFamily = codeFont(theme);
     this.refit();
   }
 
