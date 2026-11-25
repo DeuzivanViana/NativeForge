@@ -2,6 +2,17 @@
 
 ## Unreleased — faster builds, a lighter IDE
 
+* Fixed: tapping Install for the toolchain, or building a new project with libraries,
+  could look as if nothing happened. Every install waits for the one before it, and the
+  update of bundled libraries that runs at start-up (LVGL changed in this version) first
+  downloaded Termux's package list, even though bundled libraries need nothing from the
+  network. Bundled libraries are now planned from the APK's index alone; the toolchain
+  banner and the build log say when an install waits for another one or reads the package
+  lists; the Termux source falls back to Termux's primary server (packages.termux.dev)
+  when the Cloudflare address does not answer or serves a broken index.
+* CI: the release APK is checked for every bundled archive and its SHA-256, and an
+  emulator job installs bundled libraries and the Termux toolchain with the APK's own
+  `pkg` code (after R8), then builds and runs a C program with that clang.
 * Fixed: the app could close a few seconds after leaving a project (for example the
   Box3D + Raylib example). Closing the project stops clangd; when clangd took more than a
   second to exit (still building a big file) it was killed, which closes its stderr pipe

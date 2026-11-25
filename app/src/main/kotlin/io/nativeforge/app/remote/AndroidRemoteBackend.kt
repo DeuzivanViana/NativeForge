@@ -63,6 +63,7 @@ class AndroidRemoteBackend(private val context: Context, private val container: 
             var failed = false
             container.packageManager.install(missing).collect { event ->
                 when (event) {
+                    is InstallEvent.Preparing -> emit(BuildEvent.Output(OutputStream.STDOUT, "  ${event.message}"))
                     is InstallEvent.Downloading -> if (event.bytesRead == 0L) emit(BuildEvent.Output(OutputStream.STDOUT, "  downloading ${event.pkg.name} ${event.pkg.version}"))
                     is InstallEvent.Failed -> { emit(BuildEvent.Output(OutputStream.STDERR, event.error.message)); failed = true }
                     else -> Unit

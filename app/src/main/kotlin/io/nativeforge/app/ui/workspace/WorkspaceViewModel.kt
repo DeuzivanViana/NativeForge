@@ -750,6 +750,7 @@ class WorkspaceViewModel(
         var success = true
         container.packageManager.install(missing).collect { event ->
             when (event) {
+                is InstallEvent.Preparing -> appendLog("  ${event.message}", false)
                 is InstallEvent.Downloading -> if (event.bytesRead == 0L) appendLog("  downloading ${event.pkg.name} ${event.pkg.version}", false)
                 is InstallEvent.Failed -> { appendLog(event.error.message, true); success = false }
                 else -> Unit

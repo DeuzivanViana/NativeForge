@@ -26,6 +26,6 @@
 </ul>
 
 <p><b>Sobre o download do toolchain</b></p>
-<p>O compilador (clang, lld, CMake, Ninja, Make) não vem dentro do app. Quando você pede, o NativeForge baixa esses programas do repositório de pacotes do Termux (packages-cf.termux.dev) e os instala dentro do app. São arquivos executáveis que o F-Droid não compilou nem verificou. O app pergunta antes de baixar, e nada é baixado sem a sua permissão.</p>
+<p>O compilador (clang, lld, CMake, Ninja, Make) não vem dentro do app. Quando você pede, o NativeForge baixa esses programas do repositório de pacotes do Termux (packages-cf.termux.dev, ou packages.termux.dev quando esse servidor falha) e os instala dentro do app. São arquivos executáveis que o F-Droid não compilou nem verificou. O app pergunta antes de baixar, e nada é baixado sem a sua permissão.</p>
 
 <p>NativeForge é software livre sob a GNU GPL, versão 3 ou posterior.</p>

@@ -256,7 +256,7 @@ private fun ToolchainConsentDialog(onAccept: () -> Unit, onDecline: () -> Unit) 
     ) {
         Text(
             "NativeForge will download clang, clangd, clang-format, CMake, Ninja, Make, their libraries and a terminal " +
-                "with bash, coreutils, nano and curl (about 170 MB) from the Termux package repository (packages-cf.termux.dev) and run them on this device.\n\n" +
+                "with bash, coreutils, nano and curl (about 170 MB) from the Termux package repository (packages-cf.termux.dev, or packages.termux.dev when it fails) and run them on this device.\n\n" +
                 "These programs are free software, but they are not built or checked by F-Droid or by the store you " +
                 "installed NativeForge from. Downloading them bypasses those checks. Libraries you add to a project later " +
                 "are downloaded the same way.\n\nYou can keep using the editor without them; building and running needs them.",

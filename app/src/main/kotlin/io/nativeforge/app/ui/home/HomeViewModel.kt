@@ -242,29 +242,43 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     fun installToolchain() {
         // A second tap while installing would start a parallel install into the same prefix.
         if (installJob?.isActive == true) return
+        // Show at once that the tap did something: the plan can take a while (package lists, another install).
+        _state.update { it.copy(toolchain = ToolchainStatus.Installing("Starting…", null)) }
         installJob = viewModelScope.launch {
-            var total = 0
-            var installed = 0
-            container.packageManager.install(ClangToolchain.REQUIRED_PACKAGES + ShellSetup.ESSENTIAL_PACKAGES).collect { event ->
-                // Several archives download at once, so progress counts installed packages.
-                val progress = if (total > 0) installed.toFloat() / total else null
-                val status = when (event) {
-                    is InstallEvent.Resolved -> {
-                        total = event.packages.size
-                        ToolchainStatus.Installing("Installing $total packages…", 0f)
-                    }
-                    is InstallEvent.Downloading -> null
-                    is InstallEvent.Extracting -> ToolchainStatus.Installing("Installing ${event.pkg.name} (${installed + 1} of $total)…", progress)
-                    is InstallEvent.Installed -> {
-                        installed++
-                        null
-                    }
-                    is InstallEvent.Failed -> ToolchainStatus.Failed(event.error.message)
-                    InstallEvent.Completed -> null
-                }
-                if (status != null) _state.update { it.copy(toolchain = status) }
-                if (event == InstallEvent.Completed) refresh()
+            try {
+                collectToolchainInstall()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                // Never leave the banner on "Starting…": show what went wrong and offer Retry.
+                _state.update { it.copy(toolchain = ToolchainStatus.Failed("Installation stopped: ${e.message ?: e.javaClass.simpleName}")) }
             }
+        }
+    }
+
+    private suspend fun collectToolchainInstall() {
+        var total = 0
+        var installed = 0
+        container.packageManager.install(ClangToolchain.REQUIRED_PACKAGES + ShellSetup.ESSENTIAL_PACKAGES).collect { event ->
+            // Several archives download at once, so progress counts installed packages.
+            val progress = if (total > 0) installed.toFloat() / total else null
+            val status = when (event) {
+                is InstallEvent.Preparing -> ToolchainStatus.Installing(event.message, null)
+                is InstallEvent.Resolved -> {
+                    total = event.packages.size
+                    ToolchainStatus.Installing("Installing $total packages…", 0f)
+                }
+                is InstallEvent.Downloading -> null
+                is InstallEvent.Extracting -> ToolchainStatus.Installing("Installing ${event.pkg.name} (${installed + 1} of $total)…", progress)
+                is InstallEvent.Installed -> {
+                    installed++
+                    null
+                }
+                is InstallEvent.Failed -> ToolchainStatus.Failed(event.error.message)
+                InstallEvent.Completed -> null
+            }
+            if (status != null) _state.update { it.copy(toolchain = status) }
+            if (event == InstallEvent.Completed) refresh()
         }
     }
 
