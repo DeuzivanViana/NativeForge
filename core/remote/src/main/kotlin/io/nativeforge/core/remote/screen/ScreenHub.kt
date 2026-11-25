@@ -1,6 +1,7 @@
 package io.nativeforge.core.remote.screen
 
 import io.nativeforge.core.common.Logger
+import io.nativeforge.core.common.ThermalLevel
 import io.nativeforge.core.project.model.ExportSettings
 import io.nativeforge.core.remote.Json
 import io.nativeforge.core.remote.bool
@@ -28,13 +29,19 @@ interface ScreenViewer {
  * stalls the encoder: when its queue grows too long it is emptied and the viewer waits
  * for the next key frame.
  *
- * Wire format to the browser: text messages `hello`, `config`, `size` and `end` (JSON),
- * and binary video packets `[flags:1][pts µs:8][Annex B data]` where flag 1 marks a key
- * frame (which then starts with the SPS and PPS). Browsers send input and the size of
- * their panel (`resize`) as JSON.
+ * Wire format to the browser: text messages `hello`, `config`, `size`, `quality` and `end`
+ * (JSON), and binary video packets `[flags:1][pts µs:8][Annex B data]` where flag 1 marks a
+ * key frame (which then starts with the SPS and PPS). Browsers send pointer and wheel input
+ * as small binary messages (see [Viewer.receive] for bytes), and keys, the size of their
+ * panel (`resize`) and the rest as JSON.
  *
  * The display follows the browser's panel unless the program asked for a window of a
  * fixed size; then it keeps that size and the browser letterboxes it.
+ *
+ * The encoder's frame rate and bit rate follow the slowest viewer ([AdaptiveQuality]): its
+ * queue length and the frames its decoder had to drop (`lag`). A hot phone ([thermalChanged])
+ * caps them, and with nobody watching for a few seconds the encoder idles at
+ * [StreamQuality.IDLE] until a browser joins again.
  */
 class ScreenHub(
     private val logger: Logger,
@@ -45,6 +52,14 @@ class ScreenHub(
     @Volatile var onEvent: (JsonObject) -> Unit = {}
 
     @Volatile private var current: Session? = null
+
+    @Volatile private var thermal = ThermalLevel.NONE
+
+    /** The phone's temperature changed: hot phones stream at a lower frame rate. */
+    fun thermalChanged(level: ThermalLevel) {
+        thermal = level
+        current?.thermalChanged(level)
+    }
 
     val session: Session? get() = current
 
@@ -71,6 +86,16 @@ class ScreenHub(
         @Volatile private var pendingWindow: Triple<Int, Int, Boolean>? = null
 
         val viewerCount: Int get() = viewers.size
+
+        private val quality = AdaptiveQuality(clock).also { it.thermalChanged(thermal) }
+        private val qualityLock = Any()
+
+        /** What the encoder was last told; streams start at the best level. */
+        @Volatile var appliedQuality: StreamQuality = StreamQuality.LEVELS[0]
+            private set
+        private var idle = false
+        private var noViewersSince = clock()
+        private var lastSample = 0L
 
         internal val sink = object : StreamSink {
             override fun onFrame(frame: VideoFrame) = deliver(this@Session, frame)
@@ -104,7 +129,57 @@ class ScreenHub(
 
         internal fun started() {
             pendingWindow?.let { (w, h, resizable) -> pendingWindow = null; windowRequest(w, h, resizable) }
+            synchronized(qualityLock) { applyQuality() }
         }
+
+        /** A viewer fell behind: lower the quality (at most every few seconds). */
+        internal fun congested() = synchronized(qualityLock) { if (quality.congested()) applyQuality() }
+
+        internal fun thermalChanged(level: ThermalLevel) = synchronized(qualityLock) { if (quality.thermalChanged(level)) applyQuality() }
+
+        /** A viewer joined: leave the idle quality. */
+        internal fun viewerJoined() = synchronized(qualityLock) {
+            idle = false
+            applyQuality()
+        }
+
+        /** Called for each encoded frame: measures the viewers' queues, idles without viewers. */
+        internal fun onFrameEncoded() {
+            val now = clock()
+            synchronized(qualityLock) {
+                if (viewers.isEmpty()) {
+                    if (noViewersSince == 0L) noViewersSince = now
+                    if (!idle && now - noViewersSince >= IDLE_AFTER_MS) {
+                        idle = true
+                        applyQuality()
+                    }
+                    return
+                }
+                noViewersSince = 0L
+                if (now - lastSample < SAMPLE_INTERVAL_MS) return
+                lastSample = now
+                val stream = stream ?: return
+                val bitRate = appliedQuality.bitRate(stream.width, stream.height).coerceAtLeast(1)
+                val worst = viewers.maxOfOrNull { it.queuedVideoBytes } ?: 0L
+                if (quality.sample(worst * 8_000 / bitRate)) applyQuality()
+            }
+        }
+
+        /** Caller holds [qualityLock]. */
+        private fun applyQuality() {
+            if (ended) return
+            val target = if (idle) StreamQuality.IDLE else quality.current
+            if (target == appliedQuality) return
+            appliedQuality = target
+            logger.info(TAG, "Stream quality: ${target.frameRate} fps, ${(target.bitRateScale * 100).toInt()}% bit rate" + if (idle) " (nobody watching)" else if (quality.limitedByHeat) " (phone is hot)" else "")
+            runCatching { stream?.setQuality(target) }.onFailure { logger.warn(TAG, "Could not change the stream quality", it) }
+            if (!idle) {
+                val text = qualityJson().toString()
+                viewers.forEach { it.sendText(text) }
+            }
+        }
+
+        internal fun qualityJson() = Json.obj("t" to "quality", "fps" to appliedQuality.frameRate, "hot" to quality.limitedByHeat)
 
         private fun resize(width: Int, height: Int): Boolean {
             val stream = stream ?: return false
@@ -133,6 +208,10 @@ class ScreenHub(
     inner class Viewer internal constructor(private val socket: ScreenViewer, internal val session: Session) {
         private val queue = LinkedBlockingQueue<Any>()
         private val queuedBytes = AtomicLong()
+        private val queuedVideo = AtomicLong()
+
+        /** Video bytes waiting to go out to this browser. */
+        internal val queuedVideoBytes: Long get() = queuedVideo.get()
         @Volatile internal var needsKeyFrame = true
         @Volatile private var closed = false
 
@@ -149,10 +228,15 @@ class ScreenHub(
         /** False when the viewer is too far behind; it then waits for a key frame. */
         internal fun sendVideo(packet: ByteArray): Boolean {
             if (queuedBytes.get() + packet.size > maxQueuedBytes) {
-                queue.removeIf { it is ByteArray }.also { queuedBytes.set(queue.sumOf { (it as? String)?.length?.toLong() ?: 0L }) }
+                queue.removeIf { it is ByteArray }.also {
+                    queuedBytes.set(queue.sumOf { (it as? String)?.length?.toLong() ?: 0L })
+                    queuedVideo.set(0)
+                }
                 needsKeyFrame = true
+                session.congested()
                 return false
             }
+            queuedVideo.addAndGet(packet.size.toLong())
             offer(packet, packet.size.toLong())
             return true
         }
@@ -170,7 +254,11 @@ class ScreenHub(
                     if (item === STOP) break
                     when (item) {
                         is String -> { queuedBytes.addAndGet(-item.length.toLong()); socket.sendText(item) }
-                        is ByteArray -> { queuedBytes.addAndGet(-item.size.toLong()); socket.sendBinary(item) }
+                        is ByteArray -> {
+                            queuedBytes.addAndGet(-item.size.toLong())
+                            socket.sendBinary(item)
+                            queuedVideo.updateAndGet { (it - item.size).coerceAtLeast(0) }
+                        }
                     }
                 }
             } catch (_: InterruptedException) {
@@ -214,6 +302,8 @@ class ScreenHub(
                 "ptr" -> parsePointer(message, stream)?.let(stream::input)
                 "wheel" -> parseWheel(message, stream)?.let(stream::input)
                 "keyframe" -> session.requestKeyFrame()
+                // The browser's decoder could not keep up and dropped frames.
+                "lag" -> session.congested()
                 "release" -> releaseKeys()
                 "resize" -> {
                     val w = message.int("w") ?: return
@@ -222,6 +312,39 @@ class ScreenHub(
                 }
             }
         }
+
+        /**
+         * Handles one binary input message (big endian), sent for the frequent events:
+         * * pointer `[1][action:1][flags:1][id:1][buttons:1][x:f32][y:f32]`, where action is
+         *   0 down, 1 move, 2 up, 3 cancel, 4 hover and flag 1 marks a touch;
+         * * wheel `[2][x:f32][y:f32][dx:f32][dy:f32]`.
+         *
+         * Positions are fractions of the picture, as in the JSON messages.
+         */
+        fun receive(data: ByteArray) {
+            val stream = session.stream ?: return
+            if (data.isEmpty()) return
+            val buffer = ByteBuffer.wrap(data)
+            when (data[0].toInt()) {
+                BIN_POINTER -> {
+                    if (data.size < 13) return
+                    val action = POINTER_ACTIONS.getOrNull(data[1].toInt()) ?: return
+                    val mouse = data[2].toInt() and 1 == 0
+                    val id = data[3].toInt() and 0xff
+                    val buttons = data[4].toInt() and 0xff
+                    pointer(action, finite(buffer.getFloat(5)), finite(buffer.getFloat(9)), id, mouse, buttons, stream)?.let(stream::input)
+                }
+                BIN_WHEEL -> {
+                    if (data.size < 17) return
+                    wheel(
+                        finite(buffer.getFloat(1)), finite(buffer.getFloat(5)),
+                        finite(buffer.getFloat(9)) ?: 0.0, finite(buffer.getFloat(13)) ?: 0.0, stream,
+                    )?.let(stream::input)
+                }
+            }
+        }
+
+        private fun finite(value: Float): Double? = value.toDouble().takeIf { it.isFinite() }
 
         private fun parseKey(message: JsonObject): RemoteInput.Key? {
             val down = message.bool("d") ?: return null
@@ -288,6 +411,8 @@ class ScreenHub(
             ).toString(),
         )
         session.viewers += viewer
+        viewer.sendText(session.qualityJson().toString())
+        session.viewerJoined()
         session.requestKeyFrame()
         return viewer
     }
@@ -304,6 +429,7 @@ class ScreenHub(
             session.viewers.forEach { it.sendText(text) }
             return
         }
+        session.onFrameEncoded()
         if (session.viewers.isEmpty()) return
         val packet by lazy(LazyThreadSafetyMode.NONE) { packet(session, frame) }
         var behind = false
@@ -347,27 +473,29 @@ class ScreenHub(
             "hover" -> PointerAction.HOVER
             else -> return null
         }
-        val x = message.fraction("x") ?: return null
-        val y = message.fraction("y") ?: return null
-        val mouse = message.string("k") != "touch"
-        // Browser button bits (1 left, 2 right, 4 middle) match Android's primary, secondary, tertiary.
-        val buttons = (message.int("b") ?: 0) and 0x7
-        val id = (message.int("id") ?: 0).coerceIn(0, MAX_POINTER_ID)
-        return RemoteInput.Pointer(action, x * stream.width, y * stream.height, id, mouse, buttons)
+        return pointer(action, message.number("x"), message.number("y"), message.int("id") ?: 0, message.string("k") != "touch", message.int("b") ?: 0, stream)
     }
 
-    private fun parseWheel(message: JsonObject, stream: ProgramStream): RemoteInput.Scroll? {
-        val x = message.fraction("x") ?: return null
-        val y = message.fraction("y") ?: return null
-        val dx = message.number("dx")?.coerceIn(-MAX_SCROLL, MAX_SCROLL) ?: 0.0
-        val dy = message.number("dy")?.coerceIn(-MAX_SCROLL, MAX_SCROLL) ?: 0.0
+    private fun pointer(action: PointerAction, x: Double?, y: Double?, id: Int, mouse: Boolean, buttons: Int, stream: ProgramStream): RemoteInput.Pointer? {
+        val fx = x?.coerceIn(0.0, 1.0)?.toFloat() ?: return null
+        val fy = y?.coerceIn(0.0, 1.0)?.toFloat() ?: return null
+        // Browser button bits (1 left, 2 right, 4 middle) match Android's primary, secondary, tertiary.
+        return RemoteInput.Pointer(action, fx * stream.width, fy * stream.height, id.coerceIn(0, MAX_POINTER_ID), mouse, buttons and 0x7)
+    }
+
+    private fun parseWheel(message: JsonObject, stream: ProgramStream): RemoteInput.Scroll? =
+        wheel(message.number("x"), message.number("y"), message.number("dx") ?: 0.0, message.number("dy") ?: 0.0, stream)
+
+    private fun wheel(x: Double?, y: Double?, dx: Double, dy: Double, stream: ProgramStream): RemoteInput.Scroll? {
+        val fx = x?.coerceIn(0.0, 1.0)?.toFloat() ?: return null
+        val fy = y?.coerceIn(0.0, 1.0)?.toFloat() ?: return null
+        val sx = dx.coerceIn(-MAX_SCROLL, MAX_SCROLL)
+        val sy = dy.coerceIn(-MAX_SCROLL, MAX_SCROLL)
         // Browsers count down as positive; Android's vertical scroll axis counts up.
-        return RemoteInput.Scroll(x * stream.width, y * stream.height, dx.toFloat(), (-dy).toFloat())
+        return RemoteInput.Scroll(fx * stream.width, fy * stream.height, sx.toFloat(), (-sy).toFloat())
     }
 
     private fun JsonObject.number(key: String) = (this[key] as? JsonPrimitive)?.doubleOrNull?.takeIf { it.isFinite() }
-
-    private fun JsonObject.fraction(key: String) = number(key)?.coerceIn(0.0, 1.0)?.toFloat()
 
     private fun JsonObject.merge(other: JsonObject) = JsonObject(toMap() + other.toMap())
 
@@ -379,6 +507,11 @@ class ScreenHub(
         private const val MAX_POINTER_ID = 9
         private const val MAX_SCROLL = 50.0
         private const val MAX_PANEL = 8192
+        private const val SAMPLE_INTERVAL_MS = 500L
+        private const val IDLE_AFTER_MS = 5_000L
+        private const val BIN_POINTER = 1
+        private const val BIN_WHEEL = 2
+        private val POINTER_ACTIONS = listOf(PointerAction.DOWN, PointerAction.MOVE, PointerAction.UP, PointerAction.CANCEL, PointerAction.HOVER)
         private val EMPTY = ByteArray(0)
         private val STOP = Any()
         private val random = SecureRandom()

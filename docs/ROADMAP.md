@@ -39,6 +39,16 @@
   left its own entry in the phone's recent apps. Runs now share one task that
   leaves the recent apps when the program ends; streamed runs never show
   there, and entries left by earlier versions are removed on the next run.
+* Streaming adapts to the network and the phone: a browser that falls behind
+  (long queue, or its decoder drops frames) lowers the bit rate and then the
+  frame rate (30, 20, 15 fps), which come back up when the network recovers;
+  a hot phone caps it at 30 or 20 fps (the browser says so); with no browser
+  watching the encoder idles at 10 fps. A hardware encoder is picked
+  explicitly, Wi-Fi stays in low-latency mode only while a program streams,
+  and pointer and wheel input travel as small binary messages.
+* Builds start at a lower CPU priority while the phone is hot, so the IDE
+  stays responsive and the phone throttles less. Static web files are
+  compressed once at the best gzip level.
 * Later: the program's sound in the browser, packages, export and git screens
   in the browser.
 * New bundled library: SQLite 3.54.1 (`sqlite3`, static, with FTS5, R*Tree,

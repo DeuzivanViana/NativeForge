@@ -19,6 +19,13 @@ interface ProgramStream {
      */
     fun resize(width: Int, height: Int) {}
 
+    /**
+     * Changes the encoder's frame rate cap and bit rate. Streams start at
+     * [StreamQuality.LEVELS]`[0]`; ScreenHub lowers it when the network, a browser or the
+     * phone's temperature can't keep up, and while nobody watches.
+     */
+    fun setQuality(quality: StreamQuality) {}
+
     /** Delivers browser input to the program's window. */
     fun input(event: RemoteInput)
 

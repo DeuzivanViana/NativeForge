@@ -33,4 +33,13 @@ class StaticAssetsTest {
         }.toSet()
         assertTrue(mapped.containsAll(imported), "unmapped: ${imported - mapped}")
     }
+
+    @Test
+    fun `static files are compressed once at the best level`() {
+        val js = StaticAssets.loadResource("js/app.js")!!
+        val best = io.nativeforge.core.remote.http.HttpServer.gzip(js, java.util.zip.Deflater.BEST_COMPRESSION)
+        val fast = io.nativeforge.core.remote.http.HttpServer.gzip(js, java.util.zip.Deflater.BEST_SPEED)
+        assertTrue(best.size < fast.size, "${best.size} vs ${fast.size}")
+        assertTrue(java.util.zip.GZIPInputStream(best.inputStream()).readBytes().contentEquals(js))
+    }
 }

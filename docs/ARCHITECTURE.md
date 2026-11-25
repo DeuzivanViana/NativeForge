@@ -296,7 +296,20 @@ work still happens on the phone; the browser is the screen and keyboard.
     `/ws/screen` with a queue per browser (a slow browser drops back to the
     next key frame instead of stalling the encoder) and turns browser input
     into Android key codes and pixels (`KeyMap`, `StreamSize`). The page
-    decodes with WebCodecs (`web/js/screen.js`).
+    decodes with WebCodecs (`web/js/screen.js`). Pointer and wheel input come
+    as small binary messages (13 and 17 bytes), keys and control as JSON.
+  * Quality adapts (`AdaptiveQuality`, `StreamQuality`): a browser whose queue
+    overflows or stays long, or whose decoder drops frames (`lag`), steps the
+    stream down (less bit rate, then 30, 20 or 15 fps); short queues for 8 s
+    step it back up. Bit rate changes on the running encoder; a new frame rate
+    cap (`max-fps-to-encoder`) starts a new one. The app's `ThermalMonitor`
+    caps it on a hot phone (30 fps from MODERATE, 20 from SEVERE), and with no
+    browser watching for 5 s the encoder idles at 10 fps. The stream prefers a
+    hardware encoder that takes a surface (`MediaCodecList`) and holds a
+    low-latency Wi-Fi lock only while the program runs.
+  * The same `ThermalMonitor` lowers the CPU priority builds start at
+    (`JvmProcessRunner`'s `priority`: the starting thread's nice value, which
+    make, ninja and clang inherit).
 
 See `docs/SECURITY.md` for the security model.
 

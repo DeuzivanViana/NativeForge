@@ -16,6 +16,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.zip.Deflater
 import java.util.zip.GZIPOutputStream
 import javax.net.ssl.SSLSocket
 
@@ -249,9 +250,15 @@ class HttpServer(
             return type.startsWith("text/") || type in setOf("application/json", "application/javascript", "image/svg+xml", "application/wasm")
         }
 
-        fun gzip(data: ByteArray): ByteArray {
+        /**
+         * Compresses [data]. Responses use the default [level] (fast enough per request);
+         * static files are compressed once, so they use the best one.
+         */
+        fun gzip(data: ByteArray, level: Int = Deflater.DEFAULT_COMPRESSION): ByteArray {
             val out = ByteArrayOutputStream(data.size / 3 + 64)
-            GZIPOutputStream(out).use { it.write(data) }
+            object : GZIPOutputStream(out) {
+                init { def.setLevel(level) }
+            }.use { it.write(data) }
             return out.toByteArray()
         }
     }

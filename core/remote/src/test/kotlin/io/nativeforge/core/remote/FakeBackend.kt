@@ -110,6 +110,7 @@ class FakeStream(width: Int, height: Int, val sink: StreamSink) : ProgramStream 
         private set
     val inputs = java.util.concurrent.CopyOnWriteArrayList<RemoteInput>()
     val resizes = java.util.concurrent.CopyOnWriteArrayList<Pair<Int, Int>>()
+    val qualities = java.util.concurrent.CopyOnWriteArrayList<io.nativeforge.core.remote.screen.StreamQuality>()
     @Volatile var stopped = false
     @Volatile var answerKeyFrames = true
     private var pts = 0L
@@ -120,6 +121,7 @@ class FakeStream(width: Int, height: Int, val sink: StreamSink) : ProgramStream 
 
     override fun input(event: RemoteInput) { inputs += event }
     override fun resize(width: Int, height: Int) { this.width = width; this.height = height; resizes += width to height }
+    override fun setQuality(quality: io.nativeforge.core.remote.screen.StreamQuality) { qualities += quality }
     override fun requestKeyFrame() { if (answerKeyFrames) frame(key = true) }
     fun frame(key: Boolean) = sink.onFrame(VideoFrame(byteArrayOf(0, 0, 0, 1, if (key) 0x65 else 0x41, 1, 2, 3), pts++, key))
     override fun stop() { stopped = true; sink.onEnded("Stopped") }
