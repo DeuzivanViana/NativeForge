@@ -24,7 +24,18 @@ LITERALS = [
     (r"(?<=(?:^|[^\\])\n)", r"(?<=[^\\]\n|^\n)"),
     (r"(?<=(?:\W|^)for ?\()", r"(?<=\Wfor\(|\Wfor \(|^for\(|^for \()"),
     (r"(?<=\.\*?|->\*??)", r"(?<=\.|\.\*|->|->\*)"),
+    # Markdown strikethrough: a back-reference (any number of ~) inside a look-behind.
+    (r"(?!(?<=_\1)\w)", r"(?!(?<=_~~)\w)"),
 ]
+
+# (?<=(?:^until| until|\tuntil) ) in the shell grammar: the shared suffix is moved into
+# every alternative so they sit at the top level of the look-behind.
+GROUP_THEN_SUFFIX = re.compile(r"\(\?<=\(\?:((?:[^()|\[\]]+\|)+[^()|\[\]]+)\)([^()|\[\]]+)\)")
+
+
+def distribute(m: re.Match) -> str:
+    return "(?<=" + "|".join(alt + m.group(2) for alt in m.group(1).split("|")) + ")"
+
 
 # (?<!(?:\W|^)(?:a|bc)) and (?<=(?:\W|^)word): alternatives of different lengths
 # are only allowed at the top level of a look-behind.
@@ -40,6 +51,7 @@ def expand(m: re.Match) -> str:
 def fix(pattern: str) -> str:
     for old, new in LITERALS:
         pattern = pattern.replace(old, new)
+    pattern = GROUP_THEN_SUFFIX.sub(distribute, pattern)
     return WORD_LIST.sub(expand, pattern)
 
 

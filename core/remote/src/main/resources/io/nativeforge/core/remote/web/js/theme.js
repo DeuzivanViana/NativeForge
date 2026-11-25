@@ -85,6 +85,22 @@ const MAP = [
   [[t.operator, t.derefOperator, t.arithmeticOperator, t.logicOperator, t.bitwiseOperator, t.compareOperator, t.updateOperator], ['keyword.operator']],
   [[t.punctuation, t.separator, t.bracket, t.paren, t.brace, t.squareBracket, t.angleBracket], ['punctuation']],
   [[t.invalid], ['invalid']],
+  // Tags of the other project files (js/languages.js): CMake, Makefiles, YAML, XML, Markdown, diffs.
+  [[t.special(t.variableName)], ['variable.parameter', 'variable.language', 'variable']],
+  [[t.standard(t.variableName)], ['support.function', 'entity.name.function']],
+  [[t.tagName], ['entity.name.tag']],
+  [[t.attributeName], ['entity.other.attribute-name']],
+  [[t.heading], ['markup.heading', 'entity.name.section']],
+  [[t.strong], ['markup.bold']],
+  [[t.emphasis], ['markup.italic']],
+  [[t.link, t.url], ['markup.underline.link', 'string.other.link']],
+  [[t.quote], ['markup.quote']],
+  [[t.monospace], ['markup.inline.raw', 'markup.raw', 'string']],
+  [[t.list], ['punctuation.definition.list', 'markup.list']],
+  [[t.inserted], ['markup.inserted']],
+  [[t.deleted], ['markup.deleted']],
+  [[t.changed], ['markup.changed']],
+  [[t.meta], ['meta.preprocessor', 'keyword.control.directive', 'comment']],
 ];
 
 export function editorTheme(theme) {

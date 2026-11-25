@@ -124,10 +124,12 @@ class BuildSystemsTest {
         )
         val configure = plan.steps[0].process.command
         assertTrue(configure.containsAll(listOf("-G", "Ninja")))
-        assertTrue("-DCMAKE_PREFIX_PATH=${prefix.path}" in configure)
-        assertTrue("-DNATIVEFORGE_RUNTIME=NATIVE_ACTIVITY" in configure)
-        // Projects that ignore the NATIVEFORGE_* variables must not get an "unused-cli" warning.
-        assertTrue("--no-warn-unused-cli" in configure)
+        val cache = cmakeCache(plan)
+        assertEquals(prefix.path, cache["CMAKE_PREFIX_PATH"])
+        assertEquals("NATIVE_ACTIVITY", cache["NATIVEFORGE_RUNTIME"])
+        // Projects that ignore the NATIVEFORGE_* variables must not get an "unused variables" warning:
+        // they come from an initial-cache script, not -D, and no deprecated flag is needed.
+        assertTrue(configure.none { it.startsWith("-D") || it == "--no-warn-unused-cli" }, configure.toString())
         assertEquals(listOf(toolchain.cmake.path, "--build"), plan.steps[1].process.command.take(2))
         assertEquals("libmain.so", plan.artifact.file.name)
     }
@@ -140,12 +142,11 @@ class BuildSystemsTest {
         )
         val dep = NativeDependency("raylib", includeDirectories = listOf(File(root, "rl/include")),
             libraryDirectories = listOf(File(root, "rl/lib")), linkLibraries = listOf("raylib", "EGL"))
-        val configure = CMakeBuildSystem().plan(BuildRequest(project, toolchain, dependencies = listOf(dep))).steps[0].process.command
-        val cxxFlags = configure.first { it.startsWith("-DCMAKE_CXX_FLAGS=") }
-        assertTrue("-isystem ${File(root, "rl/include").path}" in cxxFlags)
-        assertTrue(configure.first { it.startsWith("-DCMAKE_CXX_STANDARD_LIBRARIES=") }.contains("-lraylib -lEGL"))
-        assertTrue(configure.first { it.startsWith("-DCMAKE_SHARED_LINKER_FLAGS=") }.contains("--no-undefined"))
-        assertTrue("-DNATIVEFORGE_LIBRARIES=raylib;EGL" in configure)
+        val cache = cmakeCache(CMakeBuildSystem().plan(BuildRequest(project, toolchain, dependencies = listOf(dep))))
+        assertTrue("-isystem ${File(root, "rl/include").path}" in cache.getValue("CMAKE_CXX_FLAGS"))
+        assertTrue(cache.getValue("CMAKE_CXX_STANDARD_LIBRARIES").contains("-lraylib -lEGL"))
+        assertTrue(cache.getValue("CMAKE_SHARED_LINKER_FLAGS").contains("--no-undefined"))
+        assertEquals("raylib;EGL", cache["NATIVEFORGE_LIBRARIES"])
     }
 
     @Test
@@ -158,7 +159,7 @@ class BuildSystemsTest {
         val plan = CMakeBuildSystem().plan(BuildRequest(project, toolchain))
         val configure = plan.steps[0].process.command
         assertTrue(configure.containsAll(listOf("-G", "Unix Makefiles")))
-        assertTrue("-DCMAKE_MAKE_PROGRAM=${toolchain.make.path}" in configure)
+        assertEquals(toolchain.make.path, cmakeCache(plan)["CMAKE_MAKE_PROGRAM"])
         assertTrue(plan.steps[1].process.command.containsAll(listOf("--", "SHELL=/system/bin/sh")))
         assertEquals("debug-makefiles", plan.artifact.file.parentFile.name)
     }

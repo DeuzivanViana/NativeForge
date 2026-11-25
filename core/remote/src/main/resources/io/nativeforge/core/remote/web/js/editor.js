@@ -14,7 +14,7 @@ import {
 import { searchKeymap, highlightSelectionMatches, openSearchPanel, gotoLine } from '@codemirror/search';
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap, startCompletion } from '@codemirror/autocomplete';
 import { lintGutter, setDiagnostics, lintKeymap } from '@codemirror/lint';
-import { cpp } from '@codemirror/lang-cpp';
+import { languageFor } from './languages.js';
 import { editorTheme } from './theme.js';
 import { debounce, menu, copyText, readClipboard } from './util.js';
 
@@ -113,7 +113,8 @@ export class FileEditor {
         },
       }),
     ];
-    if (/\.(c|h|cpp|cc|cxx|c\+\+|hpp|hh|hxx|inl|ipp|m|mm|glsl|vert|frag|comp)$/i.test(ctx.path)) extensions.push(cpp());
+    const language = languageFor(ctx.path);
+    if (language) extensions.push(language);
     if (this.clangd) {
       extensions.push(
         autocompletion({ override: [(c) => this.complete(c)], activateOnTypingDelay: 120, maxRenderedOptions: 100, icons: true }),
