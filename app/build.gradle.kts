@@ -29,7 +29,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrinks the libraries' unused code (Kotlin, AndroidX, Compose, Material icons);
+            // the IDE's own classes and reflective libraries are kept (proguard-rules.pro).
+            isMinifyEnabled = true
+            // No resource shrinking: SDL and other hosts look resources up by name at run time.
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -110,6 +113,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.profileinstaller)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     // QR code of the remote access address (Apache-2.0, pure Java).
