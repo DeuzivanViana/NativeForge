@@ -1538,84 +1538,6 @@
       }
     },
     {
-      "name": "lvgl",
-      "version": "9.6.0",
-      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
-      "architecture": "aarch64",
-      "depends": [
-        "sdl2"
-      ],
-      "downloadUrl": "asset:packages/aarch64/lvgl-9.6.0.tar.xz",
-      "sha256": "e13b872ff669007eba698245c25372cad846f849bef7b966b744fa319165b177",
-      "sizeBytes": 1056132,
-      "format": "tar.xz",
-      "target": "isolated",
-      "build": {
-        "includeDirs": [
-          "include"
-        ],
-        "libDirs": [
-          "lib"
-        ],
-        "linkLibraries": [
-          "lvgl",
-          "m"
-        ]
-      }
-    },
-    {
-      "name": "lvgl",
-      "version": "9.6.0",
-      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
-      "architecture": "arm",
-      "depends": [
-        "sdl2"
-      ],
-      "downloadUrl": "asset:packages/arm/lvgl-9.6.0.tar.xz",
-      "sha256": "b5a07b7c569931cd52237387da3816b8a1174435453a58a86edc1e589b2bbf81",
-      "sizeBytes": 1068796,
-      "format": "tar.xz",
-      "target": "isolated",
-      "build": {
-        "includeDirs": [
-          "include"
-        ],
-        "libDirs": [
-          "lib"
-        ],
-        "linkLibraries": [
-          "lvgl",
-          "m"
-        ]
-      }
-    },
-    {
-      "name": "lvgl",
-      "version": "9.6.0",
-      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
-      "architecture": "x86_64",
-      "depends": [
-        "sdl2"
-      ],
-      "downloadUrl": "asset:packages/x86_64/lvgl-9.6.0.tar.xz",
-      "sha256": "dfc6a77304f00cddc7863fcc12520d950b9f40b84d63f82b22786ef0ac66ca01",
-      "sizeBytes": 1094156,
-      "format": "tar.xz",
-      "target": "isolated",
-      "build": {
-        "includeDirs": [
-          "include"
-        ],
-        "libDirs": [
-          "lib"
-        ],
-        "linkLibraries": [
-          "lvgl",
-          "m"
-        ]
-      }
-    },
-    {
       "name": "sqlite3",
       "version": "3.54.1",
       "description": "SQLite 3: SQL database in a single file, with FTS5, R*Tree, JSON and math functions (C)",
@@ -1686,6 +1608,84 @@
         "linkLibraries": [
           "sqlite3",
           "dl",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lvgl",
+      "version": "9.6.0",
+      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
+      "architecture": "aarch64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/aarch64/lvgl-9.6.0.tar.xz",
+      "sha256": "cd49ba7f609e97be36d5bd5e6eae0ea3554255b724264d595184fe441c1599b3",
+      "sizeBytes": 1144852,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lvgl",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lvgl",
+      "version": "9.6.0",
+      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
+      "architecture": "arm",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/arm/lvgl-9.6.0.tar.xz",
+      "sha256": "5516f72a1f353bed89a2ff52559615a0cba05d712a7aefcc4daf976254776393",
+      "sizeBytes": 1157596,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lvgl",
+          "m"
+        ]
+      }
+    },
+    {
+      "name": "lvgl",
+      "version": "9.6.0",
+      "description": "LVGL 9: widgets for touch apps (buttons, lists, tabs, charts, keyboard...) on SDL2 (C)",
+      "architecture": "x86_64",
+      "depends": [
+        "sdl2"
+      ],
+      "downloadUrl": "asset:packages/x86_64/lvgl-9.6.0.tar.xz",
+      "sha256": "e87b73975812152f777df2eacaa2fa99977415081a34e05269da5a7c36c0ba4c",
+      "sizeBytes": 1182160,
+      "format": "tar.xz",
+      "target": "isolated",
+      "build": {
+        "includeDirs": [
+          "include"
+        ],
+        "libDirs": [
+          "lib"
+        ],
+        "linkLibraries": [
+          "lvgl",
           "m"
         ]
       }

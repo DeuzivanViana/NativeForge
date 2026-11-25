@@ -6,6 +6,10 @@
 
 #include <SDL.h>
 
+/* Class default sizes (width_def, height_def) and the theme struct, for dp_sizes below. */
+#include "src/core/lv_obj_class_private.h"
+#include "src/themes/lv_theme_private.h"
+
 static float density = 1.0f;
 static float scale = 1.0f;
 static SDL_atomic_t quit_requested;
@@ -39,6 +43,58 @@ static int SDLCALL filter_events(void * userdata, SDL_Event * event)
             return 1;
         default:
             return 1;
+    }
+}
+
+/*
+ * LVGL's widgets have default sizes written for 160 DPI (LV_DPI_DEF, fixed when LVGL is
+ * compiled): a switch is 64 x 37 pixels, a text area 160 pixels tall. When one LVGL pixel is
+ * smaller than one dp (LV_NATIVEFORGE_SCALE_PIXELS), those defaults are scaled by styles from
+ * a theme placed under the default one. Sizes the program sets itself still win.
+ */
+static float pixels_per_dp = 1.0f;
+static lv_theme_t dp_theme;
+
+static int32_t class_default_size(const lv_obj_class_t * class_p, bool width)
+{
+    for(; class_p != NULL; class_p = class_p->base_class) {
+        int32_t size = width ? class_p->width_def : class_p->height_def;
+        if(size != 0) return size;
+    }
+    return 0;
+}
+
+/* One shared style per scaled size (programs use a few widget types, so a few sizes). */
+static lv_style_t * size_style(bool width, int32_t size)
+{
+    static struct {
+        bool width;
+        int32_t size;
+        lv_style_t style;
+    } styles[32];
+    static size_t count;
+    for(size_t i = 0; i < count; i++) {
+        if(styles[i].width == width && styles[i].size == size) return &styles[i].style;
+    }
+    if(count == sizeof(styles) / sizeof(styles[0])) return NULL;
+    styles[count].width = width;
+    styles[count].size = size;
+    lv_style_init(&styles[count].style);
+    if(width) lv_style_set_width(&styles[count].style, size);
+    else lv_style_set_height(&styles[count].style, size);
+    return &styles[count++].style;
+}
+
+static void dp_sizes(lv_theme_t * theme, lv_obj_t * obj)
+{
+    LV_UNUSED(theme);
+    if(lv_obj_get_parent(obj) == NULL) return; /* screens always fill the display */
+    for(int i = 0; i < 2; i++) {
+        bool width = i == 0;
+        int32_t size = class_default_size(lv_obj_get_class(obj), width);
+        if(size <= 0 || !LV_COORD_IS_PX(size)) continue; /* LV_SIZE_CONTENT, lv_pct() */
+        lv_style_t * style = size_style(width, (int32_t)((float)size * pixels_per_dp + 0.5f));
+        if(style != NULL) lv_obj_add_style(obj, style, LV_PART_MAIN);
     }
 }
 
@@ -107,6 +163,12 @@ lv_display_t * lv_nativeforge_init(float requested_scale)
                                                lv_palette_main(LV_PALETTE_TEAL), false,
                                                body_font(density / scale));
     lv_display_set_theme(display, theme);
+    pixels_per_dp = density / scale;
+    if(pixels_per_dp > 1.1f) {
+        /* A parent theme is applied first; lv_theme_default_init() (dark mode) keeps it. */
+        lv_theme_set_apply_cb(&dp_theme, dp_sizes);
+        lv_theme_set_parent(theme, &dp_theme);
+    }
 #endif
 
     /* The driver turns text input on, which pops up Android's keyboard at start. Hide it but

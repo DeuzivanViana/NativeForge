@@ -4,8 +4,9 @@
 
 /*
  * LVGL keeps a tree of widgets: create them once, then react to events in callbacks.
- * Sizes are in dp (LV_NATIVEFORGE_SCALE_AUTO), like Android layouts, so they look the
- * same on every phone. Documentation: https://docs.lvgl.io
+ * The screen is drawn at its full resolution (LV_NATIVEFORGE_SCALE_PIXELS) for sharp text;
+ * sizes are written in dp with LV_DPX() and lv_nativeforge_font(), like Android layouts,
+ * so they look the same on every phone. Documentation: https://docs.lvgl.io
  */
 
 static lv_obj_t *counter_label;
@@ -40,7 +41,7 @@ static void show_keyboard(bool show)
     lv_obj_set_hidden(keyboard, !show);
     lv_obj_update_layout(keyboard);
     /* Room under the cards, so that the last one can scroll up above the keyboard. */
-    lv_obj_set_style_pad_bottom(screen, show ? lv_obj_get_height(keyboard) + 16 : 16, 0);
+    lv_obj_set_style_pad_bottom(screen, show ? lv_obj_get_height(keyboard) + LV_DPX(16) : LV_DPX(16), 0);
     if (show) {
         lv_obj_update_layout(screen);
         lv_obj_scroll_to_view_recursive(name_input, LV_ANIM_ON);
@@ -78,10 +79,10 @@ static lv_obj_t *card(lv_obj_t *parent, const char *title)
     lv_obj_set_width(box, lv_pct(100));
     lv_obj_set_height(box, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(box, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(box, 10, 0);
+    lv_obj_set_style_pad_row(box, LV_DPX(10), 0);
     lv_obj_t *label = lv_label_create(box);
     lv_label_set_text(label, title);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_18, 0);
+    lv_obj_set_style_text_font(label, lv_nativeforge_font(18), 0);
     return box;
 }
 
@@ -89,16 +90,16 @@ int main(int argc, char *argv[])
 {
     LV_UNUSED(argc);
     LV_UNUSED(argv);
-    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_AUTO) == NULL) return 1;
+    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_PIXELS) == NULL) return 1;
 
     lv_obj_t *screen = lv_screen_active();
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(screen, 16, 0);
-    lv_obj_set_style_pad_row(screen, 12, 0);
+    lv_obj_set_style_pad_all(screen, LV_DPX(16), 0);
+    lv_obj_set_style_pad_row(screen, LV_DPX(12), 0);
 
     lv_obj_t *title = lv_label_create(screen);
-    lv_label_set_text(title, LV_SYMBOL_HOME "  @PROJECT_NAME@");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_28, 0);
+    lv_label_set_text(title, "@PROJECT_NAME@");
+    lv_obj_set_style_text_font(title, lv_nativeforge_font(28), 0);
     /* A long project name continues on the next line instead of running off the screen. */
     lv_obj_set_width(title, lv_pct(100));
     lv_label_set_long_mode(title, LV_LABEL_LONG_MODE_WRAP);

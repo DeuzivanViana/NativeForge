@@ -105,13 +105,13 @@ void onKey(lv_event_t* e) {
 } // namespace
 
 int main(int, char*[]) {
-    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_AUTO) == nullptr) return 1;
+    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_PIXELS) == nullptr) return 1;
     lv_obj_t* screen = lv_screen_active();
     lv_theme_default_init(lv_display_get_default(), lv_palette_main(LV_PALETTE_ORANGE),
                           lv_palette_main(LV_PALETTE_GREY), true, lv_theme_get_font_normal(nullptr));
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(screen, 12, 0);
-    lv_obj_set_style_pad_row(screen, 12, 0);
+    lv_obj_set_style_pad_all(screen, LV_DPX(12), 0);
+    lv_obj_set_style_pad_row(screen, LV_DPX(12), 0);
 
     // Display: the pending operation on the left, the number right-aligned in a large font.
     lv_obj_t* panel = lv_obj_create(screen);
@@ -119,22 +119,22 @@ int main(int, char*[]) {
     lv_obj_set_scrollable(panel, false);
     operation = lv_label_create(panel);
     lv_label_set_text(operation, "");
-    lv_obj_set_style_text_font(operation, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(operation, lv_nativeforge_font(24), 0);
     lv_obj_align(operation, LV_ALIGN_TOP_LEFT, 0, 0);
     display = lv_label_create(panel);
     lv_label_set_text(display, "0");
     lv_obj_set_width(display, lv_pct(100));
     lv_obj_set_style_text_align(display, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_style_text_font(display, &lv_font_montserrat_48, 0);
-    lv_obj_set_style_pad_top(display, 28, 0);
+    lv_obj_set_style_text_font(display, lv_nativeforge_font(48), 0);
+    lv_obj_set_style_pad_top(display, LV_DPX(28), 0);
 
     lv_obj_t* matrix = lv_buttonmatrix_create(screen);
     lv_buttonmatrix_set_map(matrix, keys);
     lv_obj_set_width(matrix, lv_pct(100));
     lv_obj_set_flex_grow(matrix, 1);
-    lv_obj_set_style_text_font(matrix, &lv_font_montserrat_28, 0);
-    lv_obj_set_style_pad_all(matrix, 6, 0);
-    lv_obj_set_style_pad_gap(matrix, 10, 0);
+    lv_obj_set_style_text_font(matrix, lv_nativeforge_font(28), 0);
+    lv_obj_set_style_pad_all(matrix, LV_DPX(6), 0);
+    lv_obj_set_style_pad_gap(matrix, LV_DPX(10), 0);
     lv_obj_add_event_cb(matrix, onKey, LV_EVENT_VALUE_CHANGED, nullptr);
 
     lv_nativeforge_run();
