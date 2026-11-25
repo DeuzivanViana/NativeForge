@@ -241,16 +241,26 @@ object ProjectTemplates {
         SimpleTemplate(
             id = "voxel-sandbox",
             displayName = "Voxel sandbox",
-            description = "raylib + Box3D: walk a block world, throw physical things.",
-            details = "A first-person block world made from noise, with lakes, beaches, trees and snowy peaks. " +
-                "Walk with the on-screen pad, drag to look, jump (one-block steps are climbed by themselves) and " +
-                "throw balls, crates, barrels, planks and bombs from the hotbar: Box3D makes them roll, float and " +
-                "explode. The terrain is one collision mesh with only the visible faces; keyboard and mouse work too.",
+            description = "raylib + Box3D: an endless block world to build in and throw things around.",
+            details = "A first-person block world without end, made from noise as you walk: seas, beaches, " +
+                "forests and snowy peaks. Walk, run, jump, sneak, swim and fly with block-game movement; break " +
+                "blocks, place them, or punch things with your bare hand. A creative inventory holds every block " +
+                "and ten physical things (balls, crates, barrels, dominoes, tyres, bombs that blow craters...) " +
+                "that Box3D makes roll, float and topple. Split into a few files; keyboard and mouse work too.",
             category = TemplateCategory.EXAMPLE,
             runtime = RuntimeKind.NATIVE_ACTIVITY,
             languages = listOf(Language.CPP),
             packages = listOf("raylib", "box3d"),
-            sources = { mapOf("src/main.cpp" to TemplateResources.read("voxel-sandbox/main.cpp")) },
+            sources = {
+                mapOf(
+                    "src/main.cpp" to TemplateResources.read("voxel-sandbox/main.cpp"),
+                    "src/game.hpp" to TemplateResources.read("voxel-sandbox/game.hpp"),
+                    "src/world.cpp" to TemplateResources.read("voxel-sandbox/world.cpp"),
+                    "src/player.cpp" to TemplateResources.read("voxel-sandbox/player.cpp"),
+                    "src/things.cpp" to TemplateResources.read("voxel-sandbox/things.cpp"),
+                    "src/ui.cpp" to TemplateResources.read("voxel-sandbox/ui.cpp"),
+                )
+            },
         ),
         SimpleTemplate(
             id = "lvgl-widgets-demo",

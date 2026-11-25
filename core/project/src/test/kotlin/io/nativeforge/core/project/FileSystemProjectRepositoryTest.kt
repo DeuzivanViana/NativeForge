@@ -127,6 +127,11 @@ class FileSystemProjectRepositoryTest {
         val source = generated.files.getValue("src/main.cpp")
         assertTrue("#include <box3d/box3d.h>" in source)
         assertTrue("InitWindow(0, 0, \"Blocks\")" in source)
+        // Split into parts that share one header; the built-in build compiles every file in src/.
+        val parts = listOf("game.hpp", "world.cpp", "player.cpp", "things.cpp", "ui.cpp")
+        for (part in parts) assertTrue("src/$part" in generated.files, part)
+        for (part in parts.drop(1) + "main.cpp") assertTrue("#include \"game.hpp\"" in generated.files.getValue("src/$part"), part)
+        assertTrue(generated.files.values.none { "@PROJECT_NAME@" in it })
         assertEquals(listOf("raylib", "box3d"), generated.config.packages)
         // Listed right after the other Box3D example in the New project screen.
         val ids = ProjectTemplates.all.map { it.id }

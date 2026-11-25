@@ -52,12 +52,14 @@ and build output, with the graphical program streamed from the phone.
 
 ### Example: voxel sandbox (raylib + Box3D)
 
-A block world made from noise that you walk through with on-screen controls, throwing
-balls, crates, barrels and bombs from the hotbar; Box3D makes them roll, float and explode.
-One of the example projects in New project.
+An endless block world made from noise as you walk: seas, beaches, forests and snowy peaks.
+Walk, run, sneak, swim and fly with on-screen controls; break and place blocks, punch things
+with your bare hand, and throw balls, crates, barrels, dominoes, tyres and bombs (which blow
+craters) from a creative inventory. Box3D makes them roll, float and topple. One of the
+example projects in New project, split into a few files.
 
 <p align="center">
-  <img src="docs/screenshots/voxel-sandbox.png" width="100%" alt="Voxel sandbox example: a lake shore with floating crates, beach balls and barrels thrown from the hotbar">
+  <img src="docs/screenshots/voxel-sandbox.png" width="100%" alt="Voxel sandbox example: a beach with barrels, crates and a beach ball floating in the water, a tyre on the sand and the hotbar below">
 </p>
 
 ## Features
