@@ -14,17 +14,40 @@ touch screen or with a physical keyboard and mouse, using VS Code shortcuts.
 
 ## Screenshots
 
+### Editor and projects
+
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_editor.jpg" width="200" alt="Editor with the command palette">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_physics_3d.jpg" width="200" alt="3D physics example (raylib + Box3D)">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_new_project.jpg" width="200" alt="New project: templates">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_examples.jpg" width="200" alt="Example projects and build options">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1_editor.jpg" width="200" alt="Editor with clangd, shortcut and symbol bars">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2_projects.jpg" width="200" alt="Recent projects with language, build system and libraries">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3_new_project.jpg" width="200" alt="New project: console and graphics templates">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4_new_project_options.jpg" width="200" alt="New project: examples, language, standard and build system">
+</p>
+
+### Libraries and assets
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_project_libraries.jpg" width="200" alt="Project libraries: link any number of libraries">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6_packages.jpg" width="200" alt="Packages: Android and Termux libraries">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7_model_viewer.jpg" width="200" alt="Asset viewer: glTF 3D model preview">
+</p>
+
+### Export
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8_export.jpg" width="200" alt="Export: app name, package id, version, icon and display">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/9_export_signing.jpg" width="200" alt="Export: permissions, APK or App Bundle, signing key and WebAssembly">
+</p>
+
+### Remote access from a computer's browser
+
+The same IDE on a computer, connected to the phone over Wi-Fi: editor, explorer
+and build output, with the graphical program streamed from the phone.
+
+<p align="center">
+  <img src="docs/screenshots/remote-particles.png" width="100%" alt="Particles example (raylib + EnTT) running from the browser">
 </p>
 <p align="center">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/5_export_apk.jpg" width="200" alt="Export as APK or App Bundle">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6_packages.jpg" width="200" alt="Packages">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7_themes.jpg" width="200" alt="App and editor themes">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8_settings.jpg" width="200" alt="Settings">
+  <img src="docs/screenshots/remote-box3d.png" width="100%" alt="3D physics example (raylib + Box3D) running from the browser">
 </p>
 
 ## Features
