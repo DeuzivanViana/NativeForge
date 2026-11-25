@@ -23,6 +23,16 @@ class ClangToolchain(
     override val make: File get() = File(layout.binDir, "make")
     override val shell: File get() = File("/system/bin/sh")
 
+    /** Termux's `ccache` package, when the user installed it. */
+    override val compilerCache: File? get() = File(layout.binDir, "ccache").takeIf { it.isFile }
+
+    override val supportsSplitDwarf: Boolean get() = true
+
+    /** `ld.lld` comes with the `lld` package of [REQUIRED_PACKAGES]. */
+    private val hasLld: Boolean get() = File(layout.binDir, "ld.lld").exists()
+
+    override val supportsThinLto: Boolean get() = hasLld
+
     /**
      * clang reads `<driver>.cfg` next to its binary. Writing the sysroot there means
      * `clang` works even when Makefiles, build.ninja files or CMake projects replace
@@ -72,6 +82,12 @@ class ClangToolchain(
         "TERMUX_PREFIX" to layout.prefix.path,
         // Colored diagnostics are parsed from plain text; keep them off for tools.
         "CLICOLOR_FORCE" to "0",
+        // ccache (when installed): a bounded cache in the app's home. Precompiled headers and
+        // __DATE__/__TIME__ would otherwise make every compile that uses them a miss.
+        "CCACHE_DIR" to File(layout.homeDir, ".cache/ccache").path,
+        "CCACHE_MAXSIZE" to CCACHE_MAX_SIZE,
+        "CCACHE_SLOPPINESS" to "pch_defines,time_macros",
+        "CCACHE_TEMPDIR" to layout.tmpDir.path,
     )
 
     override fun baseCompileFlags(): List<String> = listOf(
@@ -80,12 +96,14 @@ class ClangToolchain(
         "-fdiagnostics-color=never",
     )
 
-    override fun baseLinkFlags(): List<String> = listOf(
-        "--target=${abi.targetTriple}$apiLevel",
-        "--sysroot=${layout.sysroot.path}",
-        "-L${layout.libDir.path}",
-        "-Wl,-rpath,${layout.libDir.path}",
-    )
+    override fun baseLinkFlags(): List<String> = buildList {
+        add("--target=${abi.targetTriple}$apiLevel")
+        add("--sysroot=${layout.sysroot.path}")
+        add("-L${layout.libDir.path}")
+        add("-Wl,-rpath,${layout.libDir.path}")
+        // lld links on several threads and does ThinLTO itself; say so even if clang's default changes.
+        if (hasLld) add("-fuse-ld=lld")
+    }
 
     override fun runtimeLibraries(): List<File> = listOf(File(layout.libDir, "libc++_shared.so"))
 
@@ -97,7 +115,10 @@ class ClangToolchain(
     companion object {
         const val DEFAULT_API_LEVEL = 24
 
+        /** Upper bound of the ccache folder; ccache evicts the oldest entries beyond it. */
+        const val CCACHE_MAX_SIZE = "512M"
+
         /** Termux packages that make up a complete toolchain (names as in the Termux main repository). */
-        val REQUIRED_PACKAGES = listOf("clang", "lld", "cmake", "ninja", "make", "pkg-config", "ndk-sysroot", "libc++")
+        val REQUIRED_PACKAGES = listOf("clang", "lld", "cmake", "ninja", "make", "pkg-config", "ndk-sysroot", "libc++", "ccache")
     }
 }

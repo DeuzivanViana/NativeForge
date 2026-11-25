@@ -2,6 +2,7 @@ package io.nativeforge.core.build
 
 import io.nativeforge.core.build.model.BuildRequest
 import io.nativeforge.core.build.system.CompilerFlags
+import io.nativeforge.core.common.SafeFiles
 import io.nativeforge.core.project.model.BuildSystemKind
 import io.nativeforge.core.project.model.Language
 import io.nativeforge.core.project.model.SourceFiles
@@ -24,7 +25,7 @@ object CompileDatabase {
         val toolchain = request.toolchain
         val root = if (project.config.buildSystem == BuildSystemKind.SINGLE) project.sourceDirectory else project.root
         val sources = if (root.isDirectory) SourceFiles.collectSources(root) else emptyList()
-        val flags = CompilerFlags.compile(request) + includeFolders(request)
+        val flags = CompilerFlags.compile(request) + includeFolders(request) + precompiledHeaderInclude(request)
         return sources.filterNot(SourceFiles::isAssembly).map { source ->
             val isCpp = SourceFiles.isCppSource(source)
             val arguments = buildList {
@@ -35,6 +36,17 @@ object CompileDatabase {
             }
             CompileCommand(project.root, source, arguments)
         }
+    }
+
+    /**
+     * The built-in build loads the precompiled header into every source (-include-pch);
+     * clangd gets the same header with -include, so it sees the same declarations.
+     */
+    private fun precompiledHeaderInclude(request: BuildRequest): List<String> {
+        if (request.project.config.buildSystem != BuildSystemKind.SINGLE) return emptyList()
+        val path = request.project.config.precompiledHeader?.takeIf { it.isNotBlank() } ?: return emptyList()
+        val header = SafeFiles.resolveInside(request.project.root, path)?.takeIf { it.isFile } ?: return emptyList()
+        return listOf("-include", header.path)
     }
 
     /** The database CMake wrote during the last configure, or null. */

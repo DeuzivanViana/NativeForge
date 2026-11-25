@@ -4,7 +4,12 @@ import io.nativeforge.core.toolchain.Abi
 import io.nativeforge.core.toolchain.Toolchain
 import java.io.File
 
-class FakeToolchain(private val root: File) : Toolchain {
+class FakeToolchain(
+    private val root: File,
+    override val compilerCache: File? = null,
+    override val supportsSplitDwarf: Boolean = false,
+    override val supportsThinLto: Boolean = false,
+) : Toolchain {
     override val abi = Abi.ARM64_V8A
     override val apiLevel = 24
     override val cCompiler = File(root, "bin/clang")

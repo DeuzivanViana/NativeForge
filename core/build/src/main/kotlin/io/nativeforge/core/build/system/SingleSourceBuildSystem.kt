@@ -18,6 +18,10 @@ import java.io.File
  * Builds are incremental. Each object is rebuilt only when its source, one of
  * the headers recorded in its clang depfile (`-MMD`), or the compile flags changed.
  * Sources are compiled on several cores at once; only the link waits for all of them.
+ *
+ * Optional speed-ups: ccache in front of the compiler when installed ([CompilerCache]), a
+ * precompiled header ([io.nativeforge.core.project.model.ProjectConfig.precompiledHeader]),
+ * and ThinLTO with a cache for release builds when the linker is lld.
  */
 class SingleSourceBuildSystem(
     private val upToDate: IncrementalChecker = IncrementalChecker(),
@@ -37,23 +41,59 @@ class SingleSourceBuildSystem(
         require(sources.isNotEmpty()) { "No C/C++ source files found in ${project.sourceDirectory}" }
 
         val env = toolchain.environment()
-        val commonFlags = CompilerFlags.compile(request)
+        val thinLto = CompilerFlags.usesThinLto(request)
+        val commonFlags = CompilerFlags.compile(request) + if (thinLto) listOf("-flto=thin") else emptyList()
         val usesCpp = project.config.language == Language.CPP || sources.any(SourceFiles::isCppSource)
 
         val steps = mutableListOf<BuildStep>()
+
+        // The precompiled header, once per language in use: a C++ PCH cannot serve C files.
+        // Built before the objects (not parallel), which then load it with -include-pch.
+        val header = precompiledHeader(request)
+        val pchFiles = mutableMapOf<Boolean, File>()
+        var pchRebuilt = false
+        if (header != null) {
+            sources.filterNot(SourceFiles::isAssembly).map(SourceFiles::isCppSource).distinct().sorted().forEach { isCpp ->
+                val pch = File(objectDir, "pch/${header.name}.${if (isCpp) "cxx" else "c"}.pch")
+                val depFile = File(pch.path + ".d")
+                val command = buildList {
+                    add((if (isCpp) toolchain.cxxCompiler else toolchain.cCompiler).path)
+                    addAll(commonFlags)
+                    languageStandard(request, isCpp)?.let { add("-std=$it") }
+                    addAll(listOf("-x", if (isCpp) "c++-header" else "c-header", header.path))
+                    // No build time inside the PCH: ccache can then reuse objects compiled with it.
+                    addAll(listOf("-Xclang", "-fno-pch-timestamp"))
+                    addAll(listOf("-MMD", "-MF", depFile.path, "-o", pch.path))
+                }
+                if (!upToDate.isObjectUpToDate(header, pch, depFile, command)) {
+                    steps += BuildStep("Precompiling ${header.name}" + if (isCpp) " (C++)" else " (C)", ProcessSpec(command, project.root, env))
+                    upToDate.recordPending(pch, command)
+                    pchRebuilt = true
+                }
+                pchFiles[isCpp] = pch
+            }
+        }
+
         val objects = sources.map { source ->
             val relative = source.relativeTo(project.sourceDirectory).path
             val objectFile = File(objectDir, "$relative.o")
             val depFile = File(objectDir, "$relative.d")
             val isCpp = SourceFiles.isCppSource(source)
             val compiler = if (isCpp) toolchain.cxxCompiler else toolchain.cCompiler
-            val command = buildList {
-                add(compiler.path)
-                addAll(commonFlags)
-                languageStandard(request, isCpp)?.let { add("-std=$it") }
-                addAll(listOf("-MMD", "-MF", depFile.path, "-c", source.path, "-o", objectFile.path))
-            }
-            if (!upToDate.isObjectUpToDate(source, objectFile, depFile, command)) {
+            val pch = if (SourceFiles.isAssembly(source)) null else pchFiles[isCpp]
+            val command = CompilerCache.wrap(
+                request,
+                buildList {
+                    add(compiler.path)
+                    addAll(commonFlags)
+                    languageStandard(request, isCpp)?.let { add("-std=$it") }
+                    pch?.let { addAll(listOf("-include-pch", it.path)) }
+                    addAll(listOf("-MMD", "-MF", depFile.path, "-c", source.path, "-o", objectFile.path))
+                },
+            )
+            val stale = (pch != null && pchRebuilt) ||
+                !upToDate.isObjectUpToDate(source, objectFile, depFile, command, listOfNotNull(pch))
+            if (stale) {
                 steps += BuildStep(
                     description = "Compiling $relative",
                     process = ProcessSpec(command, project.root, env),
@@ -70,6 +110,11 @@ class SingleSourceBuildSystem(
             addAll(objects.map { it.path })
             add("-o")
             add(artifactFile.path)
+            if (thinLto) {
+                add("-flto=thin")
+                // Unchanged modules are not optimized again on the next release link.
+                add("-Wl,--thinlto-cache-dir=${File(objectDir, "thinlto-cache").path}")
+            }
             addAll(CompilerFlags.link(request))
         }
         if (steps.isNotEmpty() || !upToDate.isLinkUpToDate(artifactFile, objects, linkCommand)) {
@@ -80,9 +125,19 @@ class SingleSourceBuildSystem(
         return BuildPlan(
             steps = steps,
             artifact = BuildArtifact(artifactFile, CompilerFlags.artifactKind(request), CompilerFlags.runtimeLibraries(request)),
-            // At most 4: each clang can take several hundred MB on a phone.
-            parallelJobs = toolchain.parallelJobs.coerceAtMost(4),
+            // Cores, limited by free memory: each clang can take several hundred MB on a phone.
+            parallelJobs = toolchain.parallelJobs,
         )
+    }
+
+    /** The configured precompiled header, or null. It must exist inside the project. */
+    private fun precompiledHeader(request: BuildRequest): File? {
+        val path = request.project.config.precompiledHeader?.takeIf { it.isNotBlank() } ?: return null
+        val file = requireNotNull(SafeFiles.resolveInside(request.project.root, path)) {
+            "The precompiled header must be inside the project: $path"
+        }
+        require(file.isFile) { "Precompiled header not found: $path (Build settings)" }
+        return file
     }
 
     private fun languageStandard(request: BuildRequest, isCpp: Boolean): String? {
@@ -102,10 +157,17 @@ class SingleSourceBuildSystem(
  */
 class IncrementalChecker {
 
-    fun isObjectUpToDate(source: File, objectFile: File, depFile: File, command: List<String>): Boolean {
+    /** [extraInputs]: files the depfile may not list, such as a precompiled header. */
+    fun isObjectUpToDate(
+        source: File,
+        objectFile: File,
+        depFile: File,
+        command: List<String>,
+        extraInputs: List<File> = emptyList(),
+    ): Boolean {
         if (!objectFile.isFile || !depFile.isFile || !commandMatches(objectFile, command)) return false
         val outputTime = objectFile.lastModified()
-        val inputs = parseDepFile(depFile.readText()).map(::File) + source
+        val inputs = parseDepFile(depFile.readText()).map(::File) + source + extraInputs
         return inputs.all { it.isFile && it.lastModified() <= outputTime }
     }
 

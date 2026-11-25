@@ -29,4 +29,22 @@ class ClangToolchainTest {
         assertEquals(Abi.ARM64_V8A, Abi.preferred(listOf("arm64-v8a", "armeabi-v7a")))
         assertEquals(Abi.X86_64, Abi.preferred(listOf("mips", "x86_64")))
     }
+
+    @Test
+    fun `lld, ccache and their settings are picked up from the prefix`() {
+        val files = java.nio.file.Files.createTempDirectory("nf-clang").toFile()
+        val local = ToolchainLayout(files)
+        val clang = ClangToolchain(local, Abi.ARM64_V8A)
+        kotlin.test.assertNull(clang.compilerCache)
+        kotlin.test.assertFalse(clang.supportsThinLto)
+        kotlin.test.assertFalse("-fuse-ld=lld" in clang.baseLinkFlags())
+
+        local.binDir.mkdirs()
+        File(local.binDir, "ccache").writeText("")
+        File(local.binDir, "ld.lld").writeText("")
+        assertEquals(File(local.binDir, "ccache"), clang.compilerCache)
+        assertTrue(clang.supportsThinLto)
+        assertTrue("-fuse-ld=lld" in clang.baseLinkFlags())
+        assertEquals(File(local.homeDir, ".cache/ccache").path, clang.environment()["CCACHE_DIR"])
+    }
 }
