@@ -70,6 +70,26 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+  # Compiles and links the full-screen examples with the NDK against the bundled libraries, the
+  # way the phone builds them (see .github/scripts/compile-examples.py). No Gradle needed.
+  examples:
+    name: Examples compile (NDK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the NDK used by the app
+        run: |
+          ndk="$ANDROID_HOME/ndk/27.2.12479018"
+          if [ ! -x "$ndk/ndk-build" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.2.12479018" > /dev/null
+          fi
+          echo "ANDROID_NDK_HOME=$ndk" >> "$GITHUB_ENV"
+
+      - name: Compile the examples
+        run: python3 .github/scripts/compile-examples.py
+
   # Installs bundled libraries and the Termux toolchain with the APK above on an emulator, then
   # builds and runs a C program with that clang (see .github/scripts/install-smoke.sh). Catches
   # what unit tests cannot: R8 removing code the installer needs, assets missing from the APK,

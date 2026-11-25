@@ -239,6 +239,20 @@ object ProjectTemplates {
             sources = { mapOf("src/main.cpp" to TemplateResources.read("raylib-3d-physics/main.cpp")) },
         ),
         SimpleTemplate(
+            id = "voxel-sandbox",
+            displayName = "Voxel sandbox",
+            description = "raylib + Box3D: walk a block world, throw physical things.",
+            details = "A first-person block world made from noise, with lakes, beaches, trees and snowy peaks. " +
+                "Walk with the on-screen pad, drag to look, jump (one-block steps are climbed by themselves) and " +
+                "throw balls, crates, barrels, planks and bombs from the hotbar: Box3D makes them roll, float and " +
+                "explode. The terrain is one collision mesh with only the visible faces; keyboard and mouse work too.",
+            category = TemplateCategory.EXAMPLE,
+            runtime = RuntimeKind.NATIVE_ACTIVITY,
+            languages = listOf(Language.CPP),
+            packages = listOf("raylib", "box3d"),
+            sources = { mapOf("src/main.cpp" to TemplateResources.read("voxel-sandbox/main.cpp")) },
+        ),
+        SimpleTemplate(
             id = "lvgl-widgets-demo",
             displayName = "LVGL widgets demo",
             description = "LVGL's showcase: forms, charts and a shop page.",

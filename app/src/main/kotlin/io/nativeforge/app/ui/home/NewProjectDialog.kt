@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -360,6 +361,7 @@ private fun templateIcon(template: ProjectTemplate): ImageVector = when (templat
     "opengles" -> Icons.Filled.Gradient
     "raylib-physics" -> Icons.Filled.Category
     "raylib-3d-physics" -> Icons.Filled.ViewInAr
+    "voxel-sandbox" -> Icons.Filled.Terrain
     "lvgl" -> Icons.Filled.Widgets
     "lvgl-widgets-demo" -> Icons.Filled.Apps
     "lvgl-tasks" -> Icons.Filled.Checklist
