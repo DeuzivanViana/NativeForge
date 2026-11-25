@@ -40,6 +40,8 @@ interface EditorIntelligence {
 internal class IntelligentLanguage(
     private val base: Language,
     private val path: String,
+    /** Replaces the base language's analyzer (highlighting), or null to keep it. */
+    private val analyzer: AnalyzeManager?,
     private val intelligence: () -> EditorIntelligence?,
 ) : Language {
 
@@ -66,7 +68,7 @@ internal class IntelligentLanguage(
         publisher.addItems(result.items.map { LspEditorCompletionItem(it, prefix.length) })
     }
 
-    override fun getAnalyzeManager(): AnalyzeManager = base.analyzeManager
+    override fun getAnalyzeManager(): AnalyzeManager = analyzer ?: base.analyzeManager
     override fun getInterruptionLevel(): Int = base.interruptionLevel
     override fun getIndentAdvance(content: ContentReference, line: Int, column: Int): Int = base.getIndentAdvance(content, line, column)
     override fun getIndentAdvance(content: ContentReference, line: Int, column: Int, spaceCountOnLine: Int, tabCountOnLine: Int): Int =

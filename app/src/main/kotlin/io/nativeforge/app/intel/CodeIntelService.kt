@@ -170,8 +170,12 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
         job.invokeOnCompletion { pendingSync.remove(path, job) }
     }
 
-    fun opened(path: String, text: String) {
+    fun opened(path: String, text: String) = opened(path) { text }
+
+    /** Like [opened], but copies the text only for files clangd reads (not a big log or data file). */
+    fun opened(path: String, text: () -> String) {
         if (!ClangdSession.supports(File(path))) return
+        val text = text()
         texts[path] = text
         scope.launch(Dispatchers.IO) { withSession { it.sync(File(path), text) } }
     }
