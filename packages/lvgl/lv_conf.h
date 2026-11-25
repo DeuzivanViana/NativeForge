@@ -51,7 +51,7 @@
 #define LV_CACHE_DEF_SIZE (4 * 1024 * 1024)
 #define LV_IMAGE_HEADER_CACHE_DEF_CNT 16
 
-/* Built-in fonts. Pick a size from the screen density (see the templates). */
+/* Built-in fonts. lv_nativeforge_font(dp) picks one for the screen density (see the templates). */
 #define LV_FONT_MONTSERRAT_12 1
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_16 1

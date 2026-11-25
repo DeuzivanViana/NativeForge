@@ -91,12 +91,13 @@ when updating `SDL2_VERSION`.
 | sdl3, sdl3-image, sdl3-ttf, sdl3-mixer | shared | satellites depend on sdl3 and are preloaded after it |
 | sdl2, sdl2-image, sdl2-ttf, sdl2-mixer | shared | SDL 2.32 for older code; JNI glue relocated to `org.libsdl.sdl2` |
 | imgui | static | Dear ImGui core and backends for SDL2/SDL3, SDL renderer, OpenGL ES 3, Vulkan, Android |
-| lvgl | static | LVGL 9.6 on the SDL2 driver (depends on sdl2), widgets demo, `lv_nativeforge.h` for a full screen, density-scaled display with touch and keyboard; configuration in `packages/lvgl/lv_conf.h` |
+| lvgl | static | LVGL 9.6 on the SDL2 driver (depends on sdl2), widgets demo, `lv_nativeforge.h` for a full screen display (sharp at the screen's own resolution with `LV_NATIVEFORGE_SCALE_PIXELS`, or in dp scaled up), touch, keyboard and `lv_nativeforge_font()` (Montserrat at any dp size); configuration in `packages/lvgl/lv_conf.h` |
 | vulkan | headers + stub | Vulkan headers from the NDK and a `libvulkan.so` link stub |
 | raylib, raygui | static / header | raylib links with `-Wl,--wrap=fopen`; `libraylib.a` also carries a `__real_fopen` fallback |
 | sfml | shared | graphics, window, audio, network, system |
 | box2d, box3d, lua | static | Box3D 0.1 is an alpha C API; SIMD is off on armeabi-v7a |
 | sqlite3 | static | SQLite 3 with FTS5, R*Tree, JSON and math functions; `find_package(SQLite3)` works through CMake's own module. The amalgamation is generated from the canonical sources with the host `cc` (SQLite's configure builds its own jimsh, so no Tcl) |
+| ncursesw | static | ncurses 6.6 with wide characters (`-lncursesw`, panel, menu and form). No terminfo database: `xterm-256color`, `xterm`, `vt100`, `linux` and `dumb` are compiled in (`--with-fallbacks`, generated with `tic`/`infocmp` built from the same sources), so text UIs also run in exported apps |
 | native-app-glue, opengles | static / headers | raw NativeActivity + EGL/GLES programs |
 | glm, nlohmann-json, entt, stb, miniaudio | header-only | one archive for every ABI (`architecture: all`) |
 

@@ -123,9 +123,7 @@ fun HomeScreen(
                 title = "NativeForge",
                 subtitle = "C/C++ on Android",
                 actions = {
-                    ToolbarIconButton(Icons.Filled.Add, "New project", { showNewProject = true }, tint = MaterialTheme.colorScheme.primary)
-                    ToolbarIconButton(Icons.Filled.FolderOpen, "Open folder", { pickFolder(FolderPurpose.OPEN_PROJECT) })
-                    ToolbarIconButton(Icons.Filled.Download, "Clone repository", { showClone = true })
+                    // App-wide tools only: the project actions (new, open, clone) live once, in the content below.
                     ToolbarIconButton(Icons.Filled.Terminal, "Terminal", { ProgramRunner.openShell(context, container) })
                     ToolbarIconButton(Icons.Filled.Inventory2, "Packages", onOpenPackages)
                     ToolbarIconButton(
@@ -147,11 +145,12 @@ fun HomeScreen(
                     onClone = { showClone = true },
                 )
             } else {
-                SectionHeader("Recent projects · ${state.projects.size}") {
-                    ToolbarIconButton(Icons.Filled.FolderOpen, "Open folder", { pickFolder(FolderPurpose.OPEN_PROJECT) })
-                    ToolbarIconButton(Icons.Filled.Download, "Clone repository", { showClone = true })
-                    ToolbarIconButton(Icons.Filled.Add, "New project", { showNewProject = true })
-                }
+                ProjectActions(
+                    onNewProject = { showNewProject = true },
+                    onOpenFolder = { pickFolder(FolderPurpose.OPEN_PROJECT) },
+                    onClone = { showClone = true },
+                )
+                SectionHeader("Recent projects · ${state.projects.size}")
                 LazyColumn(
                     Modifier.fillMaxSize().navigationBarsPadding(),
                     contentPadding = PaddingValues(start = 10.dp, end = 10.dp, bottom = 16.dp),
@@ -298,6 +297,32 @@ private fun ToolchainBanner(status: ToolchainStatus, onInstall: () -> Unit) {
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+}
+
+/** The three ways to start a project, as one row of labeled buttons above the project list. */
+@Composable
+private fun ProjectActions(onNewProject: () -> Unit, onOpenFolder: () -> Unit, onClone: () -> Unit) {
+    val padding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+    Row(
+        Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilledTonalButton(onClick = onNewProject, shape = MaterialTheme.shapes.small, contentPadding = padding, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("New", maxLines = 1, softWrap = false)
+        }
+        OutlinedButton(onClick = onOpenFolder, shape = MaterialTheme.shapes.small, contentPadding = padding, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Open", maxLines = 1, softWrap = false)
+        }
+        OutlinedButton(onClick = onClone, shape = MaterialTheme.shapes.small, contentPadding = padding, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Clone", maxLines = 1, softWrap = false)
+        }
+    }
 }
 
 /** Shown while there are no projects: what NativeForge does and the three ways to start. */

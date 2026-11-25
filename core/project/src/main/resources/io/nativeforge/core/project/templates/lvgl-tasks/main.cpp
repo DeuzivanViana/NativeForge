@@ -96,7 +96,7 @@ private:
         lv_obj_set_size(row, lv_pct(100), LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_all(row, 8, 0);
+        lv_obj_set_style_pad_all(row, LV_DPX(8), 0);
         lv_obj_set_scrollable(row, false);
 
         lv_obj_t *checkbox = lv_checkbox_create(row);
@@ -175,13 +175,13 @@ private:
     void buildTasksTab(lv_obj_t *tab)
     {
         lv_obj_set_flex_flow(tab, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_style_pad_row(tab, 10, 0);
+        lv_obj_set_style_pad_row(tab, LV_DPX(10), 0);
 
         lv_obj_t *bar = lv_obj_create(tab);
         lv_obj_remove_style_all(bar);
         lv_obj_set_size(bar, lv_pct(100), LV_SIZE_CONTENT);
         lv_obj_set_flex_flow(bar, LV_FLEX_FLOW_ROW);
-        lv_obj_set_style_pad_column(bar, 8, 0);
+        lv_obj_set_style_pad_column(bar, LV_DPX(8), 0);
         input_ = lv_textarea_create(bar);
         lv_textarea_set_one_line(input_, true);
         lv_textarea_set_max_length(input_, MAX_TEXT);
@@ -197,7 +197,7 @@ private:
         lv_obj_set_width(list_, lv_pct(100));
         lv_obj_set_flex_grow(list_, 1);
         lv_obj_set_flex_flow(list_, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_style_pad_row(list_, 6, 0);
+        lv_obj_set_style_pad_row(list_, LV_DPX(6), 0);
         lv_obj_set_scrollable(list_, true);
         for (Task &task : tasks_) addRow(task);
     }
@@ -208,19 +208,19 @@ private:
         lv_obj_set_flex_align(tab, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
         progressArc_ = lv_arc_create(tab);
-        lv_obj_set_size(progressArc_, 200, 200);
+        lv_obj_set_size(progressArc_, LV_DPX(200), LV_DPX(200));
         lv_arc_set_rotation(progressArc_, 135);
         lv_arc_set_bg_angles(progressArc_, 0, 270);
         lv_obj_set_clickable(progressArc_, false); // display only
-        lv_obj_set_style_arc_width(progressArc_, 18, LV_PART_MAIN);
-        lv_obj_set_style_arc_width(progressArc_, 18, LV_PART_INDICATOR);
+        lv_obj_set_style_arc_width(progressArc_, LV_DPX(18), LV_PART_MAIN);
+        lv_obj_set_style_arc_width(progressArc_, LV_DPX(18), LV_PART_INDICATOR);
         progressLabel_ = lv_label_create(progressArc_);
         lv_obj_set_style_text_align(progressLabel_, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_center(progressLabel_);
 
         lv_label_set_text(lv_label_create(tab), "History (done / open)");
         chart_ = lv_chart_create(tab);
-        lv_obj_set_size(chart_, lv_pct(95), 180);
+        lv_obj_set_size(chart_, lv_pct(95), LV_DPX(180));
         lv_chart_set_type(chart_, LV_CHART_TYPE_BAR);
         lv_chart_set_point_count(chart_, 12);
         doneSeries_ = lv_chart_add_series(chart_, lv_palette_main(LV_PALETTE_GREEN), LV_CHART_AXIS_PRIMARY_Y);
@@ -251,7 +251,7 @@ std::string dataFile(const char *name)
 
 int main(int, char *[])
 {
-    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_AUTO) == nullptr) return 1;
+    if (lv_nativeforge_init(LV_NATIVEFORGE_SCALE_PIXELS) == nullptr) return 1;
     static TaskApp app(dataFile("tasks.txt")); // lives until the program ends, like the screen
     app.build(lv_screen_active());
     lv_nativeforge_run();

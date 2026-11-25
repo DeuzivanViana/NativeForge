@@ -263,8 +263,11 @@ private fun EditorThemeList(selected: EditorTheme, onSelect: (EditorTheme) -> Un
 private fun EditorThemeRow(theme: EditorTheme, selected: Boolean, onClick: () -> Unit) {
     val context = LocalContext.current
     // Theme files are 10-70 KB of JSON each: parse them off the main thread so expanding the list doesn't stutter.
+    // produceState keeps its state across key changes, so a row reused for another theme (the collapsed row
+    // after an app-theme switch) would keep the old colors: reset to the new theme's cache before loading.
     val colors by produceState(EditorThemePreviews.cached(theme), theme) {
-        if (value == null) value = withContext(Dispatchers.IO) { EditorThemePreviews.colors(context, theme) }
+        value = EditorThemePreviews.cached(theme)
+            ?: withContext(Dispatchers.IO) { EditorThemePreviews.colors(context, theme) }
     }
     Row(
         Modifier
