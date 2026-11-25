@@ -2,6 +2,18 @@
 
 ## Unreleased — faster builds, a lighter IDE
 
+* Fixed: the app could close a few seconds after leaving a project (for example the
+  Box3D + Raylib example). Closing the project stops clangd; when clangd took more than a
+  second to exit (still building a big file) it was killed, which closes its stderr pipe
+  under the thread reading it, and that thread's "Stream closed" exception ended the app.
+  Threads reading or writing process pipes (clangd, clang-format) and the file watcher
+  now end quietly (`BackgroundThreads`).
+* Crash reports kept on the phone: Kotlin/Java exceptions (uncaught exception handler),
+  native crashes (a small signal handler, `libnativeforge_crash.so`, that writes the
+  signal and backtrace and then passes the signal on to Android) and, on Android 11+,
+  Android's own exit records (native crash tombstones on 12+, "not responding" traces,
+  kills for low memory while on screen). After a crash the next start shows the report
+  with Share and Copy; all reports are in Settings › Crash reports. Nothing is sent.
 * CMake: NativeForge's own variables (compilers, flags, `NATIVEFORGE_*`) go in an
   initial-cache script (`-C build/<type>/nativeforge-init.cmake`) instead of `-D` options,
   so CMake no longer warns about the ones a project ignores, without the deprecated

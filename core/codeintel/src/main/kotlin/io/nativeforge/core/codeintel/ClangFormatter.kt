@@ -1,5 +1,6 @@
 package io.nativeforge.core.codeintel
 
+import io.nativeforge.core.common.process.BackgroundThreads
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -39,9 +40,11 @@ class ClangFormatter(
             .apply { environment().putAll(environment) }
             .start()
         val input = text.toByteArray(Charsets.UTF_8)
-        val writer = Thread { process.outputStream.use { it.write(input) } }.apply { isDaemon = true; start() }
-        val errors = StringBuilder()
-        val errorReader = Thread { errors.append(process.errorStream.bufferedReader().readText()) }.apply { isDaemon = true; start() }
+        // Not plain threads: clang-format exiting before it read everything (a bad style) makes
+        // the write fail with "Broken pipe", and an uncaught exception would end the app.
+        val writer = BackgroundThreads.writeAndClose(process.outputStream, input, "clang-format-input")
+        val errors = StringBuffer()
+        val errorReader = BackgroundThreads.drainLines(process.errorStream, "clang-format-errors") { errors.appendLine(it) }
         val output = process.inputStream.bufferedReader().readText()
         if (!process.waitFor(30, TimeUnit.SECONDS)) {
             process.destroy()

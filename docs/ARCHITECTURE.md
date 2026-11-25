@@ -223,6 +223,18 @@ documents in sync (debounced full-text changes), exposes diagnostics as a
 completion. clang-format runs as a separate process with
 `--output-replacements-xml`; its byte offsets are converted to UTF-16.
 
+### Crash reports
+
+An exception that escapes any thread ends an Android app, so threads around process
+pipes (which throw "Stream closed" or "Broken pipe" when a process is stopped) are
+started with `core/common`'s `BackgroundThreads`, never as plain threads. Crashes that
+still happen are kept on the device: `CrashReportStore` (`core/common`, plain text files
+in `files/crashes/`) is filled by the app's `CrashReporter` from an uncaught exception
+handler, from `feature/runner`'s native signal handler (`nf_crash_handler.c`, IDE
+process only; it chains to debuggerd so tombstones still happen) and, on Android 11+,
+from `ApplicationExitInfo` (tombstones decoded by `TombstoneDecoder`). The next start
+shows new reports; Settings lists them. Nothing is uploaded.
+
 ### Asset viewer
 
 `core/assets` holds pure-JVM parsers (OBJ, STL, PLY, glTF/GLB, TGA) so they can

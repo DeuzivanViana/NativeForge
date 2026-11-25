@@ -11,6 +11,7 @@ import io.nativeforge.core.lsp.LspDiagnostic
 import io.nativeforge.core.lsp.Position
 import io.nativeforge.core.lsp.TextEdit
 import io.nativeforge.core.lsp.WorkspaceEdit
+import io.nativeforge.core.common.process.BackgroundThreads
 import io.nativeforge.core.project.model.BuildSystemKind
 import io.nativeforge.core.toolchain.BuildParallelism
 import java.io.File
@@ -78,14 +79,14 @@ class ClangdSession private constructor(
 
     init {
         client.onDiagnostics = { uri, list -> DocumentUri.toFile(uri)?.let { onDiagnostics(it, list) } }
-        Thread({
-            process.errorStream.bufferedReader().forEachLine { line ->
-                synchronized(stderrTail) {
-                    stderrTail.addLast(line)
-                    while (stderrTail.size > 50) stderrTail.removeFirst()
-                }
+        // Must never throw: stop() destroys clangd, which closes this pipe under the reader
+        // ("Stream closed"), and an exception escaping any thread ends the Android app.
+        BackgroundThreads.drainLines(process.errorStream, "clangd-stderr") { line ->
+            synchronized(stderrTail) {
+                stderrTail.addLast(line)
+                while (stderrTail.size > 50) stderrTail.removeFirst()
             }
-        }, "clangd-stderr").apply { isDaemon = true }.start()
+        }
     }
 
     /** Last lines clangd wrote to stderr, for error reports. */

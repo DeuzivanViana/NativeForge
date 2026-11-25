@@ -48,6 +48,8 @@ android {
             "META-INF/*.version",
             "META-INF/versions/**",
         )
+        // feature:runner's crash recorder is for the IDE process only.
+        jniLibs.excludes += "**/libnativeforge_crash.so"
     }
 }
 

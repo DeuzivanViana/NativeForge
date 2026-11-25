@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.nativeforge.app.crash.NewCrashReportsDialog
 import io.nativeforge.app.ui.navigation.NativeForgeNavHost
 import io.nativeforge.core.ui.theme.NativeForgeTheme
 
@@ -29,6 +30,8 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(dark) { applySystemBars(dark) }
             NativeForgeTheme(theme = settings.appTheme) {
                 NativeForgeNavHost(openRemote = openRemote.value, onRemoteOpened = { openRemote.value = false })
+                // After a crash: the report of what happened, to read and share.
+                if (savedInstanceState == null) NewCrashReportsDialog()
             }
         }
     }
