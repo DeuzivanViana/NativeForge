@@ -2,6 +2,17 @@
 
 ## Unreleased — faster builds, a lighter IDE
 
+* "Voxel sandbox" example (raylib + Box3D): a first-person block world made from noise,
+  with lakes, beaches, trees and snowy peaks. An on-screen pad walks, dragging looks, and
+  one-block steps are climbed by themselves; the hotbar throws balls, crates, barrels,
+  beach balls, planks and bombs that roll, float in water and explode with Box3D. Drawing
+  is one mesh per 16 x 16 chunk with only the faces next to air (with ambient occlusion and
+  distance fog); the terrain collides as a single Box3D triangle mesh. Keyboard and mouse
+  work too (remote access). Screenshot in `docs/screenshots/voxel-sandbox.png`.
+* CI: the NativeActivity examples (raylib, 2D/3D physics, voxel sandbox, paint, particles)
+  are compiled and linked with the NDK against the bundled libraries, for arm64 and
+  x86_64 (`.github/scripts/compile-examples.py`), so an example that stops building fails
+  the pull request.
 * Fixed: tapping Install for the toolchain, or building a new project with libraries,
   could look as if nothing happened. Every install waits for the one before it, and the
   update of bundled libraries that runs at start-up (LVGL changed in this version) first

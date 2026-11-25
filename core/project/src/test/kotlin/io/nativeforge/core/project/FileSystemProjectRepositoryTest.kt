@@ -118,6 +118,22 @@ class FileSystemProjectRepositoryTest {
     }
 
     @Test
+    fun `voxel sandbox example runs raylib and Box3D in a NativeActivity`() {
+        val template = ProjectTemplates.byId("voxel-sandbox")!!
+        assertEquals(listOf("raylib", "box3d"), template.requiredPackages)
+        assertEquals(RuntimeKind.NATIVE_ACTIVITY, template.runtime)
+        assertEquals(listOf(Language.CPP), template.languages)
+        val generated = template.generate("Blocks", ProjectOptions(language = Language.CPP, buildSystem = BuildSystemKind.SINGLE))
+        val source = generated.files.getValue("src/main.cpp")
+        assertTrue("#include <box3d/box3d.h>" in source)
+        assertTrue("InitWindow(0, 0, \"Blocks\")" in source)
+        assertEquals(listOf("raylib", "box3d"), generated.config.packages)
+        // Listed right after the other Box3D example in the New project screen.
+        val ids = ProjectTemplates.all.map { it.id }
+        assertEquals(ids.indexOf("raylib-3d-physics") + 1, ids.indexOf("voxel-sandbox"))
+    }
+
+    @Test
     fun `unsupported options fall back to the template defaults`() {
         val sfml = ProjectTemplates.byId("sfml")!!
         val generated = sfml.generate("demo", ProjectOptions(language = Language.C, standard = "c99", buildSystem = BuildSystemKind.NINJA))
