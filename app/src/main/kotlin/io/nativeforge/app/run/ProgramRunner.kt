@@ -28,6 +28,7 @@ object ProgramRunner {
                 artifact.file.setExecutable(true, false)
                 startConsole(
                     context,
+                    container,
                     ConsoleRequest(
                         title = project.name,
                         workingDirectory = project.root.path,
@@ -114,6 +115,7 @@ object ProgramRunner {
         val shell = setup.shell()
         startConsole(
             context,
+            container,
             ConsoleRequest(
                 title = "Terminal",
                 workingDirectory = container.layout.homeDir.path,
@@ -126,7 +128,9 @@ object ProgramRunner {
         )
     }
 
-    private fun startConsole(context: Context, request: ConsoleRequest) {
+    private fun startConsole(context: Context, container: AppContainer, request: ConsoleRequest) {
+        // Pinch zoom in the terminal is saved, so Settings shows the size it draws at.
+        ConsoleContract.onFontSizeChanged = { size -> container.settings.update { it.withTerminalFontSize(size) } }
         context.startActivity(ConsoleContract.intent(context, request).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }

@@ -3,8 +3,10 @@ package io.nativeforge.app.settings
 import android.content.Context
 import io.nativeforge.core.codeintel.FormatStyle
 import io.nativeforge.core.ui.theme.AppTheme
+import io.nativeforge.feature.editor.EditorFontSize
 import io.nativeforge.feature.editor.EditorPreferences
 import io.nativeforge.feature.editor.EditorTheme
+import io.nativeforge.feature.terminal.ConsoleRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +19,7 @@ data class AppSettings(
     val showEditorToolbar: Boolean = true,
     /** Symbols and snippets row above the keyboard. */
     val showSymbolRow: Boolean = true,
-    val terminalFontSizeSp: Int = 12,
+    val terminalFontSizeSp: Int = ConsoleRequest.DEFAULT_FONT_SIZE,
     /** Save open files automatically when leaving the workspace or the app. */
     val autoSave: Boolean = true,
     /** Open the explorer by swiping from the left edge (it always opens with the toolbar button). */
@@ -35,9 +37,19 @@ data class AppSettings(
     /** Package index URLs added by the user (see packages/README.md for the format). */
     val packageRepositories: List<String> = emptyList(),
 ) {
+    /**
+     * The editor font size, rounded to a whole size in [FONT_SIZES]. Every way of changing it
+     * (Settings, keyboard zoom, pinch) goes through here, so Settings shows what the editor draws.
+     */
+    fun withEditorFontSize(sp: Float): AppSettings =
+        copy(editor = editor.copy(fontSizeSp = EditorFontSize.snap(sp).toFloat()))
+
+    /** The terminal font size, kept inside [TERMINAL_FONT_SIZES]. */
+    fun withTerminalFontSize(sp: Int): AppSettings = copy(terminalFontSizeSp = sp.coerceIn(TERMINAL_FONT_SIZES))
+
     companion object {
-        val FONT_SIZES = 10..24
-        val TERMINAL_FONT_SIZES = 8..24
+        val FONT_SIZES = EditorFontSize.RANGE
+        val TERMINAL_FONT_SIZES = ConsoleRequest.FONT_SIZES
         val TAB_WIDTHS = listOf(2, 4, 8)
     }
 }
@@ -65,7 +77,7 @@ class SettingsRepository(context: Context) {
             appTheme = AppTheme.fromName(prefs.getString(KEY_APP_THEME, null)),
             editor = EditorPreferences(
                 theme = EditorTheme.fromId(prefs.getString(KEY_EDITOR_THEME, null)),
-                fontSizeSp = prefs.getInt(KEY_FONT_SIZE, defaults.editor.fontSizeSp.toInt()).toFloat(),
+                fontSizeSp = EditorFontSize.snap(prefs.getInt(KEY_FONT_SIZE, defaults.editor.fontSizeSp.toInt()).toFloat()).toFloat(),
                 wordWrap = prefs.getBoolean(KEY_WORD_WRAP, defaults.editor.wordWrap),
                 lineNumbers = prefs.getBoolean(KEY_LINE_NUMBERS, defaults.editor.lineNumbers),
                 tabWidth = prefs.getInt(KEY_TAB_WIDTH, defaults.editor.tabWidth),
@@ -73,7 +85,7 @@ class SettingsRepository(context: Context) {
             ),
             showEditorToolbar = prefs.getBoolean(KEY_EDITOR_TOOLBAR, defaults.showEditorToolbar),
             showSymbolRow = prefs.getBoolean(KEY_SYMBOL_ROW, defaults.showSymbolRow),
-            terminalFontSizeSp = prefs.getInt(KEY_TERMINAL_FONT, defaults.terminalFontSizeSp),
+            terminalFontSizeSp = prefs.getInt(KEY_TERMINAL_FONT, defaults.terminalFontSizeSp).coerceIn(AppSettings.TERMINAL_FONT_SIZES),
             autoSave = prefs.getBoolean(KEY_AUTO_SAVE, defaults.autoSave),
             explorerSwipe = prefs.getBoolean(KEY_EXPLORER_SWIPE, defaults.explorerSwipe),
             gitName = prefs.getString(KEY_GIT_NAME, null).orEmpty(),
@@ -90,7 +102,7 @@ class SettingsRepository(context: Context) {
         prefs.edit()
             .putString(KEY_APP_THEME, settings.appTheme.name)
             .putString(KEY_EDITOR_THEME, settings.editor.theme.id)
-            .putInt(KEY_FONT_SIZE, settings.editor.fontSizeSp.toInt())
+            .putInt(KEY_FONT_SIZE, EditorFontSize.snap(settings.editor.fontSizeSp))
             .putBoolean(KEY_WORD_WRAP, settings.editor.wordWrap)
             .putBoolean(KEY_LINE_NUMBERS, settings.editor.lineNumbers)
             .putInt(KEY_TAB_WIDTH, settings.editor.tabWidth)

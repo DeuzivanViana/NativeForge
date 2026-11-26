@@ -72,6 +72,7 @@ import io.nativeforge.feature.editor.EditorThemeColors
 import io.nativeforge.feature.editor.EditorThemePreviews
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -106,9 +107,10 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             FormSection("Editor") {
-                StepperRow("Font size", settings.editor.fontSizeSp.toInt(), AppSettings.FONT_SIZES) { size ->
-                    update { it.copy(editor = it.editor.copy(fontSizeSp = size.toFloat())) }
+                StepperRow("Font size", settings.editor.fontSizeSp.roundToInt(), AppSettings.FONT_SIZES) { size ->
+                    update { it.withEditorFontSize(size.toFloat()) }
                 }
+                Hint("Pinch the editor, or press Ctrl+= and Ctrl+-, to change it from the editor too.")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Tab width", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     SegmentedChoice(
@@ -158,9 +160,9 @@ fun SettingsScreen(onBack: () -> Unit) {
 
             FormSection("Terminal") {
                 StepperRow("Font size", settings.terminalFontSizeSp, AppSettings.TERMINAL_FONT_SIZES) { size ->
-                    update { it.copy(terminalFontSizeSp = size) }
+                    update { it.withTerminalFontSize(size) }
                 }
-                Hint("The terminal always uses a black background. Pinch to zoom while it is open.")
+                Hint("The terminal always uses a black background. Pinch to zoom while it is open; the size is kept here.")
             }
 
             FormSection("Git") {

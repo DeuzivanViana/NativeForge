@@ -53,9 +53,7 @@ class MainActivity : ComponentActivity() {
             if (delta != 0f) {
                 val settings = (application as NativeForgeApplication).container.settings
                 settings.update { s ->
-                    val size = (s.editor.fontSizeSp + if (delta > 0) 1 else -1)
-                        .coerceIn(io.nativeforge.app.settings.AppSettings.FONT_SIZES.first.toFloat(), io.nativeforge.app.settings.AppSettings.FONT_SIZES.last.toFloat())
-                    s.copy(editor = s.editor.copy(fontSizeSp = size))
+                    s.withEditorFontSize(io.nativeforge.feature.editor.EditorFontSize.step(s.editor.fontSizeSp, if (delta > 0) 1 else -1).toFloat())
                 }
                 return true
             }

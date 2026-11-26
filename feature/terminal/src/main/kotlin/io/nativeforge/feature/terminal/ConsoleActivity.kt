@@ -17,6 +17,7 @@ import com.termux.terminal.KeyHandler
 import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
  * Full-screen terminal backed by Termux's terminal emulator. Runs either a
@@ -38,17 +39,17 @@ class ConsoleActivity : Activity() {
             field = value
             if (::extraKeys.isInitialized) extraKeys.setModifiers(ctrlActive, value)
         }
-    private var fontSizePx = 0
+    /** Whole sp, as in Settings; pinch zoom steps it by one. */
+    private var fontSizeSp = ConsoleRequest.DEFAULT_FONT_SIZE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val request = ConsoleContract.parse(intent)
         title = request.title
-        val fontSp = request.fontSizeSp?.toFloat() ?: DEFAULT_FONT_SP
-        fontSizePx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, fontSp, resources.displayMetrics).toInt()
+        fontSizeSp = (request.fontSizeSp ?: ConsoleRequest.DEFAULT_FONT_SIZE).coerceIn(ConsoleRequest.FONT_SIZES)
 
         terminalView = TerminalView(this, null).apply {
-            setTextSize(fontSizePx)
+            setTextSize(fontSizePx(fontSizeSp))
             setBackgroundColor(android.graphics.Color.BLACK)
             keepScreenOn = true
             isFocusable = true
@@ -90,6 +91,9 @@ class ConsoleActivity : Activity() {
             WindowInsets.CONSUMED
         }
     }
+
+    private fun fontSizePx(sp: Int): Int =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp.toFloat(), resources.displayMetrics).roundToInt()
 
     override fun onDestroy() {
         super.onDestroy()
@@ -161,13 +165,15 @@ class ConsoleActivity : Activity() {
         override fun onSingleTapUp(e: MotionEvent) = showKeyboard()
 
         override fun onScale(scale: Float): Float {
-            if (scale < 0.9f || scale > 1.1f) {
-                val factor = if (scale > 1f) 1.1f else 0.9f
-                fontSizePx = (fontSizePx * factor).toInt().coerceIn(MIN_FONT_PX, MAX_FONT_PX)
-                terminalView.setTextSize(fontSizePx)
-                return 1.0f
+            // Below one step, keep accumulating; after a step (or at either end), start afresh.
+            if (!TerminalFontSize.isStep(scale)) return scale
+            val size = TerminalFontSize.afterPinch(fontSizeSp, scale)
+            if (size != fontSizeSp) {
+                fontSizeSp = size
+                terminalView.setTextSize(fontSizePx(size))
+                ConsoleContract.onFontSizeChanged?.invoke(size)
             }
-            return scale
+            return 1.0f
         }
 
         override fun readControlKey(): Boolean = ctrlActive
@@ -194,9 +200,6 @@ class ConsoleActivity : Activity() {
 
     private companion object {
         const val TRANSCRIPT_ROWS = 4000
-        const val DEFAULT_FONT_SP = 12f
-        const val MIN_FONT_PX = 12
-        const val MAX_FONT_PX = 96
         val SYSTEM_VARIABLES = setOf("BOOTCLASSPATH", "DEX2OATBOOTCLASSPATH", "SYSTEMSERVERCLASSPATH", "EXTERNAL_STORAGE", "ASEC_MOUNTPOINT")
         val DEFAULT_ENVIRONMENT = mapOf("TERM" to "xterm-256color", "COLORTERM" to "truecolor", "LANG" to "en_US.UTF-8")
     }

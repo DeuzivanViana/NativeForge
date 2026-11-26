@@ -1,6 +1,34 @@
 # Roadmap
 
-## Unreleased — faster builds, a lighter IDE
+## 0.12.0 — remote access, faster editor, voxel sandbox
+
+This release also announces the work listed under the next two headings, which was
+already in the code of 0.11.1 but not in its changelog.
+
+* Fixed: with a project open, the font size in Settings and the size on screen could
+  disagree, and changing it in Settings sometimes seemed to do nothing. Pinching the
+  editor (sora-editor zooms on its own) or the terminal changed the size on screen
+  without saving it: Settings still showed the old number, and the next screen change
+  (back from Settings, a split editor, a preference toggle) jumped back to it. A pinch now
+  ends on a whole size inside the Settings range (editor 10–24 sp, terminal 8–24 sp),
+  which is saved, so Settings, both editors and the next terminal show the same number.
+  Keyboard zoom (Ctrl+=, Ctrl+-, Ctrl+wheel) goes through the same rounding, and the
+  editor no longer lays the text out again when another preference changes. The
+  terminal's pinch steps by one sp instead of 10 % of the pixel size, which drifted when
+  rounding. The other settings were checked and apply at once in an open project.
+* ncurses 6.6 bundled (`ncursesw`, with panel, menu and form; xterm-256color, xterm,
+  vt100, linux and dumb compiled in, so TUIs run the same in the IDE terminal and in
+  exported apps). New console templates, in C and C++: Text UI (ncurses), Multi-file
+  program and Unit tests.
+* LVGL programs draw at the screen's resolution instead of being scaled up 2–3x, so text
+  is sharp (`LV_NATIVEFORGE_SCALE_PIXELS`, `lv_nativeforge_font(dp)`).
+* Home: new, open and clone are one row of labeled buttons above the recent projects.
+* Fixed: the collapsed editor theme row in Settings kept the previous theme's colors
+  after an app theme change.
+* Browser IDE: settings dialog (Ctrl+,) and right-click menus in the editor, tabs,
+  explorer, terminals and output.
+
+### Faster builds, a lighter IDE
 
 * Faster highlighting in big files: colors appear for the screen right away instead of
   after the whole file was analyzed (sora-editor's TextMate analyzer tokenizes every line
@@ -99,7 +127,7 @@
 * Benchmarks workflow (on main and on demand): build planning time for a 600-file
   project, APK and dex size, and cold start on an emulator.
 
-## Unreleased — remote access: the IDE in a computer's browser
+### Remote access: the IDE in a computer's browser
 
 * Home › cast icon › Start: the phone serves the IDE over HTTPS to a browser
   on the same network (`core/remote`). Projects (create, open, delete),

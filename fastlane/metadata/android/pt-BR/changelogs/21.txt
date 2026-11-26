@@ -1,0 +1,8 @@
+• Corrigido: o tamanho da fonte nas Configurações bate com o editor e o terminal; o zoom de pinça é salvo
+• Acesso remoto: use a IDE no navegador de um computador na mesma rede
+• Destaque de sintaxe mais rápido em arquivos grandes
+• Novos exemplos: sandbox voxel (raylib + Box3D), ncurses, testes unitários
+• SQLite e ncurses inclusos
+• Programas LVGL mais nítidos
+• Relatórios de falha ficam no aparelho (nada é enviado)
+• Corrigido um fechamento ao sair de um projeto
