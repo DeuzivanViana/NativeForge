@@ -59,6 +59,13 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val _state = MutableStateFlow(HomeUiState())
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
+    /**
+     * Declared before `init`: [refresh] runs from there, and when the toolchain check returns at
+     * once its coroutine reaches `async(summaryDispatcher)` inside the constructor, before later
+     * properties are set (a NullPointerException that could crash the home screen).
+     */
+    private val summaryDispatcher = Dispatchers.IO.limitedParallelism(4)
+
     init {
         refresh()
         // Write the terminal's start-up files now, so opening the terminal later only starts bash.
@@ -89,8 +96,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
     }
-
-    private val summaryDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     private fun summarize(project: Project): ProjectSummary {
         var newest = File(project.root, ProjectConfig.FILE_NAME).lastModified()
