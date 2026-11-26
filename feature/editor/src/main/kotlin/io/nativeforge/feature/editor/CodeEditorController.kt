@@ -15,6 +15,7 @@ import io.nativeforge.core.lsp.LspDiagnostic
 import io.nativeforge.core.lsp.Position
 import io.nativeforge.core.lsp.TextEdit
 import io.github.rosemoe.sora.event.ScrollEvent
+import io.github.rosemoe.sora.event.TextSizeChangeEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.lang.Language
@@ -86,6 +87,12 @@ class CodeEditorController {
     /** Text size the view was last set to, in px; a pinch zoom draws at another size until it is saved. */
     private var appliedTextSizePx = 0f
 
+    /** True while this controller sets the size itself, so the size events it causes are not taken for a pinch. */
+    private var settingSize = false
+
+    /** A pinch changed the size since the fingers went down; only then is the size on screen saved. */
+    private var pinched = false
+
     /**
      * Called with the new size (whole sp) when a pinch zoom ends. The app saves it in Settings,
      * which then comes back through [applyPreferences]: Settings and the editor show one size.
@@ -110,13 +117,16 @@ class CodeEditorController {
         editor = view
         appliedTheme = null
         appliedTextSizePx = 0f
+        pinched = false
         view.typefaceText = Typeface.MONOSPACE
         view.typefaceLineNumber = Typeface.MONOSPACE
         view.setPinLineNumber(true)
         // Pinch zoom stays inside the sizes Settings offers (sora's own limits are 8 to 26 sp).
         view.setScaleTextSizes(spToPx(view, EditorFontSize.RANGE.first.toFloat()), spToPx(view, EditorFontSize.RANGE.last.toFloat()))
         applyPreferences(preferences)
-        // Sora zooms on a pinch without telling anyone; save the size when the fingers lift.
+        // Sora zooms on a pinch by itself; it reports each step as a size change.
+        view.subscribeEvent(TextSizeChangeEvent::class.java) { _, _ -> if (!settingSize) pinched = true }
+        // Save the pinched size when the fingers lift.
         view.setOnTouchListener { touched, event ->
             if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
                 touched.post { finishPinchZoom() }
@@ -188,14 +198,27 @@ class CodeEditorController {
     private fun applyTextSize(view: CodeEditor, sp: Float) {
         val target = spToPx(view, sp)
         if (abs(view.textSizePx - target) < 0.01f && abs(appliedTextSizePx - target) < 0.01f) return
-        view.setTextSizePx(target)
+        settingSize = true
+        try {
+            view.setTextSizePx(target)
+        } finally {
+            settingSize = false
+        }
         appliedTextSizePx = view.textSizePx
     }
 
-    /** After a pinch: snaps to the nearest whole size and reports it, so Settings shows it. */
+    /**
+     * After a pinch: snaps to the nearest whole size and reports it, so Settings shows it.
+     * Without a pinch nothing is saved: the view goes back to the size from Settings.
+     */
     private fun finishPinchZoom() {
         val view = editor ?: return
-        if (abs(view.textSizePx - appliedTextSizePx) < 0.5f) return
+        val wasPinched = pinched
+        pinched = false
+        if (!wasPinched || abs(view.textSizePx - appliedTextSizePx) < 0.5f) {
+            applyTextSize(view, preferences.fontSizeSp)
+            return
+        }
         val size = EditorFontSize.snap(pxToSp(view, view.textSizePx)).toFloat()
         preferences = preferences.copy(fontSizeSp = size)
         applyTextSize(view, size)

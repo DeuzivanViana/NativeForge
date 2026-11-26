@@ -67,6 +67,7 @@ import io.nativeforge.app.settings.AppSettings
 import io.nativeforge.core.ui.component.CompactTopBar
 import io.nativeforge.core.ui.component.ToolbarIconButton
 import io.nativeforge.core.ui.theme.AppTheme
+import io.nativeforge.feature.editor.EditorFontSize
 import io.nativeforge.feature.editor.EditorTheme
 import io.nativeforge.feature.editor.EditorThemeColors
 import io.nativeforge.feature.editor.EditorThemePreviews
@@ -107,8 +108,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             FormSection("Editor") {
-                StepperRow("Font size", settings.editor.fontSizeSp.roundToInt(), AppSettings.FONT_SIZES) { size ->
-                    update { it.withEditorFontSize(size.toFloat()) }
+                StepperRow("Editor font size", settings.editor.fontSizeSp.roundToInt(), AppSettings.FONT_SIZES) { delta ->
+                    update { it.withEditorFontSize(EditorFontSize.step(it.editor.fontSizeSp, delta).toFloat()) }
                 }
                 Hint("Pinch the editor, or press Ctrl+= and Ctrl+-, to change it from the editor too.")
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -159,8 +160,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             FormSection("Terminal") {
-                StepperRow("Font size", settings.terminalFontSizeSp, AppSettings.TERMINAL_FONT_SIZES) { size ->
-                    update { it.withTerminalFontSize(size) }
+                StepperRow("Terminal font size", settings.terminalFontSizeSp, AppSettings.TERMINAL_FONT_SIZES) { delta ->
+                    update { it.withTerminalFontSize(it.terminalFontSizeSp + delta) }
                 }
                 Hint("The terminal always uses a black background. Pinch to zoom while it is open; the size is kept here.")
             }
@@ -309,9 +310,13 @@ private fun EditorThemeRow(theme: EditorTheme, selected: Boolean, onClick: () ->
     }
 }
 
-/** Label with − value + buttons; denser than a slider and exact. */
+/**
+ * Label with − value + buttons; denser than a slider and exact. [onStep] gets −1 or +1 and applies
+ * it to the saved value, not to [value]: taps faster than the screen redraws would otherwise repeat
+ * a value that is out of date.
+ */
 @Composable
-private fun StepperRow(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+private fun StepperRow(label: String, value: Int, range: IntRange, onStep: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
         Surface(
@@ -320,9 +325,9 @@ private fun StepperRow(label: String, value: Int, range: IntRange, onChange: (In
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ToolbarIconButton(Icons.Filled.Remove, "Smaller", { onChange((value - 1).coerceIn(range)) }, enabled = value > range.first)
+                ToolbarIconButton(Icons.Filled.Remove, "Smaller", { onStep(-1) }, enabled = value > range.first)
                 Text("$value sp", style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(52.dp), textAlign = TextAlign.Center)
-                ToolbarIconButton(Icons.Filled.Add, "Larger", { onChange((value + 1).coerceIn(range)) }, enabled = value < range.last)
+                ToolbarIconButton(Icons.Filled.Add, "Larger", { onStep(1) }, enabled = value < range.last)
             }
         }
     }
