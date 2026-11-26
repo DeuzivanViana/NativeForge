@@ -1,0 +1,8 @@
+• Fixed: font size in Settings now matches the editor and terminal; pinch zoom is saved
+• Remote access: use the IDE from a computer's browser on the same network
+• Faster highlighting in big files
+• New examples: voxel sandbox (raylib + Box3D), ncurses text UI, unit tests
+• SQLite and ncurses bundled
+• Sharper LVGL programs
+• Crash reports kept on the phone (nothing is sent)
+• Fixed a crash after leaving a project

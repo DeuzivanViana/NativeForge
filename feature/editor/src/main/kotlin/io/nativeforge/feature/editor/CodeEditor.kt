@@ -50,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,7 +74,10 @@ fun CodeEditor(
     controller: CodeEditorController,
     modifier: Modifier = Modifier,
     preferences: EditorPreferences = EditorPreferences(),
+    /** A pinch zoom ended on this size (whole sp); save it so Settings matches the editor. */
+    onFontSizeChange: ((Float) -> Unit)? = null,
 ) {
+    val currentOnFontSizeChange by rememberUpdatedState(onFontSizeChange)
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -84,7 +88,11 @@ fun CodeEditor(
         onRelease = { it.release() },
     )
     DisposableEffect(controller) {
-        onDispose { controller.detach() }
+        controller.onFontSizeChanged = { size -> currentOnFontSizeChange?.invoke(size) }
+        onDispose {
+            controller.onFontSizeChanged = null
+            controller.detach()
+        }
     }
 }
 

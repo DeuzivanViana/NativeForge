@@ -10,4 +10,6 @@ android {
 dependencies {
     api(libs.termux.terminal.view)
     api(libs.termux.terminal.emulator)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlin.test)
 }

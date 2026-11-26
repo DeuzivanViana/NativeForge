@@ -1,6 +1,10 @@
 package io.nativeforge.feature.editor
 
+import android.annotation.SuppressLint
 import android.graphics.Typeface
+import android.os.Build
+import android.util.TypedValue
+import android.view.MotionEvent
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.diagnostic.DiagnosticDetail
 import io.github.rosemoe.sora.lang.diagnostic.DiagnosticRegion
@@ -27,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.math.abs
 
 /** A file opened in the editor. Keeping its [Content] preserves undo history across tab switches. */
 class EditorDocument(val path: String, initialText: String) {
@@ -44,7 +49,8 @@ class EditorDocument(val path: String, initialText: String) {
 /** User-adjustable editor options (Settings screen). */
 data class EditorPreferences(
     val theme: EditorTheme = EditorTheme.DEFAULT,
-    val fontSizeSp: Float = 13f,
+    /** Whole sp in [EditorFontSize.RANGE]. */
+    val fontSizeSp: Float = EditorFontSize.DEFAULT.toFloat(),
     val wordWrap: Boolean = false,
     val lineNumbers: Boolean = true,
     val tabWidth: Int = 4,
@@ -77,6 +83,15 @@ class CodeEditorController {
     private var highlighter: ProgressiveTextMateAnalyzer? = null
     var onContentChanged: ((EditorDocument) -> Unit)? = null
 
+    /** Text size the view was last set to, in px; a pinch zoom draws at another size until it is saved. */
+    private var appliedTextSizePx = 0f
+
+    /**
+     * Called with the new size (whole sp) when a pinch zoom ends. The app saves it in Settings,
+     * which then comes back through [applyPreferences]: Settings and the editor show one size.
+     */
+    var onFontSizeChanged: ((Float) -> Unit)? = null
+
     /** Semantic completion for the open file (clangd), or null for word completion only. */
     @Volatile var intelligence: EditorIntelligence? = null
 
@@ -90,13 +105,24 @@ class CodeEditorController {
     var document: EditorDocument? = null
         private set
 
+    @SuppressLint("ClickableViewAccessibility")
     internal fun attach(view: CodeEditor, preferences: EditorPreferences) {
         editor = view
         appliedTheme = null
+        appliedTextSizePx = 0f
         view.typefaceText = Typeface.MONOSPACE
         view.typefaceLineNumber = Typeface.MONOSPACE
         view.setPinLineNumber(true)
+        // Pinch zoom stays inside the sizes Settings offers (sora's own limits are 8 to 26 sp).
+        view.setScaleTextSizes(spToPx(view, EditorFontSize.RANGE.first.toFloat()), spToPx(view, EditorFontSize.RANGE.last.toFloat()))
         applyPreferences(preferences)
+        // Sora zooms on a pinch without telling anyone; save the size when the fingers lift.
+        view.setOnTouchListener { touched, event ->
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                touched.post { finishPinchZoom() }
+            }
+            false
+        }
         view.subscribeEvent(ContentChangeEvent::class.java) { event, _ ->
             // Loading a file replaces the text too; only user edits make a document dirty.
             if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) {
@@ -148,11 +174,46 @@ class CodeEditorController {
             TextMateBootstrap.applyTheme(preferences.theme)
             view.colorScheme = TextMateColorScheme.create(ThemeRegistry.getInstance())
         }
-        view.setTextSize(preferences.fontSizeSp)
+        applyTextSize(view, preferences.fontSizeSp)
         if (view.isWordwrap != preferences.wordWrap) view.isWordwrap = preferences.wordWrap
         view.isLineNumberEnabled = preferences.lineNumbers
         view.tabWidth = preferences.tabWidth
         view.isHighlightCurrentLine = preferences.highlightCurrentLine
+    }
+
+    /**
+     * Sets the font size when the view draws another one: a change in Settings, or a pinch zoom
+     * that was not saved. Setting the same size again would only lay the text out again.
+     */
+    private fun applyTextSize(view: CodeEditor, sp: Float) {
+        val target = spToPx(view, sp)
+        if (abs(view.textSizePx - target) < 0.01f && abs(appliedTextSizePx - target) < 0.01f) return
+        view.setTextSizePx(target)
+        appliedTextSizePx = view.textSizePx
+    }
+
+    /** After a pinch: snaps to the nearest whole size and reports it, so Settings shows it. */
+    private fun finishPinchZoom() {
+        val view = editor ?: return
+        if (abs(view.textSizePx - appliedTextSizePx) < 0.5f) return
+        val size = EditorFontSize.snap(pxToSp(view, view.textSizePx)).toFloat()
+        preferences = preferences.copy(fontSizeSp = size)
+        applyTextSize(view, size)
+        onFontSizeChanged?.invoke(size)
+    }
+
+    private fun spToPx(view: CodeEditor, sp: Float): Float =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp, view.resources.displayMetrics)
+
+    @Suppress("DEPRECATION")
+    private fun pxToSp(view: CodeEditor, px: Float): Float {
+        val metrics = view.resources.displayMetrics
+        // Android 14 scales large fonts non-linearly; deriveDimension inverts applyDimension there.
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            TypedValue.deriveDimension(TypedValue.COMPLEX_UNIT_SP, px, metrics)
+        } else {
+            px / metrics.scaledDensity
+        }
     }
 
     fun open(document: EditorDocument) {

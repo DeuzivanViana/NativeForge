@@ -14,7 +14,9 @@ import kotlin.test.assertTrue
 /** [ProgressiveHighlighter] with the real C++ grammar ends with the same tokens as a top-to-bottom pass. */
 class TextMateProgressiveTest {
     private val grammars = File("src/main/assets/textmate/grammars")
-    private val sample = File("../../core/project/src/main/resources/io/nativeforge/core/project/templates/voxel-sandbox/main.cpp")
+    // The voxel sandbox's sources one after another: real C++, long enough for a screen at line 800.
+    private val sampleDir = File("../../core/project/src/main/resources/io/nativeforge/core/project/templates/voxel-sandbox")
+    private val sampleFiles = listOf("game.hpp", "world.cpp", "player.cpp", "things.cpp", "ui.cpp", "main.cpp")
 
     private class GrammarTokenizer(val grammar: IGrammar, val lines: MutableList<String>) : LineTokenizer<IStateStack, List<Int>> {
         override val initialState: IStateStack? = null
@@ -58,7 +60,8 @@ class TextMateProgressiveTest {
 
     @Test
     fun screenFirstHighlightingEndsWithTheSameTokens() {
-        val lines = sample.readLines().toMutableList()
+        val lines = sampleFiles.flatMap { File(sampleDir, it).readLines() }.toMutableList()
+        assertTrue(lines.size > 1000, "sample has ${lines.size} lines")
         val tokenizer = GrammarTokenizer(grammar(), lines)
         tokenizer.reference() // Warm up the grammar's regex cache.
         val store = Store()

@@ -94,6 +94,7 @@ import io.nativeforge.feature.assets.AssetViewerDialog
 import io.nativeforge.feature.editor.CodeActions
 import io.nativeforge.feature.editor.CodeEditor
 import io.nativeforge.feature.editor.EditorAccessoryBar
+import io.nativeforge.feature.editor.EditorFontSize
 import io.nativeforge.feature.editor.FindReplaceBar
 import androidx.compose.runtime.DisposableEffect
 import kotlinx.coroutines.launch
@@ -164,6 +165,8 @@ fun WorkspaceScreen(
             ProgramRunner.run(context, container, project, artifact)?.let(viewModel::showMessage)
         }
     }
+    // A pinch zoom in either editor is saved, so Settings and both editors show the same size.
+    val saveEditorFontSize: (Float) -> Unit = { size -> container.settings.update { it.withEditorFontSize(size) } }
     val leave = {
         if (settings.autoSave) viewModel.saveAll()
         onBack()
@@ -205,9 +208,8 @@ fun WorkspaceScreen(
             WorkspaceCommand.TOGGLE_PANEL -> viewModel.togglePanel()
             WorkspaceCommand.TERMINAL -> ProgramRunner.openShell(context, container)
             WorkspaceCommand.ZOOM_IN, WorkspaceCommand.ZOOM_OUT -> container.settings.update {
-                val delta = if (command == WorkspaceCommand.ZOOM_IN) 1f else -1f
-                val range = io.nativeforge.app.settings.AppSettings.FONT_SIZES
-                it.copy(editor = it.editor.copy(fontSizeSp = (it.editor.fontSizeSp + delta).coerceIn(range.first.toFloat(), range.last.toFloat())))
+                val delta = if (command == WorkspaceCommand.ZOOM_IN) 1 else -1
+                it.withEditorFontSize(EditorFontSize.step(it.editor.fontSizeSp, delta).toFloat())
             }
             WorkspaceCommand.LIBRARIES -> librariesOpen = true
             WorkspaceCommand.BUILD_SETTINGS -> buildSettingsOpen = true
@@ -338,6 +340,7 @@ fun WorkspaceScreen(
                     CodeEditor(
                         controller = viewModel.editor,
                         preferences = settings.editor,
+                        onFontSizeChange = saveEditorFontSize,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                     if (state.splitOpen) {
@@ -352,6 +355,7 @@ fun WorkspaceScreen(
                             CodeEditor(
                                 controller = viewModel.splitEditor,
                                 preferences = settings.editor,
+                                onFontSizeChange = saveEditorFontSize,
                                 modifier = Modifier.weight(1f).fillMaxWidth(),
                             )
                         }
