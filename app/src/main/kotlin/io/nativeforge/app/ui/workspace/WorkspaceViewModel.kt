@@ -133,6 +133,12 @@ class WorkspaceViewModel(
     private var searchJob: Job? = null
     private var lastArtifact: BuildArtifact? = null
 
+    /**
+     * Pending auto saves by path. Declared before `init`, like everything `init` can reach: the
+     * project can open before the constructor returns, and later properties are still null then.
+     */
+    private val autoSaves = HashMap<String, Job>()
+
     init {
         val onChanged: (EditorDocument) -> Unit = { document ->
             _state.update { it.copy(dirtyFiles = it.dirtyFiles + document.path) }
@@ -703,8 +709,6 @@ class WorkspaceViewModel(
         // Auto saves happen at every pause in typing; the Changes list follows explicit saves.
         if (format && _state.value.git != null) refreshGit()
     }
-
-    private val autoSaves = HashMap<String, Job>()
 
     /**
      * With auto save on, a file is written [AUTO_SAVE_DELAY_MS] after the last key, without

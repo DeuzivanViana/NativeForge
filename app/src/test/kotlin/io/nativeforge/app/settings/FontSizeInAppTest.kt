@@ -16,6 +16,8 @@ import io.nativeforge.app.NativeForgeApplication
 import io.nativeforge.core.common.Outcome
 import io.nativeforge.core.project.template.ProjectTemplates
 import kotlinx.coroutines.runBlocking
+import io.nativeforge.app.testing.UncaughtErrors
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,6 +32,8 @@ import io.github.rosemoe.sora.widget.CodeEditor as SoraCodeEditor
 @Config(sdk = [34], qualifiers = "w411dp-h891dp-xxhdpi")
 class FontSizeInAppTest {
     @get:Rule val compose = createEmptyComposeRule()
+
+    @Before fun keepTestJvmAlive() = UncaughtErrors.printInsteadOfExit()
 
     private lateinit var activity: MainActivity
     private val container get() = ApplicationProvider.getApplicationContext<NativeForgeApplication>().container
