@@ -150,6 +150,12 @@ fun WorkspaceScreen(
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); viewModel.consumeMessage() }
     }
+    // Leaving the project (back, a gesture, another screen or app) pauses this screen at once,
+    // while its exit animation still runs: close the error tooltip and other editor popups now.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) {
+        viewModel.editor.dismissPopups()
+        viewModel.splitEditor.dismissPopups()
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         if (settings.autoSave) viewModel.saveAll()
         viewModel.onAppHidden()
@@ -168,6 +174,8 @@ fun WorkspaceScreen(
     // A pinch zoom in either editor is saved, so Settings and both editors show the same size.
     val saveEditorFontSize: (Float) -> Unit = { size -> container.settings.update { it.withEditorFontSize(size) } }
     val leave = {
+        viewModel.editor.dismissPopups()
+        viewModel.splitEditor.dismissPopups()
         if (settings.autoSave) viewModel.saveAll()
         onBack()
     }

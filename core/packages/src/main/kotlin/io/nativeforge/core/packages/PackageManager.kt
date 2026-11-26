@@ -71,6 +71,11 @@ class PackageManager(
 
     /** Packages available from every source, after the last [refresh]. */
     val catalog: StateFlow<List<PackageInfo>> = _catalog.asStateFlow()
+    /**
+     * Installed packages. Changes once at the end of every install, update or uninstall (also
+     * one that failed half-way), so screens can follow it instead of polling the disk: the
+     * editor restarts clangd when a project's libraries become available.
+     */
     val installed: StateFlow<List<InstalledPackage>> = _installed.asStateFlow()
 
     /**
@@ -227,6 +232,9 @@ class PackageManager(
                     }
                     if (result is Outcome.Failure) {
                         archives.forEach { it.cancel() }
+                        // Packages extracted before the failure are installed: publish them, so
+                        // an open project sees their headers without waiting for another install.
+                        _installed.value = database.all()
                         send(InstallEvent.Failed(result.error))
                         return@coroutineScope
                     }

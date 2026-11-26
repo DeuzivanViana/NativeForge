@@ -172,7 +172,18 @@ class CodeEditorController {
     }
 
     internal fun detach() {
+        dismissPopups()
         editor = null
+    }
+
+    /**
+     * Closes the editor's floating windows: the diagnostic tooltip shown when an error is
+     * tapped, the completion list and the text actions. They are separate windows above the
+     * app, so they would otherwise stay on screen while the workspace is leaving (until the
+     * navigation animation ends and the view is released).
+     */
+    fun dismissPopups() {
+        runCatching { editor?.hideEditorWindows() }
     }
 
     /** Applies theme, font and layout options; cheap when nothing changed. */

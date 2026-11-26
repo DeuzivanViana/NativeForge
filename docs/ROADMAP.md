@@ -1,5 +1,29 @@
 # Roadmap
 
+## 0.12.1 — libraries recognized at once, editor fixes
+
+* Fixed: in a project whose libraries were not installed yet, clangd reported their
+  headers and functions as missing, and kept doing so after the libraries were installed
+  (by a build, the Libraries dialog or the Packages screen) until the project was
+  reopened: clangd had been started with the include folders of the installed packages
+  only. The package manager's installed list now changes once at the end of every
+  install, update or uninstall (also one that failed half-way, for the packages it did
+  install), and the workspace follows it: when the libraries the project uses differ from
+  the ones clangd runs with, clangd restarts with them and the open files are checked
+  again. No polling, and installing unrelated packages restarts nothing. With the
+  workspace in the background (Packages or Settings on top) clangd only starts again when
+  the workspace is back, and with the new libraries (it used to restart with the old ones).
+* Fixed: the error tooltip shown when tapping a diagnostic (an undeclared variable, for
+  example) stayed on screen for a few seconds after leaving the project. It is a separate
+  window, which sora-editor only closed when the editor view was released at the end of
+  the exit animation; the workspace now closes the editor's popups as soon as it is left
+  or paused.
+* Fixed: a crash on start-up when the toolchain check returned at once (a field used
+  before it was initialized in the home screen's view model).
+* Editor font size: only a real pinch saves a new size, and Settings − / + step from the
+  saved value, so fast taps cannot write a stale size. "Editor font size" and "Terminal
+  font size" have distinct labels.
+
 ## 0.12.0 — remote access, faster editor, voxel sandbox
 
 This release also announces the work listed under the next two headings, which was
