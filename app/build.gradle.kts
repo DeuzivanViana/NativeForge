@@ -11,6 +11,8 @@ plugins {
 
 android {
     namespace = "io.nativeforge.app"
+    // Robolectric tests (the workspace and Settings screens) need the app's resources.
+    testOptions.unitTests.isIncludeAndroidResources = true
 
     defaultConfig {
         applicationId = "io.github.deuzivanviana.nativeforge"
@@ -121,4 +123,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.compose.ui.test.manifest)
 }
