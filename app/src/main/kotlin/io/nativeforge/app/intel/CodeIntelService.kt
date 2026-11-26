@@ -98,13 +98,36 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
     private var hiddenStop: Job? = null
     private var stoppedWhileHidden = false
 
+    /** Between [appHidden] and [appShown]: another screen or app is in front. */
+    private var hidden = false
+
+    /**
+     * Starts clangd again with new build inputs, e.g. libraries that were just installed.
+     * The open documents are sent to the new clangd, which replaces their diagnostics. While
+     * [hidden], clangd is only stopped and [appShown] starts it with [request].
+     */
+    fun restart(request: BuildRequest, options: CodeIntelOptions) {
+        if (!hidden) {
+            stop()
+            start(request, options)
+            return
+        }
+        this.request = request
+        this.options = options
+        hiddenStop?.cancel()
+        hiddenStop = null
+        shutdown()
+        stoppedWhileHidden = true
+    }
+
     /**
      * The app went to the background. If it stays there for [HIDDEN_STOP_DELAY_MS], clangd is
      * stopped, so its workers and background index don't take CPU and memory from a running
      * program or other apps. The open documents are kept and sent again by [appShown].
      */
     fun appHidden() {
-        if (hiddenStop?.isActive == true) return
+        hidden = true
+        if (hiddenStop?.isActive == true || stoppedWhileHidden) return
         hiddenStop = scope.launch {
             delay(HIDDEN_STOP_DELAY_MS)
             if (session != null || _status.value == IntelStatus.Starting) {
@@ -116,11 +139,12 @@ class CodeIntelService(private val scope: CoroutineScope) : EditorIntelligence {
 
     /** Back in the foreground: restarts clangd when [appHidden] stopped it. */
     fun appShown() {
+        hidden = false
         hiddenStop?.cancel()
         hiddenStop = null
         if (!stoppedWhileHidden) return
         stoppedWhileHidden = false
-        if (session == null && _status.value == IntelStatus.Off) request?.let { start(it, options) }
+        if (session == null && _status.value != IntelStatus.Starting) request?.let { start(it, options) }
     }
 
     fun stop() {

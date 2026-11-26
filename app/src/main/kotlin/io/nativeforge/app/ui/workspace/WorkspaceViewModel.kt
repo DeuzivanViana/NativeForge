@@ -27,6 +27,7 @@ import io.nativeforge.core.project.tree.ProjectWatcher
 import io.nativeforge.core.project.search.SearchMatch
 import io.nativeforge.core.project.search.SearchQuery
 import io.nativeforge.core.project.search.SearchResult
+import io.nativeforge.core.toolchain.NativeDependency
 import io.nativeforge.core.vcs.FileChange
 import io.nativeforge.core.vcs.GitCredentials
 import io.nativeforge.core.vcs.GitException
@@ -139,6 +140,13 @@ class WorkspaceViewModel(
      */
     private val autoSaves = HashMap<String, Job>()
 
+    /**
+     * What clangd was last started with: the project's settings and the installed libraries it
+     * uses (their include folders end up in the compilation database). Null when clangd is off.
+     * Declared before `init` for the same reason as [autoSaves].
+     */
+    private var intelInputs: Pair<ProjectConfig, List<NativeDependency>>? = null
+
     init {
         val onChanged: (EditorDocument) -> Unit = { document ->
             _state.update { it.copy(dirtyFiles = it.dirtyFiles + document.path) }
@@ -170,6 +178,7 @@ class WorkspaceViewModel(
                     _state.update { it.copy(project = result.value) }
                     refreshFiles()
                     startCodeIntelligence()
+                    watchInstalledPackages()
                     defaultFile(result.value)?.let(::openFile)
                     watchFiles(result.value)
                 }
@@ -216,11 +225,41 @@ class WorkspaceViewModel(
     private fun startCodeIntelligence() {
         val project = _state.value.project ?: return
         val settings = container.settings.settings.value
-        intel.stop()
-        if (!settings.codeIntelligence) return
-        val request = BuildRequest(project, container.toolchain, dependencies = container.packageManager.nativeDependencies(project.config.packages))
-        // Threads and the background index follow the cores and the free memory.
-        intel.start(request, CodeIntelOptions.forDevice(clangTidy = settings.clangTidy))
+        intelInputs = null
+        if (!settings.codeIntelligence) {
+            intel.stop()
+            return
+        }
+        val dependencies = container.packageManager.nativeDependencies(project.config.packages)
+        intelInputs = project.config to dependencies
+        val request = BuildRequest(project, container.toolchain, dependencies = dependencies)
+        // Threads and the background index follow the cores and the free memory. In the
+        // background (Settings or Packages on top) clangd starts when the workspace is back.
+        intel.restart(request, CodeIntelOptions.forDevice(clangTidy = settings.clangTidy))
+    }
+
+    /**
+     * Restarts clangd when the project's libraries or flags differ from the ones it runs with,
+     * e.g. a missing library was installed (by a build, the Libraries dialog or the Packages
+     * screen): its headers are then found without reopening the project. Cheap otherwise.
+     */
+    private fun refreshCodeIntelligence() {
+        val started = intelInputs ?: return
+        val project = _state.value.project ?: return
+        val current = project.config to container.packageManager.nativeDependencies(project.config.packages)
+        // clangd itself comes with the clang package: retry once it was installed.
+        val clangdArrived = intel.status.value is IntelStatus.Unavailable && container.toolchain.clangd.isFile
+        if (current != started || clangdArrived) startCodeIntelligence()
+    }
+
+    /**
+     * Follows installs and uninstalls. The package manager publishes its installed list once at
+     * the end of each one, so this neither polls nor restarts clangd for every package.
+     */
+    private fun watchInstalledPackages() {
+        viewModelScope.launch {
+            container.packageManager.installed.collect { refreshCodeIntelligence() }
+        }
     }
 
     private var intelSettings: Pair<Boolean, Boolean>? = null
@@ -233,9 +272,6 @@ class WorkspaceViewModel(
         intelSettings = key
         startCodeIntelligence()
     }
-
-    /** New include folders (libraries changed): restart clangd. */
-    fun restartCodeIntelligence() = startCodeIntelligence()
 
     fun openFile(file: File, inSplit: Boolean = _state.value.splitOpen && _state.value.splitFocused) {
         if (file.isDirectory) return
@@ -847,7 +883,6 @@ class WorkspaceViewModel(
             when (val saved = container.projectRepository.saveConfig(project, config)) {
                 is Outcome.Success -> {
                     _state.update { it.copy(project = saved.value) }
-                    restartCodeIntelligence()
                     val missing = packages.filterNot(container.packageManager::isInstalled)
                     if (missing.isNotEmpty()) {
                         appendLog("Installing ${missing.joinToString()}…", false)
@@ -855,6 +890,8 @@ class WorkspaceViewModel(
                         installMissingPackages(saved.value)
                         appendLog("Libraries ready", false)
                     }
+                    // Once, with the libraries that are installed now (not again for the install).
+                    refreshCodeIntelligence()
                 }
                 is Outcome.Failure -> showMessage(saved.error.message)
             }

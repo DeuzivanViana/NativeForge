@@ -1,0 +1,4 @@
+• Corrigido: depois de instalar as bibliotecas que faltavam no projeto, o editor continuava dizendo que os headers e funções não existiam até reabrir o projeto. Agora ele percebe a instalação e verifica o código de novo
+• Corrigido: o aviso de erro do editor ficava alguns segundos na tela depois de sair do projeto
+• Corrigido: um possível fechamento ao abrir o app
+• Tamanho da fonte do editor mais estável com zoom de pinça e toques rápidos nas Configurações

@@ -1,0 +1,4 @@
+• Fixed: after installing a project's missing libraries, the editor kept reporting their headers and functions as missing until the project was reopened. It now notices the install and checks the code again
+• Fixed: the error tooltip of the editor stayed on screen for a few seconds after leaving the project
+• Fixed: a possible crash when opening the app
+• Steadier editor font size with pinch zoom and fast taps in Settings
